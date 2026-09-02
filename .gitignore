@@ -1,0 +1,82 @@
+# ===========================
+# Python
+# ===========================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+*.egg
+.eggs/
+
+# ===========================
+# Virtual Environment
+# ===========================
+venv/
+.venv/
+env/
+ENV/
+
+# ===========================
+# Environment & Secrets
+# ===========================
+.env
+.env.local
+.env.production
+.jwt_secret
+*.pem
+*.key
+
+# ===========================
+# IDE
+# ===========================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.settings/
+
+# ===========================
+# Debug & Logs
+# ===========================
+debug_*.py
+debug_*.txt
+dbg_*.txt
+dbg_*.py
+build_log.txt
+*.log
+
+# ===========================
+# Test & Cache
+# ===========================
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# ===========================
+# Backups (should not be in repo)
+# ===========================
+Project_Backup_Code_*/
+*_backup_*.txt
+*_backup_*.py
+
+# ===========================
+# OS
+# ===========================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ===========================
+# Flutter (root level)
+# ===========================
+frontend/build/
+frontend/.dart_tool/
+frontend/.pub-cache/
+frontend/pubspec.lock

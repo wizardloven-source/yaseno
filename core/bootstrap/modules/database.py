@@ -53,10 +53,15 @@ class DatabaseModule(Module):
         )
         
         # ========== Connection String (Singleton) ==========
+        import os
+        _db_url = os.getenv('DATABASE_URL')
+        if not _db_url:
+            raise RuntimeError("DATABASE_URL is required. Copy .env.example to .env and configure it.")
+        
         container.register_singleton(
             "connection_string",
             str,
-            factory=lambda: "postgresql://postgres:postgres@localhost:5432/erpya"
+            factory=lambda: _db_url
         )
         container.register_singleton(
             "echo_sql",

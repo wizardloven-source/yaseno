@@ -15,6 +15,13 @@ from typing import List, Optional, Dict, Any
 import uuid
 import logging
 
+from dotenv import load_dotenv
+
+# Load .env file from project root
+_env_path = Path(__file__).parent / '.env'
+if _env_path.exists():
+    load_dotenv(_env_path)
+
 sys.path.insert(0, str(Path(__file__).parent))
 
 from fastapi import FastAPI, HTTPException, Depends, status, Query, Request
@@ -62,17 +69,64 @@ _rate_requests = defaultdict(list)
 RATE_LIMIT_MAX = int(os.getenv("RATE_LIMIT_MAX", "100"))
 RATE_LIMIT_WINDOW = int(os.getenv("RATE_LIMIT_WINDOW", "60"))
 
+# Per-endpoint rate limits for sensitive operations
+SENSITIVE_ENDPOINT_LIMITS = {
+    "/api/auth/login": (10, 60),        # 10 attempts per minute
+    "/api/auth/refresh": (20, 60),      # 20 refreshes per minute
+    "/api/auth/change-password": (5, 60),  # 5 attempts per minute
+    "/api/payments": (30, 60),          # 30 payments per minute
+    "/api/invoices": (30, 60),          # 30 invoices per minute
+    "/api/journal-entries": (50, 60),   # 50 entries per minute
+}
+
+def _cleanup_old_entries():
+    """Periodically clean up old rate limit entries to prevent memory leaks."""
+    now = time.time()
+    with _rate_limit_lock:
+        keys_to_delete = []
+        for ip in _rate_requests:
+            _rate_requests[ip] = [t for t in _rate_requests[ip] if now - t < 300]
+            if not _rate_requests[ip]:
+                keys_to_delete.append(ip)
+        for ip in keys_to_delete:
+            del _rate_requests[ip]
+
+# Run cleanup every 5 minutes
+_last_cleanup = time.time()
 
 def rate_limiter(max_requests: int = RATE_LIMIT_MAX, window_seconds: int = RATE_LIMIT_WINDOW):
-    """Sliding-window rate limiter middleware factory."""
+    """Enhanced sliding-window rate limiter with per-endpoint limits."""
     async def dependency(request: Request):
+        global _last_cleanup
+        
+        # Periodic cleanup
+        if time.time() - _last_cleanup > 300:
+            _cleanup_old_entries()
+            _last_cleanup = time.time()
+        
         ip = request.client.host if request.client else "unknown"
+        path = request.url.path
+        
+        # Use endpoint-specific limits if available
+        if path in SENSITIVE_ENDPOINT_LIMITS:
+            endpoint_max, endpoint_window = SENSITIVE_ENDPOINT_LIMITS[path]
+        else:
+            endpoint_max, endpoint_window = max_requests, window_seconds
+        
+        # Create a unique key for IP + endpoint
+        key = f"{ip}:{path}"
         now = time.time()
+        
         with _rate_limit_lock:
-            _rate_requests[ip] = [t for t in _rate_requests[ip] if now - t < window_seconds]
-            if len(_rate_requests[ip]) >= max_requests:
-                raise HTTPException(status_code=429, detail="طلبات كثيرة جداً. يرجى المحاولة لاحقاً.")
-            _rate_requests[ip].append(now)
+            _rate_requests[key] = [t for t in _rate_requests[key] if now - t < endpoint_window]
+            if len(_rate_requests[key]) >= endpoint_max:
+                retry_after = int(endpoint_window - (now - _rate_requests[key][0]))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"طلبات كثيرة جداً. يرجى المحاولة بعد {retry_after} ثانية.",
+                    headers={"Retry-After": str(retry_after)},
+                )
+            _rate_requests[key].append(now)
     return dependency
 
 # =============================================================================
@@ -86,10 +140,13 @@ try:
 except Exception as e:
     print(f"Bootstrap not initialized: {e}")
     print("Initializing bootstrap with default settings...")
+    db_url = os.getenv("DATABASE_URL")
+    if not db_url:
+        raise RuntimeError("DATABASE_URL environment variable is required. Copy .env.example to .env and configure it.")
     bootstrap = init_bootstrap(
-        database_url=os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/erpya"),
-        echo_sql=False,
-        seed_data=False,
+        database_url=db_url,
+        echo_sql=os.getenv("ECHO_SQL", "false").lower() == "true",
+        seed_data=os.getenv("SEED_DATA", "false").lower() == "true",
     )
 
 logger = logging.getLogger(__name__)
@@ -125,8 +182,15 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=CORS_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=[
+        "Authorization",
+        "Content-Type",
+        "Accept",
+        "Origin",
+        "X-Requested-With",
+        "Idempotency-Key",
+    ],
 )
 
 
@@ -136,6 +200,123 @@ async def log_requests(request: Request, call_next):
     response = await call_next(request)
     duration_ms = (time.time() - start) * 1000
     logger.info(f"{request.method} {request.url.path} {response.status_code} {duration_ms:.0f}ms")
+    return response
+
+
+# =============================================================================
+# Idempotency Middleware - منع العمليات المالية المزدوجة
+# =============================================================================
+
+IDEMPOTENCY_ENDPOINTS = {
+    "/api/payments",
+    "/api/invoices",
+    "/api/journal-entries",
+    "/api/purchase-orders",
+    "/api/inventory/movements",
+    "/api/inventory/transfers",
+    "/api/funds/transfer",
+}
+
+@app.middleware("http")
+async def idempotency_middleware(request: Request, call_next):
+    """
+    التحقق من Idempotency-Key للعمليات المالية الحساسة.
+    يمنع إنشاء سجلات مزدوجة عند إعادة إرسال الطلبات.
+    """
+    # Only check POST requests to specific endpoints
+    if request.method != "POST":
+        return await call_next(request)
+    
+    if request.url.path not in IDEMPOTENCY_ENDPOINTS:
+        return await call_next(request)
+    
+    idempotency_key = request.headers.get("Idempotency-Key")
+    if not idempotency_key:
+        return await call_next(request)
+    
+    try:
+        with bootstrap.uow() as uow:
+            from sqlalchemy import text
+            
+            # Check if key already exists
+            existing = uow.session.execute(
+                text("SELECT response_status, response_body, is_processing FROM idempotency_keys WHERE idempotency_key = :key AND expires_at > :now"),
+                {"key": idempotency_key, "now": datetime.now(timezone.utc)}
+            ).fetchone()
+            
+            if existing:
+                if existing.is_processing:
+                    # Request is still being processed
+                    return JSONResponse(
+                        status_code=409,
+                        content={"success": False, "message": "Request is being processed"}
+                    )
+                
+                if existing.response_status and existing.response_body:
+                    # Return cached response
+                    import json
+                    return JSONResponse(
+                        status_code=existing.response_status,
+                        content=json.loads(existing.response_body)
+                    )
+            
+            # Mark as processing
+            uow.session.execute(
+                text("""
+                    INSERT INTO idempotency_keys (idempotency_key, endpoint, is_processing, created_at, expires_at)
+                    VALUES (:key, :endpoint, true, :now, :expires)
+                    ON CONFLICT (idempotency_key) DO NOTHING
+                """),
+                {
+                    "key": idempotency_key,
+                    "endpoint": request.url.path,
+                    "now": datetime.now(timezone.utc),
+                    "expires": datetime.now(timezone.utc) + timedelta(hours=24),
+                }
+            )
+            uow.commit()
+    except Exception as e:
+        logger.warning(f"Idempotency check failed: {e}")
+        # Continue without idempotency protection if DB fails
+    
+    # Process the request
+    response = await call_next(request)
+    
+    # Cache the response for idempotency
+    if idempotency_key and response.status_code < 500:
+        try:
+            response_body = b""
+            async for chunk in response.body_iterator:
+                response_body += chunk if isinstance(chunk, bytes) else chunk.encode()
+            
+            import json
+            with bootstrap.uow() as uow:
+                from sqlalchemy import text
+                uow.session.execute(
+                    text("""
+                        UPDATE idempotency_keys 
+                        SET response_status = :status, response_body = :body, is_processing = false
+                        WHERE idempotency_key = :key
+                    """),
+                    {
+                        "status": response.status_code,
+                        "body": response_body.decode() if response_body else "{}",
+                        "key": idempotency_key,
+                    }
+                )
+                uow.commit()
+            
+            # Return new response with the cached body
+            from fastapi.responses import Response
+            return Response(
+                content=response_body,
+                status_code=response.status_code,
+                headers=dict(response.headers),
+                media_type=response.media_type,
+            )
+        except Exception as e:
+            logger.warning(f"Failed to cache idempotency response: {e}")
+    
     return response
 
 
@@ -152,7 +333,7 @@ class ApiResponse(BaseModel):
 
 class LoginRequest(BaseModel):
     username: str = Field(..., min_length=3, max_length=50)
-    password: str = Field(..., min_length=6)
+    password: str = Field(..., min_length=10)
     remember_me: bool = False
 
 
@@ -387,26 +568,30 @@ def _user_primary_role_display(user) -> str:
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     to_encode = data.copy()
+    now = datetime.now(timezone.utc)
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta
+        expire = now + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        expire = now + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     
     to_encode.update({
         "exp": expire,
         "type": "access",
-        "iat": datetime.utcnow()
+        "iat": now,
+        "jti": str(uuid.uuid4()),
     })
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 
 def create_refresh_token(data: dict) -> str:
     to_encode = data.copy()
-    expire = datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    now = datetime.now(timezone.utc)
+    expire = now + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
     to_encode.update({
         "exp": expire,
         "type": "refresh",
-        "iat": datetime.utcnow()
+        "iat": now,
+        "jti": str(uuid.uuid4()),
     })
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
@@ -421,6 +606,93 @@ def verify_token(token: str) -> dict:
             detail="Invalid token",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+
+# =============================================================================
+# Session Management Helpers
+# =============================================================================
+
+import hashlib
+import secrets
+
+def _hash_token(token: str) -> str:
+    """Hash a token for secure storage in the database."""
+    return hashlib.sha256(token.encode()).hexdigest()
+
+def _generate_jti() -> str:
+    """Generate a unique token ID."""
+    return str(uuid.uuid4())
+
+def _generate_family_id() -> str:
+    """Generate a unique token family ID."""
+    return str(uuid.uuid4())
+
+def _create_user_session(
+    uow,
+    user_id: str,
+    refresh_token: str,
+    jti: str,
+    family_id: str,
+    generation: int = 1,
+    ip_address: str = None,
+    user_agent: str = None,
+    expires_in_days: int = None,
+):
+    """Create a new user session in the database."""
+    from core.infrastructure.db.models.auth_models import UserSessionModel
+    
+    if expires_in_days is None:
+        expires_in_days = REFRESH_TOKEN_EXPIRE_DAYS
+    
+    session = UserSessionModel(
+        user_id=uuid.UUID(user_id),
+        refresh_token_hash=_hash_token(refresh_token),
+        jti=jti,
+        family_id=family_id,
+        generation=generation,
+        ip_address=ip_address,
+        user_agent=user_agent,
+        created_at=datetime.now(timezone.utc),
+        expires_at=datetime.now(timezone.utc) + timedelta(days=expires_in_days),
+        last_used_at=datetime.now(timezone.utc),
+    )
+    uow.session.add(session)
+    return session
+
+def _revoke_session_by_jti(uow, jti: str, reason: str = "logout"):
+    """Revoke a session by its JTI."""
+    from sqlalchemy import text
+    uow.session.execute(
+        text("UPDATE user_sessions SET revoked_at = :now, revoked_reason = :reason WHERE jti = :jti"),
+        {"now": datetime.now(timezone.utc), "reason": reason, "jti": jti}
+    )
+
+def _revoke_all_user_sessions(uow, user_id: str, reason: str = "security"):
+    """Revoke all sessions for a user."""
+    from sqlalchemy import text
+    uow.session.execute(
+        text("UPDATE user_sessions SET revoked_at = :now, revoked_reason = :reason WHERE user_id = :user_id AND revoked_at IS NULL"),
+        {"now": datetime.now(timezone.utc), "reason": reason, "user_id": uuid.UUID(user_id)}
+    )
+
+def _is_session_valid(session) -> bool:
+    """Check if a session is still valid (not revoked and not expired)."""
+    if session.revoked_at is not None:
+        return False
+    if session.expires_at < datetime.now(timezone.utc):
+        return False
+    return True
+
+def _detect_token_reuse(uow, refresh_token_hash: str) -> bool:
+    """Detect if a refresh token has been reused (potential theft)."""
+    from sqlalchemy import text
+    result = uow.session.execute(
+        text("SELECT revoked_at FROM user_sessions WHERE refresh_token_hash = :hash"),
+        {"hash": refresh_token_hash}
+    ).fetchone()
+    if result and result[0] is not None:
+        return True  # Token was already used and revoked
+    return False
 
 
 # =============================================================================
@@ -567,7 +839,19 @@ async def login(request: LoginRequest, rate_limit: None = Depends(rate_limiter(1
         access_token = create_access_token(token_data)
         refresh_token = create_refresh_token(token_data)
         
-        user.last_login = datetime.utcnow()
+        # Create session
+        jti = _generate_jti()
+        family_id = _generate_family_id()
+        _create_user_session(
+            uow=uow,
+            user_id=str(user.id.value),
+            refresh_token=refresh_token,
+            jti=jti,
+            family_id=family_id,
+            generation=1,
+        )
+        
+        user.last_login = datetime.now(timezone.utc)
         user_repo.save(user)
         uow.commit()
         
@@ -592,6 +876,7 @@ async def refresh_token(request: dict, rate_limit: None = Depends(rate_limiter(1
         if not token:
             raise HTTPException(status_code=400, detail="Token is required")
         
+        # Decode the refresh token
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         
         if payload.get("type") != "refresh":
@@ -600,19 +885,67 @@ async def refresh_token(request: dict, rate_limit: None = Depends(rate_limiter(1
         user_id = payload.get("sub")
         username = payload.get("username")
         roles = payload.get("roles", [])
+        jti = payload.get("jti")
         
-        new_access_token = create_access_token({
-            "sub": user_id,
-            "username": username,
-            "roles": roles,
-        })
-        
-        return {
-            "access_token": new_access_token,
-            "token_type": "bearer",
-            "expires_in": ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-        }
+        with bootstrap.uow() as uow:
+            from sqlalchemy import text
+            
+            # Find the session by JTI
+            session = uow.session.execute(
+                text("SELECT * FROM user_sessions WHERE jti = :jti"),
+                {"jti": jti}
+            ).fetchone()
+            
+            if not session:
+                raise HTTPException(status_code=401, detail="Session not found")
+            
+            # Check if session is revoked (reuse detection)
+            if session.revoked_at is not None:
+                # Token reuse detected! Revoke ALL sessions for this user
+                _revoke_all_user_sessions(uow, user_id, reason="token_reuse_detected")
+                uow.commit()
+                logger.warning(f"Token reuse detected for user {user_id}. All sessions revoked.")
+                raise HTTPException(status_code=401, detail="Token reuse detected. All sessions revoked.")
+            
+            # Check if session is expired
+            if session.expires_at < datetime.now(timezone.utc):
+                raise HTTPException(status_code=401, detail="Refresh token expired")
+            
+            # Revoke the current session (rotation)
+            _revoke_session_by_jti(uow, jti, reason="rotated")
+            
+            # Create new tokens
+            token_data = {
+                "sub": user_id,
+                "username": username,
+                "roles": roles,
+            }
+            new_access_token = create_access_token(token_data)
+            new_refresh_token = create_refresh_token(token_data)
+            new_jti = _generate_jti()
+            
+            # Create new session with incremented generation
+            _create_user_session(
+                uow=uow,
+                user_id=user_id,
+                refresh_token=new_refresh_token,
+                jti=new_jti,
+                family_id=session.family_id,
+                generation=session.generation + 1,
+            )
+            
+            uow.commit()
+            
+            return {
+                "access_token": new_access_token,
+                "refresh_token": new_refresh_token,
+                "token_type": "bearer",
+                "expires_in": ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+            }
+    except HTTPException:
+        raise
     except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid refresh token")
         raise HTTPException(status_code=401, detail="Invalid refresh token")
 
 
@@ -622,8 +955,32 @@ async def get_current_user_info(current_user: dict = Depends(get_current_user)):
 
 
 @app.post("/api/auth/logout")
-async def logout(current_user: dict = Depends(get_current_user)):
-    return {"message": "تم تسجيل الخروج بنجاح"}
+async def logout(request: dict = None, current_user: dict = Depends(get_current_user)):
+    """Logout: revoke the current session if refresh token is provided, otherwise revoke all sessions."""
+    try:
+        with bootstrap.uow() as uow:
+            if request and isinstance(request, dict):
+                refresh_token = request.get("token")
+                if refresh_token:
+                    # Revoke specific session
+                    token_hash = _hash_token(refresh_token)
+                    from sqlalchemy import text
+                    uow.session.execute(
+                        text("UPDATE user_sessions SET revoked_at = :now, revoked_reason = 'logout' WHERE refresh_token_hash = :hash"),
+                        {"now": datetime.now(timezone.utc), "hash": token_hash}
+                    )
+                else:
+                    # Revoke all user sessions
+                    _revoke_all_user_sessions(uow, current_user["id"], reason="logout")
+            else:
+                # Revoke all user sessions
+                _revoke_all_user_sessions(uow, current_user["id"], reason="logout")
+            
+            uow.commit()
+            return {"message": "تم تسجيل الخروج بنجاح"}
+    except Exception as e:
+        logger.error(f"Logout error: {e}")
+        return {"message": "تم تسجيل الخروج بنجاح"}
 
 
 @app.post("/api/auth/change-password")
@@ -635,8 +992,8 @@ async def change_password(request: dict, current_user: dict = Depends(get_curren
     if not old_password or not new_password:
         raise HTTPException(status_code=400, detail="كلمة المرور القديمة والجديدة مطلوبتان")
     
-    if len(new_password) < 6:
-        raise HTTPException(status_code=400, detail="كلمة المرور يجب أن تكون 6 أحرف على الأقل")
+    if len(new_password) < 10:
+        raise HTTPException(status_code=400, detail="كلمة المرور يجب أن تكون 10 أحرف على الأقل")
     
     with bootstrap.uow() as uow:
         user_repo = uow.users
@@ -7171,19 +7528,30 @@ async def database_health_check():
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
-    logger.error(f"Unhandled error on {request.url.path}: {exc}", exc_info=True)
-    if ENV == "production":
-        return JSONResponse(status_code=500, content={"success": False, "message": "خطأ داخلي في الخادم"})
-    return JSONResponse(status_code=500, content={"success": False, "message": str(exc)})
+    request_id = str(uuid.uuid4())[:8]
+    logger.error(f"[{request_id}] Unhandled error on {request.url.path}: {exc}", exc_info=True)
+    # Never expose internal errors to the client
+    return JSONResponse(
+        status_code=500,
+        content={
+            "success": False,
+            "message": "خطأ داخلي في الخادم",
+            "request_id": request_id,
+        }
+    )
 
 
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 @app.exception_handler(StarletteHTTPException)
 async def http_exception_handler(request: Request, exc: StarletteHTTPException):
+    # Don't expose internal details in production
+    detail = str(exc.detail)
+    if ENV == "production" and exc.status_code == 500:
+        detail = "خطأ داخلي في الخادم"
     return JSONResponse(
         status_code=exc.status_code,
-        content={"success": False, "message": str(exc.detail), "errors": [str(exc.detail)]}
+        content={"success": False, "message": detail, "errors": [detail]}
     )
 
 

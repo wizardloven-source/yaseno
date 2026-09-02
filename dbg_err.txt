@@ -1,6 +1,0 @@
-⚠️ Missing tables in Base.metadata: fund_transactions
-❌ Still missing tables: fund_transactions
-UserContext not found for handle, using demo super-admin context
-Could not get stock quantities in batch: EntityId.__init__() takes 2 positional arguments but 3 were given
-Accounting settings not found, using defaults
-Account repository not configured, skipping account validation

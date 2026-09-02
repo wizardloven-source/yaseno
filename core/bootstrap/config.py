@@ -41,12 +41,16 @@ class BootstrapConfig:
         """إنشاء الإعدادات من متغيرات البيئة"""
         import os
         
+        db_url = kwargs.get('database_url') or os.getenv('DATABASE_URL')
+        if not db_url:
+            raise RuntimeError("DATABASE_URL is required. Copy .env.example to .env and configure it.")
+        
         return cls(
-            database_url=kwargs.get('database_url') or os.getenv('DATABASE_URL', 'postgresql://postgres:postgres@localhost:5432/erpya'),
+            database_url=db_url,
             echo_sql=kwargs.get('echo_sql', os.getenv('SQL_ECHO', 'false').lower() == 'true'),
             pool_size=kwargs.get('pool_size', int(os.getenv('DB_POOL_SIZE', '5'))),
             max_overflow=kwargs.get('max_overflow', int(os.getenv('DB_MAX_OVERFLOW', '10'))),
-            secret_key=kwargs.get('secret_key', os.getenv('SECRET_KEY', 'change-me-in-production')),
+            secret_key=kwargs.get('secret_key', os.getenv('SECRET_KEY')),
             enable_auth=kwargs.get('enable_auth', os.getenv('ENABLE_AUTH', 'true').lower() == 'true'),
             session_timeout=kwargs.get('session_timeout', int(os.getenv('SESSION_TIMEOUT', '3600'))),
             max_login_attempts=kwargs.get('max_login_attempts', int(os.getenv('MAX_LOGIN_ATTEMPTS', '5'))),

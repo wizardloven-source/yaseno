@@ -292,19 +292,22 @@ class SeedData:
             logger.warning("   ⚠️ Admin role not found, skipping admin user")
             return
         
+        import os
+        admin_password = os.getenv('ADMIN_PASSWORD', 'Admin@123')
+        
         user = User(
             id=UserId.generate(),
             username="admin",
             email="admin@yaseen-erp.com",
             full_name="مدير النظام",
-            password_hash=PasswordHasher.hash("Admin@123"),
+            password_hash=PasswordHasher.hash(admin_password),
             is_active=True,
             is_super_admin=True,
             created_by="system"
         )
         user.roles.append(admin_role)
         user_repo.save(user)
-        logger.info("   ✅ Admin user created (username: admin, password: Admin@123)")
+        logger.info(f"   ✅ Admin user created (username: admin)")
     
     # =========================================================================
     # الحسابات المحاسبية

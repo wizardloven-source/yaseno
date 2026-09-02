@@ -183,3 +183,42 @@ class PermissionModel(Base):
         Index("idx_permissions_code_active", "code", "is_active"),
         Index("idx_permissions_category", "category"),
     )
+
+
+# ========== نموذج جلسة المستخدم ==========
+
+class UserSessionModel(Base):
+    """نموذج جلسة المستخدم - تتبع الجلسات النشطة وتدوير refresh token"""
+    __tablename__ = "user_sessions"
+
+    id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
+    user_id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    
+    # Token data
+    refresh_token_hash: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    jti: Mapped[str] = mapped_column(String(36), unique=True, nullable=False, index=True)
+    
+    # Device/Session info
+    device_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    ip_address: Mapped[Optional[str]] = mapped_column(String(45), nullable=True)  # IPv6 can be 45 chars
+    user_agent: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    
+    # Timestamps
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    last_used_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    
+    # Revocation
+    revoked_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    revoked_reason: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    
+    # Token family tracking (for reuse detection)
+    family_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
+    generation: Mapped[int] = mapped_column(default=1, nullable=False)
+
+    __table_args__ = (
+        Index("idx_user_sessions_user_id", "user_id"),
+        Index("idx_user_sessions_jti", "jti"),
+        Index("idx_user_sessions_refresh_hash", "refresh_token_hash"),
+        Index("idx_user_sessions_expires", "expires_at"),
+    )
