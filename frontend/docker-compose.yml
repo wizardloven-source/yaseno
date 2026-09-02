@@ -1,0 +1,64 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: ya_seen_erp_db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: erpya
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - ya_seen_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # FastAPI Backend
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: ya_seen_erp_backend
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/erpya
+      JWT_SECRET_KEY: your-production-secret-key-change-this
+      DEBUG: "false"
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - ya_seen_network
+    volumes:
+      - ./core:/app/core
+    restart: unless-stopped
+
+  # Flutter Web (Optional)
+  frontend:
+    build:
+      context: ./ya_seen_erp_flutter
+      dockerfile: Dockerfile.frontend
+    container_name: ya_seen_erp_frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - ya_seen_network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+
+networks:
+  ya_seen_network:
+    driver: bridge

@@ -1,0 +1,72 @@
+﻿Resolving dependencies...
+Downloading packages...
+  _fe_analyzer_shared 99.0.0 (105.0.0 available)
+  analyzer 12.1.0 (14.1.0 available)
+  archive 4.0.9 (4.2.0 available)
+  bloc 8.1.4 (9.2.1 available)
+  bloc_test 9.1.7 (10.0.0 available)
+  build 4.0.7 (4.0.10 available)
+  build_runner 2.15.1 (2.16.0 available)
+  code_assets 1.2.1 (2.0.0 available)
+  connectivity_plus 5.0.2 (7.3.1 available)
+  connectivity_plus_platform_interface 1.2.4 (2.1.0 available)
+  dart_style 3.1.8 (3.1.12 available)
+  data_table_2 2.7.2 (3.0.0 available)
+  dbus 0.7.13 (0.7.15 available)
+  decimal 2.3.3 (3.2.6 available)
+  fl_chart 0.66.2 (1.2.0 available)
+  flutter_form_builder 10.3.0+2 (11.0.0 available)
+  flutter_lints 3.0.2 (6.0.0 available)
+  flutter_local_notifications 16.3.3 (22.3.0 available)
+  flutter_local_notifications_linux 4.0.1 (8.0.1 available)
+  flutter_local_notifications_platform_interface 7.2.0 (12.2.0 available)
+  flutter_secure_storage 9.2.4 (11.0.0 available)
+  flutter_secure_storage_linux 1.2.3 (3.0.2 available)
+  flutter_secure_storage_macos 3.1.3 (4.0.0 available)
+  flutter_secure_storage_platform_interface 1.1.2 (2.0.3 available)
+  flutter_secure_storage_web 1.2.1 (2.1.1 available)
+  flutter_secure_storage_windows 3.1.2 (4.2.2 available)
+  hooks 2.0.2 (2.2.0 available)
+  intl 0.20.2 (0.20.3 available)
+  js 0.6.7 (0.7.2 available)
+  json_annotation 4.9.0 (4.12.0 available)
+  lints 3.0.0 (6.1.0 available)
+  matcher 0.12.19 (0.12.20 available)
+  material_color_utilities 0.13.0 (0.13.1 available)
+  meta 1.18.0 (1.19.0 available)
+  mime 1.0.6 (2.0.0 available)
+  mockito 5.6.4 (5.8.1 available)
+  objective_c 9.5.0 (9.6.0 available)
+  package_config 2.2.0 (3.0.0 available)
+  qr 3.0.2 (4.0.0 available)
+  record_use 0.6.0 (1.1.1 available)
+  share_plus 7.2.2 (13.3.0 available)
+  share_plus_platform_interface 3.4.0 (7.2.0 available)
+  shelf_web_socket 2.0.1 (3.0.0 available)
+  shimmer 3.0.0 (4.0.0 available)
+  source_gen 4.2.4 (4.3.0 available)
+  source_maps 0.10.13 (0.10.14 available)
+  test 1.31.0 (1.31.2 available)
+  test_api 0.7.11 (0.7.13 available)
+  test_core 0.6.17 (0.6.19 available)
+  timezone 0.9.4 (0.11.1 available)
+  vector_math 2.2.0 (2.4.2 available)
+  vm_service 15.2.0 (15.3.0 available)
+  win32 5.15.0 (6.4.0 available)
+Got dependencies!
+53 packages have newer versions incompatible with dependency constraints.
+Try `flutter pub outdated` for more information.
+Building Windows application...                                 
+flutter : C:\Program Files\Microsoft Visual 
+Studio\2022\Community\MSBuild\Microsoft\VC\v170\Microsoft.CppCommon.targets(254,5): error MSB8066: Custom build for 'C:
+\Users\MTC\Desktop\yaseeno\frontend\build\windows\x64\CMakeFiles\807767320841abf193708d35ed2b4c0e\flutter_windows.dll.r
+ule;C:\Users\MTC\Desktop\yaseeno\frontend\build\windows\x64\CMakeFiles\4b02262ad3ab7a181804c06b6da9c2bc\flutter_assembl
+e.rule' exited with code 1. [C:\Users\MTC\Desktop\yaseeno\frontend\build\windows\x64\flutter\flutter_assemble.vcxproj]
+At line:1 char:39
++ ... SCRIPT_LOGGING = "true"; flutter build windows --release 2>&1 | Out-F ...
++                              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (C:\Program File...semble.vcxproj]:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+Building Windows application...                                     7.1s
+Build process failed.

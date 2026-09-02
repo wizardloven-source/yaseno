@@ -1,0 +1,7 @@
+start
+bootstrap OK
+scope entered
+handler resolved: PostInvoiceHandler
+posting invoice: dd9a2f98-8966-46f4-8a2d-a0deca733947
+RESULT: {'success': False, 'message': 'فشل تحديث المخزون', 'errors': ['تعذر خصم المنتجات من المخزون.'], 'requires_confirmation': False, 'confirmation_message': None, 'invoice_id': 'dd9a2f98-8966-46f4-8a2d-a0deca733947'}
+done
