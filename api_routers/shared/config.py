@@ -235,8 +235,8 @@ async def idempotency_middleware(request: Request, call_next):
             # RETURNING yields no row and we must NOT proceed — replay or 409.
             claimed = uow.session.execute(
                 text("""
-                    INSERT INTO idempotency_keys (idempotency_key, endpoint, is_processing, created_at, expires_at)
-                    VALUES (:key, :endpoint, true, :now, :expires)
+                    INSERT INTO idempotency_keys (id, idempotency_key, endpoint, is_processing, created_at, expires_at)
+                    VALUES (gen_random_uuid(), :key, :endpoint, true, :now, :expires)
                     ON CONFLICT (idempotency_key) DO NOTHING
                     RETURNING idempotency_key
                 """),

@@ -1875,6 +1875,8 @@ async def list_audit_log(
     entity_id: Optional[str] = None,
     action: Optional[str] = None,
     performed_by: Optional[str] = None,
+    date_from: Optional[date] = None,
+    date_to: Optional[date] = None,
     limit: int = Query(100, ge=1, le=500),
     offset: int = Query(0, ge=0),
     current_user: dict = Depends(get_current_user),
@@ -1891,33 +1893,43 @@ async def list_audit_log(
                 where_clauses.append("entity_id = :eid")
                 params["eid"] = entity_id
             if action:
-                where_clauses.append("action = :act")
+                where_clauses.append("operation = :act")
                 params["act"] = action
             if performed_by:
-                where_clauses.append("performed_by = :pb")
+                where_clauses.append("user_id = :pb")
                 params["pb"] = performed_by
+            if date_from:
+                where_clauses.append("created_at::date >= :df")
+                params["df"] = date_from
+            if date_to:
+                where_clauses.append("created_at::date <= :dt")
+                params["dt"] = date_to
             where_sql = (" AND ".join(where_clauses)) if where_clauses else "1=1"
 
             count = uow.session.execute(text(
-                f"SELECT COUNT(*) FROM audit_log WHERE {where_sql}"
+                f"SELECT COUNT(*) FROM audit_logs WHERE {where_sql}"
             ), params).scalar() or 0
 
             rows = uow.session.execute(text(
-                f"SELECT id::text, entity_type, entity_id, action, performed_by, "
-                f"old_values, new_values, ip_address, created_at "
-                f"FROM audit_log WHERE {where_sql} ORDER BY created_at DESC LIMIT :lim OFFSET :off"
+                f"SELECT id, entity_type, entity_id, operation, user_id, user_name, "
+                f"old_state, new_state, changes, ip_address, created_at "
+                f"FROM audit_logs WHERE {where_sql} ORDER BY created_at DESC LIMIT :lim OFFSET :off"
             ), params).mappings().all()
 
             items = []
             for r in rows:
+                details = r["changes"] or r["new_state"] or r["old_state"] or {}
                 items.append({
-                    "id": r["id"],
+                    "id": str(r["id"]),
                     "entity_type": r["entity_type"],
                     "entity_id": r["entity_id"],
-                    "action": r["action"],
-                    "performed_by": r["performed_by"],
-                    "old_values": r["old_values"],
-                    "new_values": r["new_values"],
+                    "action": r["operation"],
+                    "performed_by": r["user_id"],
+                    "user_id": r["user_id"],
+                    "user_name": r["user_name"] or r["user_id"],
+                    "old_values": r["old_state"],
+                    "new_values": r["new_state"],
+                    "details": details,
                     "ip_address": r["ip_address"],
                     "created_at": str(r["created_at"]) if r["created_at"] else None,
                 })

@@ -12,6 +12,7 @@ import '../../../theme/app_dimensions.dart';
 import '../../widgets/app_widgets.dart';
 import '../../widgets/excel_import_screen.dart';
 import '../../widgets/empty_state.dart';
+import '../../widgets/error_state.dart';
 import '../../widgets/loading_state.dart';
 
 class CustomersListScreen extends StatefulWidget {

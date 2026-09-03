@@ -156,6 +156,8 @@ class CreateJournalEntryHandler(BaseHandler[CreateJournalEntryCommand, JournalEn
             
             # حفظ القيد
             self._uow.journal_entries.save(entry)
+            if hasattr(self._uow, 'collect_events'):
+                self._uow.collect_events(entry.pull_events())
             self._commit()
             
             # تحويل إلى DTO
@@ -198,6 +200,9 @@ class PostJournalEntryHandler(BaseHandler[PostJournalEntryCommand, JournalEntryR
             if not result.success:
                 raise ValueError(f"Posting failed: {result.message}")
             
+            if hasattr(self._uow, 'collect_events'):
+                self._uow.collect_events(entry.pull_events())
+            
             self._commit()
             
             return journal_entry_to_response_dto(entry)
@@ -234,6 +239,9 @@ class ReverseJournalEntryHandler(BaseHandler[ReverseJournalEntryCommand, Journal
                 posted_by=command.reversed_by,
                 auto_post=True
             )
+            
+            if hasattr(self._uow, 'collect_events'):
+                self._uow.collect_events(reversal.pull_events())
             
             self._commit()
             

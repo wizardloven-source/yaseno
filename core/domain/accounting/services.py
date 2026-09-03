@@ -467,17 +467,19 @@ class ReversalService:
                 raise AlreadyReversedError(str(original_entry_id), str(reversal_entry.id))
         
         reversal = original.reverse(reason)
-        
-        # ✅ إصلاح: حفظ القيد الأصلي مع reversed_entry_id
-        # (بدون ذلك يبقى الحقل NULL ويظهر القيد الأصلي كأنه غير معكوس)
-        self._journal_repo.save(original)
-        
+
+        # ✅ ترتيب الحفظ مهم: يجب إنشاء صف القيد العكسي في قاعدة البيانات
+        # قبل تحديث القيد الأصلي بحقل reversed_entry_id (لتجنب انتهاك المفتاح
+        # الأجنبي journal_entries_reversed_entry_id_fkey).
         if auto_post:
             result: PostingResult = self._posting_engine.post(reversal, posted_by, skip_save=False)
             if not result.success:
                 raise RuntimeError(f"Failed to post reversal: {result.message} - {result.error_summary}")
-        
-        self._journal_repo.save(reversal)
+        else:
+            self._journal_repo.save(reversal)
+
+        # ✅ حفظ القيد الأصلي مع reversed_entry_id (بعد وجود صف القيد العكسي)
+        self._journal_repo.save(original)
         
         from .events import EntryReversedEvent
         reversal._events.append(EntryReversedEvent(

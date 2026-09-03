@@ -26,6 +26,29 @@ from core.domain.settings.interfaces import ISettingsRepository
 from core.domain.sites.interfaces import ISiteRepository
 from core.domain.shared.value_objects import BaseDomainEvent
 
+import uuid as _uuid
+from decimal import Decimal as _Decimal
+
+
+def _json_safe(obj: Any) -> Any:
+    """Convert a domain object graph to JSON-serializable primitives."""
+    if obj is None or isinstance(obj, (str, int, float, bool)):
+        return obj
+    if isinstance(obj, _Decimal):
+        return str(obj)
+    if isinstance(obj, (_uuid.UUID, datetime)):
+        return str(obj)
+    if isinstance(obj, dict):
+        return {str(k): _json_safe(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple, set)):
+        return [_json_safe(v) for v in obj]
+    # Fallback: use __str__ for any other object (e.g. value objects / Money)
+    try:
+        return str(obj)
+    except Exception:
+        return None
+
+
 from .repositories import (
     PostgresJournalEntryRepository, PostgresLedgerRepository,
     PostgresAccountRepository, PostgresFiscalPeriodRepository as PostgresAccountingPeriodRepo,
@@ -690,7 +713,7 @@ class PostgresUnitOfWork(IUnitOfWork):
                 entity_type=entity_type,
                 entity_id=entity_id,
                 performed_by=performed_by,
-                changes=event_dict
+                changes=_json_safe(event_dict)
             )
         except Exception as e:
             logger.error(f"Failed to log audit for event: {e}")

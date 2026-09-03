@@ -7,7 +7,7 @@ from decimal import Decimal
 from typing import List, Dict, Optional
 from uuid import UUID
 
-from sqlalchemy import select, and_, func, update, text
+from sqlalchemy import select, and_, func, update, delete, text
 from sqlalchemy.orm import Session, selectinload
 
 from core.domain.accounting.entities import JournalEntry, JournalLine
