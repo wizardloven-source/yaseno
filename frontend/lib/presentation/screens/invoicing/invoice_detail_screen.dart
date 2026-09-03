@@ -12,6 +12,9 @@ import '../../../utils/currency_helper.dart';
 import '../../../utils/error_utils.dart';
 import '../../../utils/money_utils.dart';
 import '../../widgets/app_widgets.dart';
+import '../../widgets/loading_state.dart';
+import '../../widgets/empty_state.dart';
+import '../../widgets/status_chip.dart';
 import 'package:decimal/decimal.dart';
 
 class InvoiceDetailScreen extends StatefulWidget {
@@ -476,8 +479,12 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
   }
 
   Widget _buildBody() {
-    if (_isLoading) return const Center(child: CircularProgressIndicator());
-    if (_invoice == null) return const Center(child: Text('الفاتورة غير موجودة'));
+    if (_isLoading) return const LoadingState(skeleton: false);
+    if (_invoice == null) return const EmptyState(
+      icon: Icons.receipt_long,
+      title: 'الفاتورة غير موجودة',
+      message: 'لم يتم العثور على الفاتورة المطلوبة',
+    );
 
     final inv = _invoice!;
 
@@ -492,7 +499,7 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
               children: [
                 Row(
                   children: [
-                    _statusBadge(inv.status, inv.statusDisplay),
+                    StatusChip(status: inv.status),
                     const Spacer(),
                     if (inv.number != null)
                       Text(
@@ -650,35 +657,6 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
             ),
           ],
         ],
-      ),
-    );
-  }
-
-  Widget _statusBadge(String status, String display) {
-    Color color;
-    switch (status) {
-      case 'posted':
-        color = AppColors.success;
-        break;
-      case 'cancelled':
-        color = AppColors.danger;
-        break;
-      default:
-        color = AppColors.warning;
-    }
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color),
-      ),
-      child: Text(
-        display,
-        style: TextStyle(
-          color: color,
-          fontWeight: FontWeight.bold,
-        ),
       ),
     );
   }

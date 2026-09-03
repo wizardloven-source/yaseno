@@ -10,6 +10,9 @@ import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimensions.dart';
 import '../../widgets/app_widgets.dart';
 import '../../widgets/excel_import_screen.dart';
+import '../../widgets/empty_state.dart';
+import '../../widgets/error_state.dart';
+import '../../widgets/loading_state.dart';
 
 class ProductsListScreen extends StatefulWidget {
   const ProductsListScreen({super.key});
@@ -132,7 +135,7 @@ class _ProductsListScreenState extends State<ProductsListScreen> {
             ),
           Expanded(
             child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
+                ? const LoadingState()
                 : Column(
                   children: [
                     if (_categories.isNotEmpty) _buildCategoryChips(),
@@ -152,38 +155,27 @@ class _ProductsListScreenState extends State<ProductsListScreen> {
   }
 
   Widget _buildError() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.error_outline, size: 64, color: AppColors.danger),
-          const SizedBox(height: 16),
-          Text(ErrorUtils.sanitize(_error)),
-          const SizedBox(height: 16),
-          AppButton(
-            onPressed: _loadProducts,
-            icon: Icons.refresh,
-            label: 'إعادة المحاولة',
-            variant: AppButtonVariant.primary,
-          ),
-        ],
-      ),
+    return ErrorState(
+      message: ErrorUtils.sanitize(_error),
+      onRetry: _loadProducts,
     );
   }
 
   Widget _buildEmpty() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.inventory_2, size: 80, color: Theme.of(context).colorScheme.onSurfaceVariant),
-          const SizedBox(height: 16),
-          Text(_searchText.isNotEmpty ? 'لا توجد نتائج بحث' : 'لا يوجد منتجات', style: Theme.of(context).textTheme.headlineSmall),
-          const SizedBox(height: 8),
-          if (_searchText.isNotEmpty)
-            TextButton(onPressed: () => setState(() { _searchText = ''; _selectedCategory = null; }), child: const Text('مسح البحث')),
-        ],
-      ),
+    if (_searchText.isNotEmpty || _selectedCategory != null) {
+      return EmptyState(
+        icon: Icons.search_off,
+        title: 'لا توجد نتائج بحث',
+        actionLabel: 'مسح البحث',
+        onAction: () => setState(() { _searchText = ''; _selectedCategory = null; }),
+      );
+    }
+    return EmptyState(
+      icon: Icons.inventory_2,
+      title: 'لا توجد أصناف بعد',
+      message: 'أضف أول صنف لتبدأ تكوين مخزونك.',
+      actionLabel: 'منتج جديد',
+      onAction: _addProduct,
     );
   }
 

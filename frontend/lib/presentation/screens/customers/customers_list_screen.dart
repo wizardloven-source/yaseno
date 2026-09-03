@@ -7,10 +7,12 @@ import '../../../services/api_service.dart';
 import '../../../services/import/import_definitions.dart';
 import '../../../utils/error_utils.dart';
 import '../../../utils/money_utils.dart';
-import '../../widgets/app_widgets.dart';
-import '../../widgets/excel_import_screen.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimensions.dart';
+import '../../widgets/app_widgets.dart';
+import '../../widgets/excel_import_screen.dart';
+import '../../widgets/empty_state.dart';
+import '../../widgets/loading_state.dart';
 
 class CustomersListScreen extends StatefulWidget {
   const CustomersListScreen({super.key});
@@ -137,7 +139,7 @@ class _CustomersListScreenState extends State<CustomersListScreen> {
             ),
           Expanded(
             child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
+                ? const LoadingState()
                 : Column(
                   children: [
                     _buildFilterBar(),
@@ -168,32 +170,28 @@ class _CustomersListScreenState extends State<CustomersListScreen> {
   }
 
   Widget _buildError() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.error_outline, size: 64, color: AppColors.danger),
-          const SizedBox(height: 16),
-          Text(ErrorUtils.sanitize(_error)),
-          const SizedBox(height: 16),
-          AppButton(label: 'إعادة المحاولة', icon: Icons.refresh, onPressed: _loadAll),
-        ],
-      ),
+    return ErrorState(
+      message: ErrorUtils.sanitize(_error),
+      onRetry: _loadAll,
     );
   }
 
   Widget _buildEmpty() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.people_outline, size: 80, color: Theme.of(context).colorScheme.onSurfaceVariant),
-          const SizedBox(height: 16),
-          Text(_searchText.isNotEmpty ? 'لا توجد نتائج' : 'لا يوجد عملاء', style: Theme.of(context).textTheme.headlineSmall),
-          if (_searchText.isNotEmpty)
-            TextButton(onPressed: () => setState(() => _searchText = ''), child: const Text('مسح البحث')),
-        ],
-      ),
+    if (_searchText.isNotEmpty) {
+      return EmptyState(
+        icon: Icons.search_off,
+        title: 'لا توجد نتائج',
+        message: 'جرب كلمات بحث مختلفة أو امسح البحث.',
+        actionLabel: 'مسح البحث',
+        onAction: () => setState(() => _searchText = ''),
+      );
+    }
+    return EmptyState(
+      icon: Icons.people_outline,
+      title: 'لم تتم إضافة عملاء بعد',
+      message: 'أضف أول عميل لتبدأ تسجيل مبيعاتك.',
+      actionLabel: 'عميل جديد',
+      onAction: _addCustomer,
     );
   }
 

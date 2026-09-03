@@ -6,6 +6,8 @@ import '../../../theme/app_dimensions.dart';
 import '../../../theme/app_text_styles.dart';
 import '../../../utils/error_utils.dart';
 import '../../widgets/app_widgets.dart';
+import '../../widgets/loading_state.dart';
+import '../../widgets/empty_state.dart';
 
 class AssetsScreen extends StatefulWidget {
   const AssetsScreen({super.key});
@@ -830,29 +832,14 @@ class _AssetsScreenState extends State<AssetsScreen> {
 
   Widget _buildBody() {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const LoadingState();
     }
 
     if (_assets.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.apartment, size: 64, color: Theme.of(context).colorScheme.onSurfaceVariant),
-            const SizedBox(height: 16),
-            Text(
-              'لا توجد أصول',
-              style: AppTextStyles.headlineSmall.copyWith(
-                color: AppColors.textSecondary,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'اضغط على + لإضافة أصل جديد',
-              style: const TextStyle(color: AppColors.textSecondary),
-            ),
-          ],
-        ),
+      return const EmptyState(
+        icon: Icons.apartment,
+        title: 'لا توجد أصول',
+        message: 'اضغط على + لإضافة أصل جديد',
       );
     }
 

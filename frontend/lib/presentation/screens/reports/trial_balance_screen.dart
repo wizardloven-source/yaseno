@@ -8,6 +8,7 @@ import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimensions.dart';
 import '../../../theme/app_text_styles.dart';
 import '../../widgets/app_widgets.dart';
+import '../../widgets/loading_state.dart';
 
 class TrialBalanceReportScreen extends StatefulWidget {
   const TrialBalanceReportScreen({super.key});
@@ -152,7 +153,7 @@ class _TrialBalanceReportScreenState extends State<TrialBalanceReportScreen> {
             ),
           ),
           if (_isLoading)
-            const Expanded(child: Center(child: CircularProgressIndicator()))
+            const Expanded(child: LoadingState())
           else
             Expanded(
               child: Column(

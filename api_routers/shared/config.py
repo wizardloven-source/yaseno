@@ -24,7 +24,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from jose import JWTError, jwt
-from passlib.context import CryptContext
+import bcrypt as _bcrypt
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +73,26 @@ ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
 REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "30"))
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+def _verify_password(plain: str, hashed: str) -> bool:
+    try:
+        return _bcrypt.checkpw(plain.encode("utf-8"), hashed.encode("utf-8"))
+    except Exception:
+        return False
+
+
+def _hash_password(password: str) -> str:
+    return _bcrypt.hashpw(password.encode("utf-8"), _bcrypt.gensalt()).decode("utf-8")
+
+
+class _PwdContext:
+    """Minimal drop-in for passlib.CryptContext used only for verify/hash."""
+    def verify(self, plain: str, hashed: str) -> bool:
+        return _verify_password(plain, hashed)
+    def hash(self, password: str) -> str:
+        return _hash_password(password)
+
+
+pwd_context = _PwdContext()
 
 from fastapi.security import OAuth2PasswordBearer
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
@@ -211,16 +230,33 @@ async def idempotency_middleware(request: Request, call_next):
                     import json
                     return JSONResponse(status_code=existing.response_status, content=json.loads(existing.response_body))
 
-            uow.session.execute(
+            # Claim the key atomically. If the INSERT conflicts (a concurrent
+            # request already claimed this key between our SELECT and INSERT),
+            # RETURNING yields no row and we must NOT proceed — replay or 409.
+            claimed = uow.session.execute(
                 text("""
                     INSERT INTO idempotency_keys (idempotency_key, endpoint, is_processing, created_at, expires_at)
                     VALUES (:key, :endpoint, true, :now, :expires)
                     ON CONFLICT (idempotency_key) DO NOTHING
+                    RETURNING idempotency_key
                 """),
                 {"key": idempotency_key, "endpoint": request.url.path,
                  "now": datetime.now(timezone.utc), "expires": datetime.now(timezone.utc) + timedelta(hours=24)}
-            )
+            ).scalar()
             uow.commit()
+
+            if not claimed:
+                # A concurrent request won the claim. Return its outcome if
+                # already stored, otherwise tell the caller it's in progress.
+                concurrent = uow.session.execute(
+                    text("SELECT response_status, response_body, is_processing FROM idempotency_keys WHERE idempotency_key = :key"),
+                    {"key": idempotency_key}
+                ).fetchone()
+                if concurrent and concurrent.response_status and concurrent.response_body:
+                    import json
+                    if not concurrent.is_processing:
+                        return JSONResponse(status_code=concurrent.response_status, content=json.loads(concurrent.response_body))
+                return JSONResponse(status_code=409, content={"success": False, "message": "Request is being processed"})
 
     except Exception as e:
         logger.warning(f"Idempotency check failed: {e}")

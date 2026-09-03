@@ -2,16 +2,33 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'sidebar_widget.dart';
 import '../../theme/app_dimensions.dart';
-import '../../theme/app_colors.dart';
 
 class MainShell extends StatelessWidget {
   final Widget child;
   const MainShell({super.key, required this.child});
 
+  static const _mobileBreakpoint = 800.0;
+
+  /// يحدد علامة التبويب النشطة في شريط التنقل السفلي حسب المسار (§54).
+  static int _activeTabFor(String route) {
+    if (route == '/' || route.startsWith('/dashboard')) return 0;
+    if (route.startsWith('/invoices') ||
+        route.startsWith('/customers') ||
+        route.startsWith('/payments')) {
+      return 1;
+    }
+    if (route.startsWith('/inventory') ||
+        route.startsWith('/products') ||
+        route.startsWith('/assets')) {
+      return 2;
+    }
+    return 3;
+  }
+
   @override
   Widget build(BuildContext context) {
     final currentRoute = GoRouterState.of(context).matchedLocation;
-    final isSmallScreen = MediaQuery.of(context).size.width < 800;
+    final isSmallScreen = MediaQuery.of(context).size.width < _mobileBreakpoint;
 
     if (isSmallScreen) {
       return Scaffold(
@@ -25,6 +42,8 @@ class MainShell extends StatelessWidget {
           child: SidebarWidget(currentRoute: currentRoute),
         ),
         body: child,
+        floatingActionButton: _buildFloatingActions(context),
+        bottomNavigationBar: _buildBottomNavigation(context, currentRoute),
       );
     }
 
@@ -43,6 +62,105 @@ class MainShell extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  /// زر `+` المركزي على الجوال لفتح الإجراءات السريعة (§54).
+  Widget _buildFloatingActions(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return FloatingActionButton(
+      onPressed: () => _showQuickActions(context),
+      backgroundColor: scheme.primary,
+      foregroundColor: scheme.onPrimary,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: const Icon(Icons.add, size: 28),
+    );
+  }
+
+  void _showQuickActions(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                child: Text(
+                  'إجراءات سريعة',
+                  style: Theme.of(ctx).textTheme.titleMedium,
+                ),
+              ),
+              _quickAction(ctx, Icons.receipt_long, 'فاتورة مبيعات', '/invoices/create'),
+              _quickAction(ctx, Icons.shopping_cart, 'أمر شراء', '/purchase-orders/create'),
+              _quickAction(ctx, Icons.payments, 'دفعة', '/payments/create'),
+              _quickAction(ctx, Icons.swap_horiz, 'تحويل بين الصناديق', '/funds/transfer'),
+              _quickAction(ctx, Icons.menu_book, 'قيد يومي', '/journal-entries/create'),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _quickAction(BuildContext context, IconData icon, String label, String route) {
+    return ListTile(
+      leading: Icon(icon, color: Theme.of(context).colorScheme.primary),
+      title: Text(label),
+      onTap: () {
+        Navigator.pop(context);
+        context.go(route);
+      },
+    );
+  }
+
+  Widget _buildBottomNavigation(BuildContext context, String currentRoute) {
+    final scheme = Theme.of(context).colorScheme;
+    final active = _activeTabFor(currentRoute);
+
+    return NavigationBar(
+      height: 68,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      indicatorColor: scheme.primary.withValues(alpha: 0.15),
+      selectedIndex: active,
+      onDestinationSelected: (index) {
+        switch (index) {
+          case 0:
+            context.go('/');
+          case 1:
+            context.go('/invoices');
+          case 2:
+            context.go('/inventory');
+          case 3:
+            Scaffold.of(context).openDrawer();
+        }
+      },
+      destinations: const [
+        NavigationDestination(
+          icon: Icon(Icons.home_outlined),
+          selectedIcon: Icon(Icons.home),
+          label: 'الرئيسية',
+        ),
+        NavigationDestination(
+          icon: Icon(Icons.sell_outlined),
+          selectedIcon: Icon(Icons.sell),
+          label: 'المبيعات',
+        ),
+        NavigationDestination(
+          icon: Icon(Icons.inventory_2_outlined),
+          selectedIcon: Icon(Icons.inventory_2),
+          label: 'المخزون',
+        ),
+        NavigationDestination(
+          icon: Icon(Icons.more_horiz),
+          selectedIcon: Icon(Icons.more_horiz),
+          label: 'المزيد',
+        ),
+      ],
     );
   }
 

@@ -120,10 +120,21 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
-          gradient: AppColors.primaryGradient,
+          color: Theme.of(context).scaffoldBackgroundColor,
+          // ظل خفيف جدًا (brand pattern) دون تدرّج مبالغ فيه (§61، §110، §132)
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              scheme.primary.withValues(alpha: isDark ? 0.10 : 0.06),
+              Theme.of(context).scaffoldBackgroundColor,
+            ],
+          ),
         ),
         child: SafeArea(
           child: Center(
@@ -137,40 +148,45 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                     mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      // Logo
+                      // Logo — علامة هادئة بدل رموز حرفية (§61)
                       Container(
+                        width: 84,
+                        height: 84,
                         padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: scheme.primary.withValues(alpha: 0.1),
                           shape: BoxShape.circle,
-                          boxShadow: AppDimens.cardShadow,
+                          border: Border.all(
+                            color: scheme.primary.withValues(alpha: 0.25),
+                            width: 1.5,
+                          ),
                         ),
                         child: Icon(
-                          Icons.account_balance,
-                          size: 60,
-                          color: AppColors.primary,
+                          Icons.sync_alt,
+                          size: 44,
+                          color: Theme.of(context).colorScheme.primary,
                         ),
                       ),
-                      const SizedBox(height: 32),
+                      const SizedBox(height: 24),
                       
                       // Title
                       Text(
-                        'YAseen ERP',
+                        'YAseen',
                         style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                           fontWeight: FontWeight.bold,
-                          color: Colors.white,
+                          color: Theme.of(context).colorScheme.onSurface,
                         ),
                         textAlign: TextAlign.center,
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 6),
                       Text(
-                        'نظام المحاسبة المتكامل',
+                        'ERP يفهم طريقة عمل شركتك',
                         style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          color: Colors.white.withOpacity(0.9),
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                         textAlign: TextAlign.center,
                       ),
-                      const SizedBox(height: 48),
+                      const SizedBox(height: 40),
                       
                       // Login Card
                       AppCard(
@@ -178,7 +194,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            Text(
+                            const Text(
                               'تسجيل الدخول',
                               style: AppTextStyles.headlineSmall,
                               textAlign: TextAlign.center,
@@ -194,10 +210,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                 prefixIcon: const Icon(Icons.person_outline),
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(AppDimens.radiusInput),
-                                  borderSide: const BorderSide(color: AppColors.inputBorder),
                                 ),
-                                filled: true,
-                                fillColor: AppColors.cardBackground,
                               ),
                               textInputAction: TextInputAction.next,
                               validator: (value) {
@@ -222,10 +235,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                 prefixIcon: const Icon(Icons.lock_outline),
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(AppDimens.radiusInput),
-                                  borderSide: const BorderSide(color: AppColors.inputBorder),
                                 ),
-                                filled: true,
-                                fillColor: AppColors.cardBackground,
                                 suffixIcon: IconButton(
                                   icon: Icon(
                                     _obscurePassword ? Icons.visibility_off : Icons.visibility,
@@ -296,7 +306,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                       Text(
                         'الإصدار 3.0.0',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AppColors.textSecondary,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                         textAlign: TextAlign.center,
                       ),

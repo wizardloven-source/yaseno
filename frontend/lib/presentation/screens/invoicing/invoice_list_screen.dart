@@ -11,6 +11,9 @@ import '../../../utils/money_utils.dart';
 import '../../../utils/currency_helper.dart';
 import '../../widgets/app_widgets.dart';
 import '../../widgets/excel_import_screen.dart';
+import '../../widgets/empty_state.dart';
+import '../../widgets/loading_state.dart';
+import '../../widgets/status_chip.dart';
 
 class InvoiceListScreen extends StatefulWidget {
   const InvoiceListScreen({super.key});
@@ -83,24 +86,14 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
             ),
           Expanded(
             child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
+                ? const LoadingState()
                 : _invoices.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(Icons.receipt_long_outlined, size: 64, color: AppColors.textSecondary),
-                            const SizedBox(height: 16),
-                            const Text('لا توجد فواتير'),
-                            const SizedBox(height: 8),
-                            AppButton(
-                              onPressed: () => context.go('/invoices/create'),
-                              icon: Icons.add,
-                              label: 'إنشاء فاتورة جديدة',
-                              variant: AppButtonVariant.success,
-                            ),
-                          ],
-                        ),
+                    ? EmptyState(
+                        icon: Icons.receipt_long_outlined,
+                        title: 'لا توجد فواتير بعد',
+                        message: 'أنشئ أول فاتورة لتبدأ تسجيل مبيعاتك.',
+                        actionLabel: 'إنشاء فاتورة',
+                        onAction: () => context.go('/invoices/create'),
                       )
                     : RefreshIndicator(
                         onRefresh: _loadInvoices,
@@ -166,51 +159,13 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
                 style: AppTextStyles.moneyMedium,
               ),
               const SizedBox(height: 4),
-              _buildStatusBadge(status),
+              StatusChip(status: status),
             ],
           ),
           onTap: () {
             context.go('/invoices/$id');
           },
         ),
-      ),
-    );
-  }
-
-  Widget _buildStatusBadge(String status) {
-    Color color;
-    String label;
-    switch (status) {
-      case 'posted':
-        color = AppColors.success;
-        label = 'مرحّلة';
-        break;
-      case 'draft':
-        color = AppColors.warning;
-        label = 'مسودة';
-        break;
-      case 'cancelled':
-        color = AppColors.danger;
-        label = 'ملغاة';
-        break;
-      case 'returned':
-        color = AppColors.secondary;
-        label = 'مرتجعة';
-        break;
-      default:
-        color = AppColors.textSecondary;
-        label = status;
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.bold),
       ),
     );
   }

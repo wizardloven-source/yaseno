@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:decimal/decimal.dart';
 import '../../../theme/app_colors.dart';
 import '../../providers/funds_provider.dart';
-import '../../widgets/loading_widget.dart';
+import '../../widgets/loading_state.dart';
 import '../../widgets/app_widgets.dart';
 import '../../../utils/error_utils.dart';
 
@@ -40,7 +40,7 @@ class _FundTransferScreenState extends State<FundTransferScreen> {
         foregroundColor: Colors.white,
       ),
       body: _isLoading
-          ? const LoadingWidget()
+          ? const LoadingState(skeleton: false)
           : SingleChildScrollView(
               padding: const EdgeInsets.all(16),
               child: Form(

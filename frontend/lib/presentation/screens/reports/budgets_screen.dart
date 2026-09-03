@@ -7,6 +7,9 @@ import '../../../utils/money_utils.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimensions.dart';
 import '../../widgets/app_widgets.dart';
+import '../../widgets/loading_state.dart';
+import '../../widgets/empty_state.dart';
+import '../../widgets/error_state.dart';
 
 class BudgetsScreen extends StatefulWidget {
   const BudgetsScreen({super.key});
@@ -213,17 +216,11 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
   }
 
   Widget _buildBudgetsTab() {
-    if (_isLoading) return const Center(child: CircularProgressIndicator());
+    if (_isLoading) return const LoadingState();
     if (_budgets.isEmpty) {
-      return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.pie_chart_outline, size: 64, color: AppColors.textHint),
-            SizedBox(height: 16),
-            Text('لا توجد موازنات', style: TextStyle(fontSize: 18, color: AppColors.textSecondary)),
-          ],
-        ),
+      return const EmptyState(
+        icon: Icons.pie_chart_outline,
+        title: 'لا توجد موازنات',
       );
     }
     return ListView.builder(
@@ -305,29 +302,17 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
   }
 
   Widget _buildBvaContent() {
-    if (_bvaLoading) return const Center(child: CircularProgressIndicator());
+    if (_bvaLoading) return const LoadingState();
     if (_bvaError != null) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(ErrorUtils.sanitize(_bvaError)),
-            const SizedBox(height: 12),
-            ElevatedButton(onPressed: _loadBva, child: const Text('إعادة المحاولة')),
-          ],
-        ),
+      return ErrorState(
+        message: ErrorUtils.sanitize(_bvaError),
+        onRetry: _loadBva,
       );
     }
     if (_bvaItems.isEmpty) {
-      return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.insert_chart_outlined, size: 64, color: AppColors.textHint),
-            SizedBox(height: 16),
-            Text('اختر موازنة ثم اضغط عرض', style: TextStyle(fontSize: 16, color: AppColors.textSecondary)),
-          ],
-        ),
+      return const EmptyState(
+        icon: Icons.insert_chart_outlined,
+        title: 'اختر موازنة ثم اضغط عرض',
       );
     }
 

@@ -4,6 +4,7 @@ import '../../../utils/error_utils.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimensions.dart';
 import '../../widgets/app_widgets.dart';
+import '../../widgets/loading_state.dart';
 
 class UserFormScreen extends StatefulWidget {
   final String? userId;
@@ -97,7 +98,7 @@ class _UserFormScreenState extends State<UserFormScreen> {
     return Scaffold(
       appBar: AppBar(title: Text(_isEdit ? 'تعديل المستخدم' : 'مستخدم جديد')),
       body: _isLoadingEdit
-          ? const Center(child: CircularProgressIndicator())
+          ? const LoadingState(skeleton: false)
           : Padding(
               padding: const EdgeInsets.all(AppDimens.s3),
               child: Form(

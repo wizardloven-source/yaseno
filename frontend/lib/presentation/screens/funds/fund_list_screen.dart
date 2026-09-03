@@ -6,6 +6,8 @@ import '../../../theme/app_text_styles.dart';
 import '../../../services/api_service.dart';
 import '../../../utils/error_utils.dart';
 import '../../../utils/currency_helper.dart';
+import '../../widgets/empty_state.dart';
+import '../../widgets/loading_state.dart';
 
 class FundListScreen extends StatefulWidget {
   const FundListScreen({super.key});
@@ -109,7 +111,7 @@ class _FundListScreenState extends State<FundListScreen> {
   }
 
   Widget _buildBody() {
-    if (_isLoading) return const Center(child: CircularProgressIndicator());
+    if (_isLoading) return const LoadingState();
     return Column(
       children: [
         if (_error != null)
@@ -123,15 +125,15 @@ class _FundListScreenState extends State<FundListScreen> {
           ),
         if (_funds.isEmpty && _error == null)
           Expanded(
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.account_balance_wallet_outlined, size: 64, color: Theme.of(context).colorScheme.onSurfaceVariant),
-                  const SizedBox(height: 16),
-                  Text('لا توجد صناديق', style: AppTextStyles.headlineSmall),
-                ],
-              ),
+            child: EmptyState(
+              icon: Icons.account_balance_wallet_outlined,
+              title: 'لا توجد صناديق بعد',
+              message: 'أنشئ أول صندوق لتتبع النقدية.',
+              actionLabel: 'صندوق جديد',
+              onAction: () async {
+                await context.push('/funds/create');
+                _loadFunds();
+              },
             ),
           )
         else if (_funds.isNotEmpty)

@@ -3,6 +3,8 @@ import '../../../services/api_service.dart';
 import '../../../utils/error_utils.dart';
 import '../../../theme/app_colors.dart';
 import '../../../presentation/widgets/app_widgets.dart';
+import '../../widgets/loading_state.dart';
+import '../../widgets/empty_state.dart';
 
 class BranchesScreen extends StatefulWidget {
   const BranchesScreen({super.key});
@@ -269,11 +271,11 @@ class _BranchesScreenState extends State<BranchesScreen> {
   }
 
   Widget _buildBody() {
-    if (_isLoading) return const Center(child: CircularProgressIndicator());
+    if (_isLoading) return const LoadingState();
     if (_branches.isEmpty)
-      return const Center(
-        child: Text('لا توجد فروع',
-            style: TextStyle(fontSize: 18, color: AppColors.textMuted)),
+      return const EmptyState(
+        icon: Icons.store,
+        title: 'لا توجد فروع',
       );
     return ListView.builder(
       padding: const EdgeInsets.all(8),

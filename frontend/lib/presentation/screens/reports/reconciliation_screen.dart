@@ -9,6 +9,9 @@ import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimensions.dart';
 import '../../../theme/app_text_styles.dart';
 import '../../widgets/app_widgets.dart';
+import '../../widgets/loading_state.dart';
+import '../../widgets/empty_state.dart';
+import '../../widgets/error_state.dart';
 
 class ReconciliationScreen extends StatefulWidget {
   const ReconciliationScreen({super.key});
@@ -203,7 +206,7 @@ class _ReconciliationScreenState extends State<ReconciliationScreen> {
             ),
           Expanded(
             child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
+                ? const LoadingState()
                 : ListView(
                     padding: const EdgeInsets.all(AppDimens.s2),
                     children: [
@@ -213,7 +216,11 @@ class _ReconciliationScreenState extends State<ReconciliationScreen> {
                           style: Theme.of(context).textTheme.titleMedium),
                       const SizedBox(height: 8),
                       if (_reconciliations.isEmpty)
-                        const Center(child: Text('لا توجد مطابقات'))
+                        const EmptyState(
+                          icon: Icons.compare_arrows,
+                          title: 'لا توجد مطابقات',
+                          compact: true,
+                        )
                       else
                         ..._reconciliations.map(_buildReconciliationCard),
                     ],
@@ -509,19 +516,12 @@ class _ReconciliationDetailSheetState extends State<_ReconciliationDetailSheet> 
         expand: false,
         builder: (context, scrollController) {
           if (_isLoading) {
-            return const Center(child: CircularProgressIndicator());
+            return const LoadingState(skeleton: false);
           }
           if (_error != null) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(ErrorUtils.sanitize(_error)),
-                  const SizedBox(height: 12),
-                  ElevatedButton(
-                      onPressed: _loadDetail, child: const Text('إعادة المحاولة')),
-                ],
-              ),
+            return ErrorState(
+              message: ErrorUtils.sanitize(_error),
+              onRetry: _loadDetail,
             );
           }
           return Column(
@@ -542,7 +542,11 @@ class _ReconciliationDetailSheetState extends State<_ReconciliationDetailSheet> 
               const Divider(height: 1),
               Expanded(
                 child: _items.isEmpty
-                    ? const Center(child: Text('لا توجد بنود للمطابقة'))
+                    ? const EmptyState(
+                        icon: Icons.compare_arrows,
+                        title: 'لا توجد بنود للمطابقة',
+                        compact: true,
+                      )
                     : ListView.builder(
                         controller: scrollController,
                         padding: const EdgeInsets.all(8),

@@ -9,6 +9,8 @@ import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimensions.dart';
 import '../../../theme/app_text_styles.dart';
 import '../../widgets/app_widgets.dart';
+import '../../widgets/loading_state.dart';
+import '../../widgets/empty_state.dart';
 
 class ApprovalsScreen extends StatefulWidget {
   const ApprovalsScreen({super.key});
@@ -542,22 +544,12 @@ class _ApprovalsScreenState extends State<ApprovalsScreen> {
 
   Widget _buildBody() {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const LoadingState();
     }
     if (_requests.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.approval, size: 64, color: AppColors.textMuted),
-            const SizedBox(height: AppDimens.s3),
-            Text(
-              'لا توجد طلبات اعتماد معلقة',
-              style: AppTextStyles.headlineSmall
-                  .copyWith(color: AppColors.textSecondary),
-            ),
-          ],
-        ),
+      return const EmptyState(
+        icon: Icons.approval,
+        title: 'لا توجد طلبات اعتماد معلقة',
       );
     }
     return RefreshIndicator(

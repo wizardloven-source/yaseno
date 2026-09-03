@@ -6,13 +6,14 @@ YAseen ERP - Products Router
 from decimal import Decimal
 from typing import Optional
 
-from fastapi import APIRouter, Query, Depends, status
+from fastapi import APIRouter, Query, Depends, status, HTTPException
 from starlette.status import HTTP_201_CREATED
 
 from api_routers.shared import (
     bootstrap, logger, ApiResponse, CreateProductRequest, get_current_user,
     filter_fields,
 )
+from core.application.security.authorization import get_current_user_context
 
 router = APIRouter(prefix="", tags=["products"])
 
@@ -60,6 +61,9 @@ async def list_products(
 
 @router.post("/api/products", response_model=ApiResponse, status_code=HTTP_201_CREATED)
 async def create_product(request: CreateProductRequest, current_user: dict = Depends(get_current_user)):
+    _ctx = get_current_user_context()
+    if _ctx and not _ctx.has_permission("products.create_product"):
+        raise HTTPException(status_code=403, detail="ليس لديك الصلاحية المطلوبة")
     try:
         from core.domain.products.entities import Product
         from core.domain.products.value_objects import ProductCode
@@ -146,6 +150,9 @@ async def get_product(product_id: str, current_user: dict = Depends(get_current_
 
 @router.put("/api/products/{product_id}", response_model=ApiResponse)
 async def update_product(product_id: str, request: dict, current_user: dict = Depends(get_current_user)):
+    _ctx = get_current_user_context()
+    if _ctx and not _ctx.has_permission("products.update_product"):
+        raise HTTPException(status_code=403, detail="ليس لديك الصلاحية المطلوبة")
     try:
         data = filter_fields(request, [
             "name", "unit_price", "is_active", "stock_quantity", "status",
@@ -213,6 +220,9 @@ async def update_product_stock(product_id: str, request: dict, current_user: dic
 
 @router.delete("/api/products/{product_id}", response_model=ApiResponse)
 async def delete_product(product_id: str, current_user: dict = Depends(get_current_user)):
+    _ctx = get_current_user_context()
+    if _ctx and not _ctx.has_permission("products.delete_product"):
+        raise HTTPException(status_code=403, detail="ليس لديك الصلاحية المطلوبة")
     try:
         with bootstrap.uow() as uow:
             repo = uow.products

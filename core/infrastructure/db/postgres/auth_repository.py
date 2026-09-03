@@ -147,13 +147,15 @@ class PostgresUserRepository(IUserRepository):
             
         else:
             # ✅ إنشاء مستخدم جديد مع تشفير كلمة المرور
-            hashed_password = PasswordHasher.hash(user.password_hash) if user.password_hash else ""
+            password_hash = user.password_hash
+            if password_hash and not PasswordHasher.is_valid_hash(password_hash):
+                password_hash = PasswordHasher.hash(password_hash)
             
             model = UserModel(
                 id=user.id.value,
                 username=user.username,
                 email=user.email,
-                password_hash=hashed_password,  # ✅ مشفرة
+                password_hash=password_hash,  # ✅ مشفرة
                 full_name=user.full_name,
                 is_active=user.is_active,
                 is_super_admin=user.is_super_admin,
@@ -244,13 +246,15 @@ class PostgresUserRepository(IUserRepository):
                 
             else:
                 # مستخدم جديد
-                hashed_password = PasswordHasher.hash(user.password_hash) if user.password_hash else ""
+                password_hash = user.password_hash
+                if password_hash and not PasswordHasher.is_valid_hash(password_hash):
+                    password_hash = PasswordHasher.hash(password_hash)
                 
                 model = UserModel(
                     id=user.id.value,
                     username=user.username,
                     email=user.email,
-                    password_hash=hashed_password,
+                    password_hash=password_hash,
                     full_name=user.full_name,
                     is_active=user.is_active,
                     is_super_admin=user.is_super_admin,

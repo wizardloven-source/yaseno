@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Query, Depends, status
+from fastapi import APIRouter, Query, Depends, status, HTTPException
 from typing import Optional
 from datetime import date
 
@@ -7,6 +7,7 @@ from api_routers.shared import (
     CreateJournalEntryRequest, CreateAccountRequest,
     get_current_user, filter_fields,
 )
+from core.application.security.authorization import get_current_user_context
 
 router = APIRouter(prefix="", tags=["accounting"])
 
@@ -109,6 +110,9 @@ async def get_journal_entry(entry_id: str, current_user: dict = Depends(get_curr
 
 @router.post("/api/journal-entries", response_model=ApiResponse, status_code=status.HTTP_201_CREATED)
 async def create_journal_entry(request: CreateJournalEntryRequest, current_user: dict = Depends(get_current_user)):
+    _ctx = get_current_user_context()
+    if _ctx and not _ctx.has_permission("accounting.create_entry"):
+        raise HTTPException(status_code=403, detail="ليس لديك الصلاحية المطلوبة")
     try:
         from core.application.accounting.commands import CreateJournalEntryCommand
         
@@ -144,6 +148,9 @@ async def create_journal_entry(request: CreateJournalEntryRequest, current_user:
 
 @router.post("/api/journal-entries/{entry_id}/post", response_model=ApiResponse)
 async def post_journal_entry(entry_id: str, force: bool = Query(False), current_user: dict = Depends(get_current_user)):
+    _ctx = get_current_user_context()
+    if _ctx and not _ctx.has_permission("accounting.post_entry"):
+        raise HTTPException(status_code=403, detail="ليس لديك الصلاحية المطلوبة")
     try:
         from sqlalchemy import text
         from core.application.accounting.commands import PostJournalEntryCommand
@@ -190,6 +197,9 @@ async def post_journal_entry(entry_id: str, force: bool = Query(False), current_
 
 @router.post("/api/journal-entries/{entry_id}/reverse", response_model=ApiResponse)
 async def reverse_journal_entry(entry_id: str, reason: str = Query(...), current_user: dict = Depends(get_current_user)):
+    _ctx = get_current_user_context()
+    if _ctx and not _ctx.has_permission("accounting.reverse_entry"):
+        raise HTTPException(status_code=403, detail="ليس لديك الصلاحية المطلوبة")
     try:
         from core.application.accounting.commands import ReverseJournalEntryCommand
         
@@ -243,6 +253,9 @@ async def list_accounts(
 
 @router.post("/api/accounts", response_model=ApiResponse, status_code=status.HTTP_201_CREATED)
 async def create_account(request: CreateAccountRequest, current_user: dict = Depends(get_current_user)):
+    _ctx = get_current_user_context()
+    if _ctx and not _ctx.has_permission("settings.manage_settings"):
+        raise HTTPException(status_code=403, detail="ليس لديك الصلاحية المطلوبة")
     try:
         from core.application.accounts.commands import CreateAccountCommand
         

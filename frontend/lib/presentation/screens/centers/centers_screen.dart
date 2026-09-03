@@ -5,6 +5,8 @@ import '../../../utils/error_utils.dart';
 import '../../../utils/currency_helper.dart';
 import '../../../theme/app_colors.dart';
 import '../../../presentation/widgets/app_widgets.dart';
+import '../../widgets/loading_state.dart';
+import '../../widgets/empty_state.dart';
 
 class CentersScreen extends StatefulWidget {
   const CentersScreen({super.key});
@@ -762,18 +764,11 @@ TextButton(
   }
 
   Widget _buildBody() {
-    if (_isLoading) return const Center(child: CircularProgressIndicator());
+    if (_isLoading) return const LoadingState();
     if (_centers.isEmpty) {
-      return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.account_tree, size: 64, color: AppColors.textSecondary),
-            SizedBox(height: 16),
-            Text('لا توجد مراكز تكلفة',
-                style: TextStyle(fontSize: 18, color: AppColors.textMuted)),
-          ],
-        ),
+      return const EmptyState(
+        icon: Icons.account_tree,
+        title: 'لا توجد مراكز تكلفة',
       );
     }
 

@@ -151,7 +151,9 @@ class ApiClient {
       
       if (response.statusCode == 200 && response.data['access_token'] != null) {
         _accessToken = response.data['access_token'];
+        _refreshToken = response.data['refresh_token'];
         await _storage.write(key: 'access_token', value: _accessToken);
+        await _storage.write(key: 'refresh_token', value: _refreshToken);
       } else {
         throw Exception('Failed to refresh token');
       }

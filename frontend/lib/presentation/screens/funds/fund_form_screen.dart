@@ -3,6 +3,7 @@ import '../../../services/api_service.dart';
 import '../../../utils/error_utils.dart';
 import '../../../utils/currency_helper.dart';
 import '../../widgets/app_widgets.dart';
+import '../../widgets/loading_state.dart';
 
 class FundFormScreen extends StatefulWidget {
   final String? fundId;
@@ -113,7 +114,7 @@ class _FundFormScreenState extends State<FundFormScreen> {
     return Scaffold(
       appBar: AppBar(title: Text(_isEdit ? 'تعديل الصندوق' : 'إنشاء صندوق جديد')),
       body: _isLoadingEdit
-          ? const Center(child: CircularProgressIndicator())
+          ? const LoadingState(skeleton: false)
           : Padding(
               padding: const EdgeInsets.all(16),
               child: Form(

@@ -5,6 +5,8 @@ import '../../../utils/error_utils.dart';
 import '../../../utils/money_utils.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimensions.dart';
+import '../../widgets/loading_state.dart';
+import '../../widgets/empty_state.dart';
 
 class AgingReportScreen extends StatefulWidget {
   final String mode;
@@ -155,10 +157,13 @@ class _AgingReportScreenState extends State<AgingReportScreen> {
 
   Widget _buildBody() {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const LoadingState();
     }
     if (_items.isEmpty) {
-      return const Center(child: Text('لا توجد بيانات'));
+      return const EmptyState(
+        icon: Icons.receipt_long_outlined,
+        title: 'لا توجد بيانات',
+      );
     }
     return ListView(
       children: [

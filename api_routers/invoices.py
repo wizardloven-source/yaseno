@@ -6,7 +6,7 @@ YAseen ERP - Invoices Router
 from decimal import Decimal
 from typing import Optional
 
-from fastapi import APIRouter, Query, Depends, status
+from fastapi import APIRouter, Query, Depends, status, HTTPException
 from starlette.status import HTTP_201_CREATED
 
 from api_routers.shared import (
@@ -14,6 +14,7 @@ from api_routers.shared import (
     InvoiceLineRequest, PostInvoiceRequest, CancelInvoiceRequest,
     ReturnInvoiceRequest, get_current_user,
 )
+from core.application.security.authorization import get_current_user_context
 
 router = APIRouter(prefix="", tags=["invoices"])
 
@@ -54,6 +55,9 @@ async def list_invoices(
 
 @router.post("/api/invoices", response_model=ApiResponse, status_code=HTTP_201_CREATED)
 async def create_invoice(request: CreateInvoiceRequest, current_user: dict = Depends(get_current_user)):
+    _ctx = get_current_user_context()
+    if _ctx and not _ctx.has_permission("invoicing.create_invoice"):
+        raise HTTPException(status_code=403, detail="ليس لديك الصلاحية المطلوبة")
     try:
         from core.application.invoicing.commands import CreateInvoiceCommand, AddInvoiceLineCommand
 
@@ -148,6 +152,9 @@ async def get_invoice(invoice_id: str, current_user: dict = Depends(get_current_
 
 @router.post("/api/invoices/{invoice_id}/post", response_model=ApiResponse)
 async def post_invoice(invoice_id: str, request: PostInvoiceRequest = None, current_user: dict = Depends(get_current_user)):
+    _ctx = get_current_user_context()
+    if _ctx and not _ctx.has_permission("invoicing.post_invoice"):
+        raise HTTPException(status_code=403, detail="ليس لديك الصلاحية المطلوبة")
     try:
         from core.application.invoicing.commands import PostInvoiceCommand
 
@@ -249,6 +256,9 @@ async def remove_invoice_line(invoice_id: str, line_id: str, current_user: dict 
 
 @router.post("/api/invoices/{invoice_id}/cancel", response_model=ApiResponse)
 async def cancel_invoice(invoice_id: str, request: CancelInvoiceRequest = None, current_user: dict = Depends(get_current_user)):
+    _ctx = get_current_user_context()
+    if _ctx and not _ctx.has_permission("invoicing.cancel_invoice"):
+        raise HTTPException(status_code=403, detail="ليس لديك الصلاحية المطلوبة")
     try:
         from core.application.invoicing.commands import CancelInvoiceCommand
         reason = request.reason if request else None

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Query, Depends, status
+from fastapi import APIRouter, Query, Depends, status, HTTPException
 from typing import Optional
 from datetime import date
 from decimal import Decimal
@@ -8,6 +8,7 @@ from api_routers.shared import (
     CreateCustomerRequest, CreateBranchRequest,
     get_current_user, filter_fields,
 )
+from core.application.security.authorization import get_current_user_context
 
 router = APIRouter(prefix="", tags=["customers"])
 
@@ -57,6 +58,9 @@ async def list_customers(
 
 @router.post("/api/customers", response_model=ApiResponse, status_code=status.HTTP_201_CREATED)
 async def create_customer(request: CreateCustomerRequest, current_user: dict = Depends(get_current_user)):
+    _ctx = get_current_user_context()
+    if _ctx and not _ctx.has_permission("customers.create_customer"):
+        raise HTTPException(status_code=403, detail="ليس لديك الصلاحية المطلوبة")
     try:
         from core.domain.customers.entities import Customer
         from core.domain.customers.value_objects import CustomerCode, ContactInfo, Address
@@ -175,6 +179,9 @@ async def customer_aging_report(
 
 @router.put("/api/customers/{customer_id}", response_model=ApiResponse)
 async def update_customer(customer_id: str, request: dict, current_user: dict = Depends(get_current_user)):
+    _ctx = get_current_user_context()
+    if _ctx and not _ctx.has_permission("customers.update_customer"):
+        raise HTTPException(status_code=403, detail="ليس لديك الصلاحية المطلوبة")
     try:
         data = filter_fields(request, [
             "name", "email", "phone", "status",
@@ -207,6 +214,9 @@ async def update_customer(customer_id: str, request: dict, current_user: dict = 
 
 @router.delete("/api/customers/{customer_id}", response_model=ApiResponse)
 async def delete_customer(customer_id: str, current_user: dict = Depends(get_current_user)):
+    _ctx = get_current_user_context()
+    if _ctx and not _ctx.has_permission("customers.delete_customer"):
+        raise HTTPException(status_code=403, detail="ليس لديك الصلاحية المطلوبة")
     try:
         with bootstrap.uow() as uow:
             repo = uow.customers

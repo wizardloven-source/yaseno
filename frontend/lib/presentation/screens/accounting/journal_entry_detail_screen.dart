@@ -8,6 +8,9 @@ import '../../../utils/money_utils.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimensions.dart';
 import '../../../theme/app_text_styles.dart';
+import '../../widgets/loading_state.dart';
+import '../../widgets/empty_state.dart';
+import '../../widgets/status_chip.dart';
 
 class JournalEntryDetailScreen extends StatefulWidget {
   final String entryId;
@@ -151,8 +154,11 @@ class _JournalEntryDetailScreenState extends State<JournalEntryDetailScreen> {
   }
 
   Widget _buildBody() {
-    if (_isLoading) return const Center(child: CircularProgressIndicator());
-    if (_entry == null) return const Center(child: Text('القيد غير موجود'));
+    if (_isLoading) return const LoadingState();
+    if (_entry == null) return const EmptyState(
+      icon: Icons.receipt_long_outlined,
+      title: 'القيد غير موجود',
+    );
 
     final lines = (_entry!['lines'] ?? []) as List;
     final totalDebit = parseMoney(_entry!['total_debit']) ?? Decimal.zero;
@@ -172,16 +178,7 @@ class _JournalEntryDetailScreenState extends State<JournalEntryDetailScreen> {
                 children: [
                   Row(
                     children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: isPosted ? AppColors.successContainer : AppColors.warningContainer,
-                          borderRadius: BorderRadius.circular(AppDimens.radiusCard),
-                          border: Border.all(color: isPosted ? AppColors.success : AppColors.warning),
-                        ),
-                        child: Text(isPosted ? 'مرحل' : 'مسودة',
-                            style: TextStyle(color: isPosted ? AppColors.success : AppColors.warning, fontWeight: FontWeight.bold)),
-                      ),
+                      StatusChip(status: isPosted ? 'posted' : 'draft'),
                       const Spacer(),
                       if (_entry!['number'] != null)
                         Text('#${_entry!['number']}', style: Theme.of(context).textTheme.titleMedium),

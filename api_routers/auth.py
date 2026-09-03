@@ -9,6 +9,8 @@ from api_routers.shared import (
     _revoke_session_by_jti, _revoke_all_user_sessions, _hash_token,
     ACCESS_TOKEN_EXPIRE_MINUTES, SECRET_KEY, ALGORITHM,
 )
+from api_routers.shared.auth_deps import require_permission
+from core.application.security.authorization import get_current_user_context
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -87,8 +89,8 @@ async def login(request: LoginRequest, rate_limit: None = Depends(rate_limiter(1
 @router.post("/refresh")
 async def refresh_token(request: dict, rate_limit: None = Depends(rate_limiter(10, 60))):
     try:
-        data = filter_fields(request, ["token"])
-        token = data.get("token")
+        data = filter_fields(request, ["token", "refresh_token"])
+        token = data.get("token") or data.get("refresh_token")
         if not token:
             raise HTTPException(status_code=400, detail="Token is required")
 
@@ -234,6 +236,9 @@ async def list_users(
     offset: int = Query(0, ge=0),
     current_user: dict = Depends(get_current_user),
 ):
+    _ctx = get_current_user_context()
+    if _ctx and not _ctx.has_permission("settings.manage_users"):
+        raise HTTPException(status_code=403, detail="ليس لديك صلاحية إدارة المستخدمين")
     try:
         with bootstrap.uow() as uow:
             from sqlalchemy import text as sa_text
@@ -270,14 +275,23 @@ async def list_users(
 
 @router.post("/users", response_model=ApiResponse, status_code=status.HTTP_201_CREATED)
 async def create_user(request: dict, current_user: dict = Depends(get_current_user), rate_limit: None = Depends(rate_limiter(100, 60))):
+    _ctx = get_current_user_context()
+    if _ctx and not _ctx.has_permission("settings.manage_users"):
+        raise HTTPException(status_code=403, detail="ليس لديك صلاحية إدارة المستخدمين")
     try:
         data = filter_fields(request, [
             "username", "email", "first_name", "last_name", "password", "role", "is_active",
         ])
         if not data.get("username"):
             raise HTTPException(status_code=400, detail="username مطلوب")
-        if not data.get("password") or len(data["password"]) < 6:
-            raise HTTPException(status_code=400, detail="كلمة المرور يجب أن تكون 6 أحرف على الأقل")
+        if not data.get("password") or len(data["password"]) < 10:
+            raise HTTPException(status_code=400, detail="كلمة المرور يجب أن تكون 10 أحرف على الأقل")
+
+        # Prevent privilege escalation: non-admins cannot create admin users
+        requested_role = data.get("role", "user")
+        if requested_role == "admin" and not (_ctx and _ctx.is_super_admin):
+            raise HTTPException(status_code=403, detail="لا يمكنك إنشاء مستخدمين بأدوار إدارية")
+
         with bootstrap.uow() as uow:
             user_repo = uow.users
             from core.domain.auth.entities import User
@@ -288,7 +302,7 @@ async def create_user(request: dict, current_user: dict = Depends(get_current_us
             new_user = User(
                 id=UserId.generate(),
                 username=data['username'],
-                email=data.get('email', ''),
+                email=data.get('email') or f"{data['username']}@placeholder.local",
                 full_name=f"{data.get('first_name', '')} {data.get('last_name', '')}".strip(),
                 password_hash=get_password_hash(data.get('password', '')),
                 is_active=bool(data.get('is_active', True)),
@@ -325,6 +339,9 @@ async def create_user(request: dict, current_user: dict = Depends(get_current_us
 
 @router.get("/users/{user_id}", response_model=ApiResponse)
 async def get_user(user_id: str, current_user: dict = Depends(get_current_user)):
+    _ctx = get_current_user_context()
+    if _ctx and not _ctx.has_permission("settings.manage_users"):
+        raise HTTPException(status_code=403, detail="ليس لديك صلاحية إدارة المستخدمين")
     try:
         with bootstrap.uow() as uow:
             from sqlalchemy import text as sa_text
@@ -358,10 +375,24 @@ async def get_user(user_id: str, current_user: dict = Depends(get_current_user))
 
 @router.put("/users/{user_id}", response_model=ApiResponse)
 async def update_user(user_id: str, request: dict, current_user: dict = Depends(get_current_user), rate_limit: None = Depends(rate_limiter(100, 60))):
+    _ctx = get_current_user_context()
+    if _ctx and not _ctx.has_permission("settings.manage_users"):
+        raise HTTPException(status_code=403, detail="ليس لديك صلاحية إدارة المستخدمين")
     try:
         data = filter_fields(request, [
             "username", "email", "first_name", "last_name", "password", "role", "is_active",
         ])
+
+        # Prevent privilege escalation: non-admins cannot assign admin role
+        requested_role = data.get("role")
+        if requested_role == "admin":
+            if not (_ctx and _ctx.is_super_admin):
+                raise HTTPException(status_code=403, detail="لا يمكنك تعيين دور إداري")
+
+        # Prevent self-deactivation
+        if str(user_id) == str(current_user["id"]) and data.get("is_active") == False:
+            raise HTTPException(status_code=400, detail="لا يمكنك تعطيل حسابك الخاص")
+
         with bootstrap.uow() as uow:
             user_repo = uow.users
             from core.domain.auth.value_objects import UserId as _UserId
@@ -371,7 +402,7 @@ async def update_user(user_id: str, request: dict, current_user: dict = Depends(
             uid = user.id.value if hasattr(user.id, 'value') else str(user.id)
             if 'username' in data:
                 user.username = data['username']
-            if 'email' in data:
+            if 'email' in data and data['email']:
                 user.email = data['email']
             if 'first_name' in data:
                 user.first_name = data['first_name']
@@ -405,7 +436,14 @@ async def update_user(user_id: str, request: dict, current_user: dict = Depends(
 
 @router.delete("/users/{user_id}", response_model=ApiResponse)
 async def delete_user(user_id: str, current_user: dict = Depends(get_current_user), rate_limit: None = Depends(rate_limiter(100, 60))):
+    _ctx = get_current_user_context()
+    if _ctx and not _ctx.has_permission("settings.manage_users"):
+        raise HTTPException(status_code=403, detail="ليس لديك صلاحية إدارة المستخدمين")
     try:
+        # Prevent self-deletion
+        if str(user_id) == str(current_user["id"]):
+            raise HTTPException(status_code=400, detail="لا يمكنك حذف حسابك الخاص")
+
         with bootstrap.uow() as uow:
             user_repo = uow.users
             from core.domain.auth.value_objects import UserId as _UserId

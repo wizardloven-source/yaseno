@@ -9,6 +9,8 @@ import '../../../utils/error_utils.dart';
 import '../../../utils/money_utils.dart';
 import '../../../utils/currency_helper.dart';
 import '../../widgets/app_widgets.dart';
+import '../../widgets/loading_state.dart';
+import '../../widgets/empty_state.dart';
 
 class FundDetailScreen extends StatefulWidget {
   final String fundId;
@@ -133,7 +135,7 @@ class _FundDetailScreenState extends State<FundDetailScreen> {
   }
 
   Widget _buildBody() {
-    if (_isLoading) return const Center(child: CircularProgressIndicator());
+    if (_isLoading) return const LoadingState(skeleton: false);
 
     return Column(
       children: [
@@ -181,12 +183,16 @@ class _FundDetailScreenState extends State<FundDetailScreen> {
               if (_isLoadingLedger)
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 48),
-                  child: Center(child: CircularProgressIndicator()),
+                  child: LoadingState(skeleton: false),
                 )
               else if (_ledger.isEmpty)
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 48),
-                  child: Center(child: Text('لا توجد حركات لهذا الصندوق')),
+                  child: EmptyState(
+                    icon: Icons.account_balance_wallet,
+                    title: 'لا توجد حركات',
+                    message: 'لم يتم تسجيل أي حركات لهذا الصندوق في الفترة المحددة',
+                  ),
                 )
               else
                 SingleChildScrollView(

@@ -6,6 +6,8 @@ import '../../../theme/app_text_styles.dart';
 import '../../../utils/error_utils.dart';
 import '../../../utils/currency_helper.dart';
 import '../../widgets/app_widgets.dart';
+import '../../widgets/empty_state.dart';
+import '../../widgets/loading_state.dart';
 
 class InventoryScreen extends StatefulWidget {
   const InventoryScreen({super.key});
@@ -244,23 +246,15 @@ class _StockTabState extends State<_StockTab> {
   }
 
   Widget _buildBody() {
-    if (_isLoading) return const Center(child: CircularProgressIndicator());
+    if (_isLoading) return const LoadingState();
 
     if (_movements.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.inventory_2, size: 64, color: Theme.of(context).colorScheme.onSurfaceVariant),
-            const SizedBox(height: 16),
-            Text(
-              'لا توجد بيانات مخزون',
-              style: AppTextStyles.headlineSmall.copyWith(
-                color: AppColors.textSecondary,
-              ),
-            ),
-          ],
-        ),
+      return EmptyState(
+        icon: Icons.inventory_2,
+        title: 'لا توجد بيانات مخزون',
+        message: _searchText.isNotEmpty
+            ? 'لا توجد نتائج مطابقة لبحثك'
+            : 'لم يتم تسجيل أي أصناف في المخزون بعد',
       );
     }
 
@@ -1011,7 +1005,7 @@ class _MovementsTabState extends State<_MovementsTab>
           if (_isLoading)
             const Center(child: Padding(
               padding: EdgeInsets.all(24),
-              child: CircularProgressIndicator(),
+              child: LoadingState(skeletonLines: 3),
             ))
           else if (_recentMovements.isEmpty)
             const Padding(
@@ -1148,7 +1142,7 @@ class _MovementsTabState extends State<_MovementsTab>
           if (_isLoading)
             const Center(child: Padding(
               padding: EdgeInsets.all(24),
-              child: CircularProgressIndicator(),
+              child: LoadingState(skeletonLines: 3),
             ))
           else if (_recentMovements.isEmpty)
             const Padding(
@@ -1489,22 +1483,12 @@ class _TransfersTabState extends State<_TransfersTab> {
         // Transfers list
         Expanded(
           child: _isLoading
-              ? const Center(child: CircularProgressIndicator())
+              ? const LoadingState(skeletonLines: 4)
               : _transfers.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.swap_horiz, size: 64, color: AppColors.textMuted),
-                          const SizedBox(height: 16),
-                          Text(
-                            'لا توجد تحويلات',
-                            style: AppTextStyles.headlineSmall.copyWith(
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                        ],
-                      ),
+                  ? const EmptyState(
+                      icon: Icons.swap_horiz,
+                      title: 'لا توجد تحويلات',
+                      message: 'لم يتم إنشاء أي تحويل مخزون بعد',
                     )
                   : RefreshIndicator(
                       onRefresh: _loadTransfers,

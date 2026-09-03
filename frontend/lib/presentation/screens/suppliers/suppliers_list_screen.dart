@@ -4,13 +4,14 @@ import 'package:decimal/decimal.dart';
 import '../../../data/models/supplier_model.dart';
 import '../../../data/repositories/supplier_repository.dart';
 import '../../../services/api_service.dart';
-import '../../widgets/loading_widget.dart';
-import '../../widgets/error_widget.dart';
 import '../../../utils/error_utils.dart';
 import '../../../utils/money_utils.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimensions.dart';
 import '../../widgets/app_widgets.dart';
+import '../../widgets/empty_state.dart';
+import '../../widgets/error_state.dart';
+import '../../widgets/loading_state.dart';
 
 class SuppliersListScreen extends StatefulWidget {
   const SuppliersListScreen({super.key});
@@ -128,19 +129,23 @@ class _SuppliersListScreenState extends State<SuppliersListScreen> {
 
   Widget _buildBody() {
     if (_isLoading) {
-      return const LoadingWidget();
+      return const LoadingState();
     }
 
     if (_error != null) {
-      return ErrorWidgetCustom(
-         error: ErrorUtils.sanitize(_error),
+      return ErrorState(
+        message: ErrorUtils.sanitize(_error),
         onRetry: _loadSuppliers,
       );
     }
 
-    if (_suppliers.isEmpty) {
-      return Center(
-        child: Text('لا يوجد موردين', style: Theme.of(context).textTheme.headlineSmall),
+    if (_suppliers.isEmpty && _searchText.isEmpty) {
+      return EmptyState(
+        icon: Icons.business_outlined,
+        title: 'لم تتم إضافة موردين بعد',
+        message: 'أضف أول مورد لتبدأ تسجيل مشترياتك.',
+        actionLabel: 'مورد جديد',
+        onAction: _addSupplier,
       );
     }
 
@@ -155,6 +160,15 @@ class _SuppliersListScreenState extends State<SuppliersListScreen> {
         s.code.toLowerCase().contains(q) ||
         (s.phone ?? '').toLowerCase().contains(q)
       ).toList();
+    }
+
+    if (filtered.isEmpty) {
+      return EmptyState(
+        icon: Icons.search_off,
+        title: 'لا توجد نتائج',
+        actionLabel: 'مسح البحث',
+        onAction: () => setState(() => _searchText = ''),
+      );
     }
 
     return ListView.builder(

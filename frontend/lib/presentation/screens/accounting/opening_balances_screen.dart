@@ -9,6 +9,7 @@ import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimensions.dart';
 import '../../../theme/app_text_styles.dart';
 import '../../widgets/app_widgets.dart';
+import '../../widgets/loading_state.dart';
 
 class OpeningBalancesScreen extends StatefulWidget {
   const OpeningBalancesScreen({super.key});
@@ -251,7 +252,7 @@ class _OpeningBalancesScreenState extends State<OpeningBalancesScreen> {
               backgroundColor: AppColors.warningContainer,
             ),
           if (_isLoading)
-            const Expanded(child: Center(child: CircularProgressIndicator()))
+            const Expanded(child: LoadingState(skeleton: false))
           else
             Expanded(child: _buildBody()),
         ],

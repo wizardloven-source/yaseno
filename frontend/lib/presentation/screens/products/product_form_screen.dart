@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:decimal/decimal.dart';
 import '../../../data/models/product_model.dart';
 import '../../../data/repositories/product_repository.dart';
-import '../../widgets/loading_widget.dart';
+import '../../widgets/loading_state.dart';
 import '../../../utils/error_utils.dart';
 import '../../../utils/money_utils.dart';
 import '../../../theme/app_colors.dart';
@@ -193,7 +193,7 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
   Widget build(BuildContext context) {
     if (_isLoading) {
       return const Scaffold(
-        body: LoadingWidget(),
+        body: LoadingState(skeleton: false),
       );
     }
 

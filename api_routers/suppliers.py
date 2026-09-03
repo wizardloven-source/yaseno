@@ -7,13 +7,14 @@ from decimal import Decimal
 from datetime import date
 from typing import Optional
 
-from fastapi import APIRouter, Query, Depends, status
+from fastapi import APIRouter, Query, Depends, status, HTTPException
 from starlette.status import HTTP_201_CREATED
 
 from api_routers.shared import (
     bootstrap, logger, ApiResponse, CreateSupplierRequest, get_current_user,
     filter_fields,
 )
+from core.application.security.authorization import get_current_user_context
 
 router = APIRouter(prefix="", tags=["suppliers"])
 
@@ -55,6 +56,9 @@ async def list_suppliers(
 
 @router.post("/api/suppliers", response_model=ApiResponse, status_code=HTTP_201_CREATED)
 async def create_supplier(request: CreateSupplierRequest, current_user: dict = Depends(get_current_user)):
+    _ctx = get_current_user_context()
+    if _ctx and not _ctx.has_permission("suppliers.create_supplier"):
+        raise HTTPException(status_code=403, detail="ليس لديك الصلاحية المطلوبة")
     try:
         from core.domain.suppliers.entities import Supplier
         from core.domain.suppliers.value_objects import SupplierCode, ContactInfo, Address
@@ -181,6 +185,9 @@ async def supplier_aging_report(
 
 @router.put("/api/suppliers/{supplier_id}", response_model=ApiResponse)
 async def update_supplier(supplier_id: str, request: dict, current_user: dict = Depends(get_current_user)):
+    _ctx = get_current_user_context()
+    if _ctx and not _ctx.has_permission("suppliers.update_supplier"):
+        raise HTTPException(status_code=403, detail="ليس لديك الصلاحية المطلوبة")
     try:
         data = filter_fields(request, [
             "name", "email", "phone",
@@ -210,6 +217,9 @@ async def update_supplier(supplier_id: str, request: dict, current_user: dict = 
 
 @router.delete("/api/suppliers/{supplier_id}", response_model=ApiResponse)
 async def delete_supplier(supplier_id: str, current_user: dict = Depends(get_current_user)):
+    _ctx = get_current_user_context()
+    if _ctx and not _ctx.has_permission("suppliers.delete_supplier"):
+        raise HTTPException(status_code=403, detail="ليس لديك الصلاحية المطلوبة")
     try:
         with bootstrap.uow() as uow:
             repo = uow.suppliers

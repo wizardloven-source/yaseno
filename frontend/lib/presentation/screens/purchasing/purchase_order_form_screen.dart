@@ -7,6 +7,7 @@ import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimensions.dart';
 import '../../../theme/app_text_styles.dart';
 import '../../widgets/app_widgets.dart';
+import '../../widgets/loading_state.dart';
 
 class PurchaseOrderFormScreen extends StatefulWidget {
   final String? orderId;
@@ -136,7 +137,7 @@ class _PurchaseOrderFormScreenState extends State<PurchaseOrderFormScreen> {
         centerTitle: true,
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const LoadingState(skeleton: false)
           : Form(
               key: _formKey,
               child: ListView(

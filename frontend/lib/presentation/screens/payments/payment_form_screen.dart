@@ -8,6 +8,8 @@ import '../../../utils/error_utils.dart';
 import '../../../utils/money_utils.dart';
 import '../../../utils/currency_helper.dart';
 import '../../widgets/app_widgets.dart';
+import '../../widgets/loading_state.dart';
+import '../../widgets/status_chip.dart';
 
 class PaymentFormScreen extends StatefulWidget {
   final String? paymentId;
@@ -294,18 +296,6 @@ class _PaymentFormScreenState extends State<PaymentFormScreen> {
     super.dispose();
   }
 
-  String _statusLabel(String? status) {
-    switch (status) {
-      case 'draft': return 'مسودة';
-      case 'pending': return 'بانتظار الاعتماد';
-      case 'approved': return 'معتمد';
-      case 'completed': return 'مكتمل';
-      case 'rejected': return 'مرفوض';
-      case 'cancelled': return 'ملغي';
-      default: return status ?? '';
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -332,7 +322,7 @@ class _PaymentFormScreenState extends State<PaymentFormScreen> {
         ],
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const LoadingState(skeleton: false)
           : SingleChildScrollView(
               padding: const EdgeInsets.all(16),
               child: Form(
@@ -350,15 +340,7 @@ class _PaymentFormScreenState extends State<PaymentFormScreen> {
                         child: Row(
                           children: [
                             const Text('الحالة: ', style: TextStyle(fontWeight: FontWeight.bold)),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: AppColors.secondaryContainer,
-                                borderRadius: BorderRadius.circular(AppDimens.radiusCard),
-                              ),
-                              child: Text(_statusLabel(_paymentData!['status']),
-                                  style: const TextStyle(color: AppColors.secondary, fontWeight: FontWeight.bold)),
-                            ),
+                            StatusChip(status: _paymentData!['status'] ?? ''),
                             const SizedBox(width: 16),
                             Text('الكود: ${_paymentData!['code'] ?? ''}'),
                           ],

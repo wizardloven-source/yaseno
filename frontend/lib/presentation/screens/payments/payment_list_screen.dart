@@ -9,6 +9,9 @@ import '../../../utils/error_utils.dart';
 import '../../../utils/money_utils.dart';
 import '../../../utils/currency_helper.dart';
 import '../../widgets/app_widgets.dart';
+import '../../widgets/empty_state.dart';
+import '../../widgets/loading_state.dart';
+import '../../widgets/status_chip.dart';
 
 class PaymentListScreen extends StatefulWidget {
   const PaymentListScreen({super.key});
@@ -80,29 +83,19 @@ class _PaymentListScreenState extends State<PaymentListScreen> {
             ),
           Expanded(
             child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
+                ? const LoadingState()
                 : Column(
                     children: [
                       _buildFilterBar(),
                       Expanded(
                         child: _filteredPayments.isEmpty
-                            ? Center(
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    const Icon(Icons.payments_outlined, size: 64, color: AppColors.textMuted),
-                                    const SizedBox(height: 16),
-                                    const Text('لا توجد مدفوعات'),
-                                    const SizedBox(height: 8),
-                                    AppButton(
-                                      label: 'تسجيل دفعة جديدة',
-                                      icon: Icons.add,
-                                      variant: AppButtonVariant.success,
-                                      onPressed: () => context.go('/payments/create'),
-                                    ),
-                                ],
-                              ),
-                            )
+                            ? EmptyState(
+                                icon: Icons.payments_outlined,
+                                title: 'لا توجد مدفوعات بعد',
+                                message: 'سجّل أول دفعة لتتبع النقدية.',
+                                actionLabel: 'تسجيل دفعة',
+                                onAction: () => context.go('/payments/create'),
+                              )
                           : RefreshIndicator(
                               onRefresh: _loadPayments,
                               child: ListView.builder(
@@ -217,7 +210,7 @@ class _PaymentListScreenState extends State<PaymentListScreen> {
                     ],
                   ),
                 ),
-                _buildStatusBadge(status),
+                StatusChip(status: status),
               ],
             ),
             const SizedBox(height: 12),
@@ -256,52 +249,6 @@ class _PaymentListScreenState extends State<PaymentListScreen> {
               ],
             ),
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStatusBadge(String status) {
-    Color color;
-    String label;
-    switch (status) {
-      case 'completed':
-        color = AppColors.success;
-        label = 'مكتمل';
-        break;
-      case 'approved':
-        color = AppColors.secondary;
-        label = 'معتمد';
-        break;
-      case 'pending':
-        color = AppColors.warning;
-        label = 'قيد الانتظار';
-        break;
-      case 'rejected':
-        color = AppColors.danger;
-        label = 'مرفوض';
-        break;
-      case 'cancelled':
-        color = AppColors.buttonCancel;
-        label = 'ملغى';
-        break;
-      default:
-        color = AppColors.buttonCancel;
-        label = status;
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: color,
-          fontSize: 12,
-          fontWeight: FontWeight.bold,
         ),
       ),
     );

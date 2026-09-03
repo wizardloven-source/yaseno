@@ -2,11 +2,12 @@ from decimal import Decimal
 from datetime import date
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, status, HTTPException
 from pydantic import BaseModel, Field
 
 from api_routers.shared import bootstrap, logger, ApiResponse, CreateFundRequest, FundTransactionRequest, get_current_user
 from api_routers.shared.dependencies import filter_fields
+from core.application.security.authorization import get_current_user_context
 
 router = APIRouter(prefix="", tags=["funds"])
 
@@ -62,6 +63,9 @@ async def list_funds(
 
 @router.post("/api/funds", response_model=ApiResponse, status_code=status.HTTP_201_CREATED)
 async def create_fund(request: CreateFundRequest, current_user: dict = Depends(get_current_user)):
+    _ctx = get_current_user_context()
+    if _ctx and not _ctx.has_permission("funds.create_fund"):
+        raise HTTPException(status_code=403, detail="ليس لديك الصلاحية المطلوبة")
     try:
         from core.domain.funds.entities import Fund
         from core.domain.funds.value_objects import FundType
@@ -188,6 +192,9 @@ async def get_fund_balance(fund_id: str, current_user: dict = Depends(get_curren
 
 @router.post("/api/funds/transfer", response_model=ApiResponse)
 async def transfer_funds(request: TransferFundsRequest, current_user: dict = Depends(get_current_user)):
+    _ctx = get_current_user_context()
+    if _ctx and not _ctx.has_permission("funds.transfer"):
+        raise HTTPException(status_code=403, detail="ليس لديك الصلاحية المطلوبة")
     try:
         from core.application.funds.commands import TransferBetweenFundsCommand
         from core.domain.funds.value_objects import FundId
@@ -260,6 +267,9 @@ async def get_fund_movements(
 
 @router.put("/api/funds/{fund_id}", response_model=ApiResponse)
 async def update_fund(fund_id: str, request: dict, current_user: dict = Depends(get_current_user)):
+    _ctx = get_current_user_context()
+    if _ctx and not _ctx.has_permission("funds.update_fund"):
+        raise HTTPException(status_code=403, detail="ليس لديك الصلاحية المطلوبة")
     try:
         data = filter_fields(request, [
             "name", "fund_type", "currency",
@@ -286,6 +296,9 @@ async def update_fund(fund_id: str, request: dict, current_user: dict = Depends(
 
 @router.delete("/api/funds/{fund_id}", response_model=ApiResponse)
 async def delete_fund(fund_id: str, current_user: dict = Depends(get_current_user)):
+    _ctx = get_current_user_context()
+    if _ctx and not _ctx.has_permission("funds.delete_fund"):
+        raise HTTPException(status_code=403, detail="ليس لديك الصلاحية المطلوبة")
     try:
         from core.domain.funds.value_objects import FundId
         with bootstrap.uow() as uow:

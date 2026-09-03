@@ -23,11 +23,16 @@ def filter_fields(data: dict, allowed_fields: list) -> dict:
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
+    import bcrypt
+    try:
+        return bcrypt.checkpw(plain_password.encode("utf-8"), hashed_password.encode("utf-8"))
+    except Exception:
+        return False
 
 
 def get_password_hash(password: str) -> str:
-    return pwd_context.hash(password)
+    import bcrypt
+    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
 
 _ROLE_DISPLAY = {
@@ -204,6 +209,16 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
                 raise HTTPException(status_code=401, detail="User not found")
             if not user.is_active:
                 raise HTTPException(status_code=403, detail="User is inactive")
+
+            jti = payload.get("jti")
+            if jti:
+                from sqlalchemy import text as _sa_text
+                active_sessions = uow.session.execute(
+                    _sa_text("SELECT COUNT(*) FROM user_sessions WHERE user_id = :uid AND revoked_at IS NULL AND expires_at > :now"),
+                    {"uid": user_id, "now": datetime.now(timezone.utc)}
+                ).scalar()
+                if active_sessions == 0:
+                    raise HTTPException(status_code=401, detail="All sessions revoked")
 
             user_dict = {
                 "id": str(user.id.value),

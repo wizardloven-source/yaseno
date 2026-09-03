@@ -8,6 +8,8 @@ import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimensions.dart';
 import '../../../theme/app_text_styles.dart';
 import '../../widgets/app_widgets.dart';
+import '../../widgets/loading_state.dart';
+import '../../widgets/empty_state.dart';
 
 class CashFlowScreen extends StatefulWidget {
   const CashFlowScreen({super.key});
@@ -113,9 +115,12 @@ class _CashFlowScreenState extends State<CashFlowScreen> {
             ),
           ),
           if (_isLoading)
-            const Expanded(child: Center(child: CircularProgressIndicator()))
+            const Expanded(child: LoadingState())
           else if (_reportData == null)
-            const Expanded(child: Center(child: Text('اختر الفترة الزمنية واضغط عرض')))
+            const Expanded(child: EmptyState(
+              icon: Icons.account_balance_wallet_outlined,
+              title: 'اختر الفترة الزمنية واضغط عرض',
+            ))
           else
             Expanded(
               child: ListView(

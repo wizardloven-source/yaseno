@@ -5,6 +5,7 @@ import '../../../utils/error_logger.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimensions.dart';
 import '../../widgets/app_widgets.dart';
+import '../../widgets/loading_state.dart';
 
 class AccountFormScreen extends StatefulWidget {
   final String? accountCode;
@@ -146,7 +147,7 @@ class _AccountFormScreenState extends State<AccountFormScreen> {
         centerTitle: true,
       ),
       body: _isInitialLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const LoadingState(skeleton: false)
           : Padding(
               padding: const EdgeInsets.all(16),
               child: Form(

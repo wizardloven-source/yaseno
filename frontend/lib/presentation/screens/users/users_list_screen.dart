@@ -6,6 +6,8 @@ import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimensions.dart';
 import '../../../theme/app_text_styles.dart';
 import '../../widgets/app_widgets.dart';
+import '../../widgets/loading_state.dart';
+import '../../widgets/empty_state.dart';
 
 class UsersListScreen extends StatefulWidget {
   const UsersListScreen({super.key});
@@ -93,17 +95,11 @@ class _UsersListScreenState extends State<UsersListScreen> {
   }
 
   Widget _buildBody() {
-    if (_isLoading) return const Center(child: CircularProgressIndicator());
+    if (_isLoading) return const LoadingState();
     if (_users.isEmpty) {
-      return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.people_outline, size: 64, color: AppColors.textSecondary),
-            SizedBox(height: AppDimens.s3),
-            Text('لا يوجد مستخدمون', style: TextStyle(fontSize: 18, color: AppColors.textSecondary)),
-          ],
-        ),
+      return const EmptyState(
+        icon: Icons.people_outline,
+        title: 'لا يوجد مستخدمون',
       );
     }
     return RefreshIndicator(

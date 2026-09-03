@@ -2,10 +2,11 @@ from decimal import Decimal
 from typing import Optional
 import uuid
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, status, HTTPException
 from pydantic import BaseModel, Field
 
 from api_routers.shared import bootstrap, logger, ApiResponse, CreatePaymentRequest, get_current_user
+from core.application.security.authorization import get_current_user_context
 
 router = APIRouter(prefix="", tags=["payments"])
 
@@ -64,6 +65,9 @@ async def list_payments(
 
 @router.post("/api/payments", response_model=ApiResponse, status_code=status.HTTP_201_CREATED)
 async def create_payment(request: CreatePaymentRequest, current_user: dict = Depends(get_current_user)):
+    _ctx = get_current_user_context()
+    if _ctx and not _ctx.has_permission("payments.create_payment"):
+        raise HTTPException(status_code=403, detail="ليس لديك الصلاحية المطلوبة")
     try:
         from core.domain.payments.entities import Payment
         from core.domain.payments.value_objects import PaymentType, PaymentMethod
@@ -137,6 +141,9 @@ async def submit_payment(payment_id: str, current_user: dict = Depends(get_curre
 
 @router.post("/api/payments/{payment_id}/approve", response_model=ApiResponse)
 async def approve_payment(payment_id: str, current_user: dict = Depends(get_current_user)):
+    _ctx = get_current_user_context()
+    if _ctx and not _ctx.has_permission("payments.approve_payment"):
+        raise HTTPException(status_code=403, detail="ليس لديك الصلاحية المطلوبة")
     try:
         from core.application.payments.commands import ApprovePaymentCommand
         command_bus = bootstrap.container.resolve("command_bus")
@@ -177,6 +184,9 @@ async def reject_payment(payment_id: str, request: PaymentReasonRequest = None,
 
 @router.post("/api/payments/{payment_id}/complete", response_model=ApiResponse)
 async def complete_payment(payment_id: str, current_user: dict = Depends(get_current_user)):
+    _ctx = get_current_user_context()
+    if _ctx and not _ctx.has_permission("payments.complete_payment"):
+        raise HTTPException(status_code=403, detail="ليس لديك الصلاحية المطلوبة")
     try:
         from core.application.payments.commands import CompletePaymentCommand
         command_bus = bootstrap.container.resolve("command_bus")

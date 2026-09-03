@@ -2,10 +2,11 @@ from decimal import Decimal
 from datetime import datetime
 from typing import List, Optional, Dict
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, status, HTTPException
 from pydantic import BaseModel, Field
 
 from api_routers.shared import bootstrap, logger, ApiResponse, CreatePurchaseOrderRequest, get_current_user
+from core.application.security.authorization import get_current_user_context
 
 router = APIRouter(prefix="", tags=["purchasing"])
 
@@ -57,6 +58,9 @@ async def list_purchase_orders(
 
 @router.post("/api/purchase-orders", response_model=ApiResponse, status_code=status.HTTP_201_CREATED)
 async def create_purchase_order(request: CreatePurchaseOrderRequest, current_user: dict = Depends(get_current_user)):
+    _ctx = get_current_user_context()
+    if _ctx and not _ctx.has_permission("purchasing.create_order"):
+        raise HTTPException(status_code=403, detail="ليس لديك الصلاحية المطلوبة")
     try:
         from core.domain.purchasing.entities import PurchaseOrder, PurchaseLine
         from core.domain.shared.value_objects import Money
@@ -139,6 +143,9 @@ async def get_purchase_order(order_id: str, current_user: dict = Depends(get_cur
 
 @router.post("/api/purchase-orders/{order_id}/post", response_model=ApiResponse)
 async def post_purchase_order(order_id: str, current_user: dict = Depends(get_current_user)):
+    _ctx = get_current_user_context()
+    if _ctx and not _ctx.has_permission("purchasing.post_order"):
+        raise HTTPException(status_code=403, detail="ليس لديك الصلاحية المطلوبة")
     try:
         from core.application.purchasing.commands import PostPurchaseOrderCommand
         command_bus = bootstrap.container.resolve("command_bus")

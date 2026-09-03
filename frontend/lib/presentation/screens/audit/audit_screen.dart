@@ -6,6 +6,8 @@ import '../../../utils/error_utils.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimensions.dart';
 import '../../../theme/app_text_styles.dart';
+import '../../widgets/loading_state.dart';
+import '../../widgets/empty_state.dart';
 
 class AuditScreen extends StatefulWidget {
   const AuditScreen({super.key});
@@ -493,21 +495,12 @@ class _AuditScreenState extends State<AuditScreen> {
 
   Widget _buildBody() {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const LoadingState();
     }
     if (_logs.isEmpty) {
-      return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.history, size: 64, color: AppColors.textSecondary),
-            SizedBox(height: 16),
-            Text(
-              'لا توجد سجلات',
-              style: TextStyle(fontSize: 18, color: AppColors.textSecondary),
-            ),
-          ],
-        ),
+      return const EmptyState(
+        icon: Icons.history,
+        title: 'لا توجد سجلات',
       );
     }
     return RefreshIndicator(

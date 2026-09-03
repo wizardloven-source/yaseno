@@ -9,7 +9,9 @@ import '../../../utils/money_utils.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimensions.dart';
 import '../../../theme/app_text_styles.dart';
-import '../../widgets/app_widgets.dart';
+import '../../widgets/loading_state.dart';
+import '../../widgets/empty_state.dart';
+import '../../widgets/status_chip.dart';
 
 class JournalEntryListScreen extends StatefulWidget {
   const JournalEntryListScreen({super.key});
@@ -181,28 +183,18 @@ class _JournalEntryListScreenState extends State<JournalEntryListScreen> {
             child: Consumer<AccountingProvider>(
               builder: (context, provider, child) {
                 if (provider.isLoading) {
-                  return const Center(child: CircularProgressIndicator());
+                  return const LoadingState();
                 }
                 
                 if (provider.journalEntries.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.book_outlined, size: 64, color: Colors.grey),
-                        const SizedBox(height: 16),
-                        const Text('لا توجد قيود'),
-                        const SizedBox(height: 8),
-                        AppButton(
-                          label: 'إنشاء قيد جديد',
-                          icon: Icons.add,
-                          onPressed: () {
-                            context.push('/journal-entries/create');
-                          },
-                          variant: AppButtonVariant.success,
-                        ),
-                      ],
-                    ),
+                  return EmptyState(
+                    icon: Icons.book_outlined,
+                    title: 'لا توجد قيود',
+                    message: 'ابدأ بإنشاء قيد يومي جديد',
+                    actionLabel: 'إنشاء قيد جديد',
+                    onAction: () {
+                      context.push('/journal-entries/create');
+                    },
                   );
                 }
 
@@ -285,21 +277,7 @@ class _JournalEntryListScreenState extends State<JournalEntryListScreen> {
                       ],
                     ),
                   ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: AppDimens.s2, vertical: AppDimens.s1),
-                    decoration: BoxDecoration(
-                      color: entry.isPosted ? AppColors.successContainer : AppColors.warningContainer,
-                      borderRadius: BorderRadius.circular(AppDimens.radiusCard),
-                    ),
-                    child: Text(
-                      entry.isPosted ? 'مرحّل' : 'مسودة',
-                      style: TextStyle(
-                        color: entry.isPosted ? AppColors.success : AppColors.warning,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
+                  StatusChip(status: entry.isPosted ? 'posted' : 'draft'),
                 ],
               ),
               const SizedBox(height: 12),

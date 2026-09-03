@@ -10,6 +10,8 @@ import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimensions.dart';
 import '../../../theme/app_text_styles.dart';
 import '../../widgets/app_widgets.dart';
+import '../../widgets/loading_state.dart';
+import '../../widgets/empty_state.dart';
 
 class GeneralLedgerScreen extends StatefulWidget {
   const GeneralLedgerScreen({super.key});
@@ -196,16 +198,24 @@ class _GeneralLedgerScreenState extends State<GeneralLedgerScreen> {
             ),
           ),
           if (_isLoading)
-            const Expanded(child: Center(child: CircularProgressIndicator()))
+            const Expanded(child: LoadingState())
           else if (_selectedAccountCode == null)
-            const Expanded(child: Center(child: Text('اختر حساباً لعرض كشف الحساب')))
+            const Expanded(child: EmptyState(
+              icon: Icons.account_balance_outlined,
+              title: 'اختر حساباً لعرض كشف الحساب',
+              compact: true,
+            ))
           else
             Expanded(
               child: Column(
                 children: [
                   Expanded(
                     child: _statementItems.isEmpty
-                        ? const Center(child: Text('لا توجد حركات لهذا الحساب'))
+                        ? const EmptyState(
+                            icon: Icons.receipt_long_outlined,
+                            title: 'لا توجد حركات لهذا الحساب',
+                            compact: true,
+                          )
                         : SingleChildScrollView(
                             scrollDirection: Axis.horizontal,
                             child: SingleChildScrollView(

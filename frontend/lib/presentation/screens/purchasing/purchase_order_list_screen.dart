@@ -7,7 +7,8 @@ import '../../../utils/money_utils.dart';
 import '../../../utils/currency_helper.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimensions.dart';
-import '../../../theme/app_text_styles.dart';
+import '../../widgets/empty_state.dart';
+import '../../widgets/loading_state.dart';
 
 class PurchaseOrderListScreen extends StatefulWidget {
   const PurchaseOrderListScreen({super.key});
@@ -113,7 +114,10 @@ class _PurchaseOrderListScreenState extends State<PurchaseOrderListScreen> {
   }
 
   Widget _buildBody() {
-    if (_isLoading) return const Center(child: CircularProgressIndicator());
+    if (_isLoading) return const LoadingState();
+    final filtered = _statusFilter.isEmpty
+        ? _orders
+        : _orders.where((o) => o['status'] == _statusFilter).toList();
     return Column(
       children: [
         if (_error != null)
@@ -125,34 +129,38 @@ class _PurchaseOrderListScreenState extends State<PurchaseOrderListScreen> {
             ],
             backgroundColor: AppColors.warningContainer,
           ),
-        if (_orders.isEmpty && _error == null)
-          const Expanded(
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.shopping_cart_outlined, size: 64, color: AppColors.textMuted),
-                  SizedBox(height: 16),
-                  Text('لا توجد أوامر شراء', style: AppTextStyles.headlineSmall),
-                ],
-              ),
+        if (filtered.isEmpty && _error == null)
+          Expanded(
+            child: EmptyState(
+              icon: Icons.shopping_cart_outlined,
+              title: _statusFilter.isEmpty ? 'لا توجد أوامر شراء' : 'لا توجد نتائج',
+              message: _statusFilter.isEmpty
+                  ? 'لم يتم إنشاء أي أوامر شراء بعد'
+                  : 'لا توجد أوامر شراء بهذه الحالة',
+              actionLabel: _statusFilter.isEmpty ? 'أمر شراء جديد' : null,
+              onAction: _statusFilter.isEmpty
+                  ? () async {
+                      await context.push('/purchase-orders/create');
+                      _loadOrders();
+                    }
+                  : null,
             ),
           )
-        else if (_orders.isNotEmpty)
+        else if (filtered.isNotEmpty)
           Expanded(
             child: RefreshIndicator(
               onRefresh: _loadOrders,
               child: ListView.builder(
                 padding: const EdgeInsets.all(AppDimens.s3),
-                itemCount: _orders.length,
+                itemCount: filtered.length,
                 itemBuilder: (context, index) {
-                  final order = _orders[index];
+                  final order = filtered[index];
                   final status = order['status'] ?? 'draft';
                   return Card(
                     margin: const EdgeInsets.only(bottom: AppDimens.s2),
                     child: ListTile(
                       leading: CircleAvatar(
-                        backgroundColor: _statusColor(status).withOpacity(0.1),
+                        backgroundColor: _statusColor(status).withValues(alpha: 0.1),
                         child: Icon(Icons.shopping_cart, color: _statusColor(status)),
                       ),
                       title: Text(order['number'] ?? order['id'].toString().substring(0, 8),
@@ -171,7 +179,7 @@ class _PurchaseOrderListScreenState extends State<PurchaseOrderListScreen> {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(
-                              color: _statusColor(status).withOpacity(0.1),
+                              color: _statusColor(status).withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(AppDimens.radiusCard),
                             ),
                             child: Text(_statusLabel(status),

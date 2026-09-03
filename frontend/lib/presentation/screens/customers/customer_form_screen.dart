@@ -3,7 +3,7 @@ import 'package:decimal/decimal.dart';
 import '../../../data/models/customer_model.dart';
 import '../../../data/repositories/customer_repository.dart';
 import '../../widgets/app_widgets.dart';
-import '../../widgets/loading_widget.dart';
+import '../../widgets/loading_state.dart';
 import '../../../utils/error_utils.dart';
 import '../../../utils/money_utils.dart';
 import '../../../theme/app_colors.dart';
@@ -200,7 +200,7 @@ class _CustomerFormScreenState extends State<CustomerFormScreen> {
   Widget build(BuildContext context) {
     if (_isLoading) {
       return const Scaffold(
-        body: LoadingWidget(),
+        body: LoadingState(skeleton: false),
       );
     }
 

@@ -7,6 +7,8 @@ import '../../../utils/error_logger.dart';
 import '../../../utils/money_utils.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimensions.dart';
+import '../../widgets/loading_state.dart';
+import '../../widgets/empty_state.dart';
 
 class ChartOfAccountsScreen extends StatefulWidget {
   const ChartOfAccountsScreen({super.key});
@@ -321,9 +323,13 @@ class _ChartOfAccountsScreenState extends State<ChartOfAccountsScreen> {
   }
 
   Widget _buildBody() {
-    if (_isLoading) return const Center(child: CircularProgressIndicator());
+    if (_isLoading) return const LoadingState();
     final visible = _filterNodes(_accounts);
-    if (visible.isEmpty) return const Center(child: Text('لا توجد حسابات'));
+    if (visible.isEmpty) return const EmptyState(
+      icon: Icons.account_tree_outlined,
+      title: 'لا توجد حسابات',
+      message: 'ابدأ بإضافة حسابات في دليل الحسابات',
+    );
     return ListView(
       padding: const EdgeInsets.all(8),
       children: _buildNodes(visible),

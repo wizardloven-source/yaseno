@@ -7,6 +7,8 @@ import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimensions.dart';
 import '../../../theme/app_text_styles.dart';
 import '../../../presentation/widgets/app_widgets.dart';
+import '../../widgets/loading_state.dart';
+import '../../widgets/empty_state.dart';
 
 class FiscalPeriodsScreen extends StatefulWidget {
   const FiscalPeriodsScreen({super.key});
@@ -279,8 +281,12 @@ class _FiscalPeriodsScreenState extends State<FiscalPeriodsScreen> {
   }
 
   Widget _buildBody() {
-    if (_isLoading) return const Center(child: CircularProgressIndicator());
-    if (_periods.isEmpty) return const Center(child: Text('لا توجد فترات مالية'));
+    if (_isLoading) return const LoadingState();
+    if (_periods.isEmpty) return const EmptyState(
+      icon: Icons.date_range_outlined,
+      title: 'لا توجد فترات مالية',
+      message: 'أنشئ فترة مالية للبدء',
+    );
     return ListView.builder(
       padding: const EdgeInsets.all(8),
       itemCount: _periods.length,

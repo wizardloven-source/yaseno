@@ -5,6 +5,8 @@ import '../../../theme/app_colors.dart';
 import '../../../theme/app_dimensions.dart';
 import '../../../theme/app_text_styles.dart';
 import '../../../presentation/widgets/app_widgets.dart';
+import '../../widgets/loading_state.dart';
+import '../../widgets/empty_state.dart';
 
 class SitesScreen extends StatefulWidget {
   const SitesScreen({super.key});
@@ -449,7 +451,7 @@ class _SitesScreenState extends State<SitesScreen> {
   }
 
   Widget _buildBody() {
-    if (_isLoading) return const Center(child: CircularProgressIndicator());
+    if (_isLoading) return const LoadingState();
     return Column(
       children: [
         if (_error != null)
@@ -488,16 +490,9 @@ class _SitesScreenState extends State<SitesScreen> {
         ),
         if (_sites.isEmpty && _error == null)
           const Expanded(
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.location_city, size: 64, color: AppColors.textSecondary),
-                  SizedBox(height: 16),
-                  Text('لا توجد مواقع',
-                      style: TextStyle(fontSize: 18, color: AppColors.textMuted)),
-                ],
-              ),
+            child: EmptyState(
+              icon: Icons.location_city,
+              title: 'لا توجد مواقع',
             ),
           )
         else if (_sites.isNotEmpty)

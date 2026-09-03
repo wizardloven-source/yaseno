@@ -1,0 +1,4505 @@
+# YASeen ERP — MASTER PRODUCT, UX/UI & IMPLEMENTATION SPECIFICATION
+
+## 0. تعريف الوثيقة
+
+هذه الوثيقة هي المرجع الرئيسي لتصميم وتطوير تطبيق **YASeen ERP**.
+
+لا تتعامل مع YASeen على أنه مجموعة صفحات منفصلة، بل على أنه **نظام تشغيل للأعمال Business Operating System** يربط:
+
+**المبيعات → العملاء → المخزون → المشتريات → الموردين → الأموال → المحاسبة → الميزانيات → التقارير → القرارات**
+
+ويجب أن يكون النظام:
+
+* Arabic First
+* RTL First
+* Mobile + Desktop
+* Modular
+* Configurable
+* Offline-capable
+* Business-first
+* Accounting-aware
+* Permission-driven
+* Workflow-aware
+* Scalable
+* Professional
+* Simple للمستخدم غير المحاسب
+* عميق للمستخدم المحترف
+
+---
+
+# 1. الرؤية
+
+YASeen ليس برنامج محاسبة فقط.
+
+وليس برنامج مخزون فقط.
+
+وليس برنامج مبيعات فقط.
+
+بل منصة واحدة يستطيع صاحب العمل أن يدير من خلالها أعماله اليومية، بينما يقوم النظام في الخلفية بربط العمليات التجارية بالمخزون والأموال والمحاسبة والتقارير.
+
+المستخدم لا يجب أن يضطر إلى التفكير:
+
+> "أي حساب محاسبي أستخدم؟"
+
+بل يقول:
+
+> "استلمت بضاعة."
+
+أو:
+
+> "بعت للعميل."
+
+أو:
+
+> "دفعت للمورد."
+
+والنظام يتولى الجانب المحاسبي وفق الإعدادات والقواعد.
+
+---
+
+# 2. فلسفة المنتج
+
+## 2.1 Business First
+
+كل شاشة يجب أن تبدأ من العملية التجارية.
+
+مثال:
+
+بدل أن يبدأ المستخدم من:
+
+Accounting → Journal Entry
+
+يجب أن يستطيع تنفيذ:
+
+Purchase → Receive → Pay Supplier
+
+ثم يقوم النظام بإنشاء الأثر المحاسبي المناسب.
+
+---
+
+# 2.2 Progressive Disclosure
+
+لا تعرض كل شيء للمستخدم من البداية.
+
+المستخدم العادي يرى:
+
+* المنتج
+* الكمية
+* السعر
+* العميل
+* المورد
+* الدفع
+* التاريخ
+
+المستخدم المتقدم يمكنه فتح:
+
+* الحساب
+* مركز التكلفة
+* الضريبة
+* العملة
+* سعر الصرف
+* القيود
+* تفاصيل الترحيل
+
+---
+
+# 2.3 Modular
+
+يمكن للشركة اختيار ما تحتاجه.
+
+مثلاً متجر صغير يمكن أن يرى:
+
+* Dashboard
+* Sales
+* Customers
+* Inventory
+* Cash
+
+بينما شركة أكبر يمكن أن تفعل:
+
+* Accounting
+* Purchasing
+* Budgets
+* Cost Centers
+* Workflows
+* Reports
+
+---
+
+# 2.4 Configurable
+
+يجب أن يستطيع مدير النظام التحكم في:
+
+* الوحدات
+* القوائم
+* الشاشات
+* الحقول
+* الصلاحيات
+* الإجراءات
+* workflows
+* التقارير
+* dashboard
+* الفروع
+* المستودعات
+* العملات
+* الفترات المالية
+
+---
+
+# 3. قاعدة مهمة للـ AI
+
+إذا كان العنصر موجودًا حاليًا في المشروع:
+
+`CURRENT`
+
+إذا كان توسعة مستقبلية:
+
+`PLANNED`
+
+لا تقم بتحويل PLANNED إلى CURRENT.
+
+ولا تفترض وجود API أو database table أو business rule غير موجود.
+
+عند تنفيذ أي ميزة جديدة:
+
+1. افحص الـ domain model.
+2. افحص الـ API.
+3. افحص database.
+4. افحص permissions.
+5. افحص existing workflows.
+6. افحص تأثير العملية على accounting/inventory.
+7. ثم صمم UI.
+
+---
+
+# 4. الهيكل الرئيسي للتطبيق
+
+## Desktop Navigation
+
+القائمة الرئيسية:
+
+* الرئيسية
+* المبيعات
+* العملاء
+* المشتريات
+* الموردون
+* المخزون
+* الصندوق والأموال
+* المحاسبة
+* الميزانيات
+* مراكز التكلفة
+* الموافقات
+* التقارير
+* الإعدادات
+
+يمكن إخفاء أي قسم حسب إعدادات الشركة والصلاحيات.
+
+---
+
+# 5. Application Shell
+
+كل شاشة داخل YASeen يجب أن تستخدم الهيكل التالي:
+
+```text
+┌───────────────────────────────────────────────┐
+│ Logo │ Search │ Notifications │ User Profile │
+├────────────┬──────────────────────────────────┤
+│            │ Breadcrumb                       │
+│ Sidebar    │ Page Title                       │
+│            │ Description / Actions            │
+│            │                                  │
+│            │ Main Content                     │
+│            │                                  │
+└────────────┴──────────────────────────────────┘
+```
+
+على الهاتف:
+
+```text
+┌────────────────────────────┐
+│ ←   عنوان الصفحة     ⋮     │
+├────────────────────────────┤
+│                            │
+│       Content              │
+│                            │
+│                            │
+├────────────────────────────┤
+│ Home │ Sales │ + │ More   │
+└────────────────────────────┘
+```
+
+---
+
+# 6. GLOBAL HEADER
+
+يحتوي على:
+
+## 6.1 Logo
+
+YASeen.
+
+## 6.2 Global Search
+
+بحث موحد في:
+
+* العملاء
+* الموردين
+* المنتجات
+* الفواتير
+* أوامر الشراء
+* حركات المخزون
+* القيود
+* الحسابات
+* المستندات
+
+## 6.3 Notifications
+
+تعرض:
+
+* موافقات تنتظر المستخدم
+* مخزون منخفض
+* فواتير متأخرة
+* دفعات مستحقة
+* أخطاء مزامنة
+* انتهاء أصناف
+* تجاوز ميزانية
+* أحداث مهمة
+
+## 6.4 Sync Indicator
+
+حالات واضحة:
+
+* متصل
+* Offline
+* تتم المزامنة
+* توجد عمليات معلقة
+* فشل في المزامنة
+
+مثال:
+
+`✓ تمت المزامنة`
+
+`● 3 عمليات بانتظار المزامنة`
+
+---
+
+# 7. GLOBAL SEARCH
+
+## الشاشة
+
+Search Center.
+
+يستطيع المستخدم كتابة:
+
+```text
+محمد
+```
+
+فتظهر:
+
+### Customers
+
+محمد أحمد
+
+### Invoices
+
+INV-2026-00124
+
+### Products
+
+محمدي...
+
+### Transactions
+
+...
+
+---
+
+## عمليات البحث
+
+* فتح
+* تصفية
+* الانتقال للتفاصيل
+* نسخ رقم المستند
+* فتح العميل
+* فتح العملية المرتبطة
+
+---
+
+# 8. DASHBOARD — الرئيسية
+
+## الحالة
+
+CURRENT/CORE + قابل للتوسع.
+
+Dashboard يجب ألا تكون مجرد رسوم جميلة.
+
+هي مركز التحكم.
+
+---
+
+## 8.1 Top Summary
+
+بطاقات:
+
+### Sales Today
+
+مبيعات اليوم.
+
+### Purchases Today
+
+مشتريات اليوم.
+
+### Receivables
+
+المبالغ المستحقة من العملاء.
+
+### Payables
+
+المبالغ المستحقة للموردين.
+
+### Cash
+
+الرصيد النقدي.
+
+### Inventory Value
+
+قيمة المخزون.
+
+---
+
+# 8.2 Business Alerts
+
+قسم:
+
+**يحتاج انتباهك**
+
+أمثلة:
+
+* 5 منتجات تحت الحد الأدنى.
+* 3 فواتير متأخرة.
+* 2 موافقة تنتظر الإجراء.
+* ميزانية قسم المبيعات تجاوزت 90%.
+* عملية مزامنة فشلت.
+
+كل Alert يجب أن يكون قابلًا للنقر.
+
+---
+
+# 8.3 Recent Transactions
+
+آخر العمليات:
+
+* بيع
+* شراء
+* قبض
+* دفع
+* تحويل
+* حركة مخزون
+* قيد
+
+---
+
+# 8.4 Quick Actions
+
+زر:
+
+`+ عملية جديدة`
+
+يفتح:
+
+* بيع
+* فاتورة
+* قبض
+* شراء
+* استلام بضاعة
+* دفع
+* مصروف
+* حركة مخزون
+* تحويل مخزون
+
+ويجب أن تختلف القائمة حسب الصلاحيات والوحدات المفعلة.
+
+---
+
+# 8.5 Dashboard Customization
+
+المستخدم الإداري يستطيع تحديد:
+
+* البطاقات
+* الرسوم
+* ترتيبها
+* إخفاؤها
+* الفترة
+* الفرع
+* مركز التكلفة
+
+---
+
+# 9. SALES — المبيعات
+
+المبيعات يجب أن تكون من أسهل أجزاء النظام.
+
+---
+
+# 9.1 Sales Home
+
+تعرض:
+
+* إجمالي المبيعات
+* عدد الفواتير
+* المرتجعات
+* المبالغ المحصلة
+* المستحق
+* أفضل المنتجات
+* أفضل العملاء
+
+Actions:
+
+`+ فاتورة`
+
+`+ عرض سعر`
+
+`+ أمر بيع`
+
+`مرتجع`
+
+> عرض السعر وأمر البيع يمكن أن يكونا PLANNED إذا لم يكونا موجودين في النسخة الحالية.
+
+---
+
+# 9.2 Invoice List
+
+جدول Desktop:
+
+| الرقم | العميل | التاريخ | الإجمالي | المدفوع | المتبقي | الحالة |
+| ----- | ------ | ------- | -------: | ------: | ------: | ------ |
+
+Mobile:
+
+Card لكل فاتورة.
+
+---
+
+## Filters
+
+* التاريخ
+* العميل
+* الفرع
+* الحالة
+* طريقة الدفع
+* المبلغ
+* المستخدم
+* العملة
+
+---
+
+## Actions
+
+* فتح
+* تعديل إذا كانت Draft
+* نسخ
+* طباعة
+* PDF
+* مشاركة
+* تسجيل دفعة
+* إرجاع
+* إلغاء وفق الصلاحيات
+* فتح القيد
+* فتح حركة المخزون
+
+---
+
+# 9.3 Create Invoice
+
+الواجهة:
+
+### Header
+
+* العميل
+* التاريخ
+* العملة
+* الفرع
+* المستودع
+
+### Items
+
+لكل سطر:
+
+* المنتج
+* الكمية
+* الوحدة
+* السعر
+* الخصم
+* الضريبة
+* الإجمالي
+
+### Payment
+
+* نقدي
+* بطاقة
+* تحويل
+* آجل
+* طرق أخرى حسب الإعدادات
+
+### Summary
+
+```text
+Subtotal
+Discount
+Tax
+Grand Total
+Paid
+Remaining
+```
+
+---
+
+# 9.4 Invoice Validation
+
+قبل الحفظ:
+
+* العميل صالح
+* المنتج صالح
+* الكمية > 0
+* السعر صالح
+* المستودع محدد إذا كانت العملية تؤثر على المخزون
+* المخزون متاح إذا كانت السياسة تمنع البيع بالسالب
+* العملة صحيحة
+* الفترة المالية مفتوحة
+* المستخدم لديه الصلاحية
+
+---
+
+# 9.5 Invoice Lifecycle
+
+```text
+Draft
+ ↓
+Confirmed
+ ↓
+Posted
+ ↓
+Paid / Partially Paid
+```
+
+وفي حال الإرجاع:
+
+```text
+Posted
+ ↓
+Returned
+```
+
+لا يتم حذف فاتورة مرحّلة.
+
+---
+
+# 9.6 Accounting Effect
+
+عند الترحيل:
+
+النظام ينشئ الأثر المحاسبي وفق إعداداته.
+
+مثال منطقي:
+
+```text
+Customer / Cash
+       ↓
+     Sales
+       ↓
+Inventory / COGS
+```
+
+لا تجعل المستخدم يكتب القيد يدويًا في العملية اليومية.
+
+---
+
+# 9.7 Sales Return
+
+يجب أن يختار:
+
+* الفاتورة الأصلية
+* المنتجات
+* الكميات المرتجعة
+* سبب الإرجاع
+* المستودع
+* الحالة
+
+ويجب ألا تتجاوز الكمية المرتجعة الكمية المباعة إلا إذا كانت هناك صلاحية خاصة.
+
+---
+
+# 10. SALES ORDER — PLANNED
+
+عند إضافته:
+
+Lifecycle:
+
+```text
+Draft
+Confirmed
+Partially Delivered
+Delivered
+Cancelled
+```
+
+العمليات:
+
+* إنشاء
+* تعديل
+* تأكيد
+* إلغاء
+* تحويل إلى Delivery
+* تحويل إلى Invoice
+
+---
+
+# 11. QUOTATIONS — PLANNED
+
+Lifecycle:
+
+```text
+Draft
+Sent
+Accepted
+Rejected
+Expired
+Converted
+```
+
+Actions:
+
+* PDF
+* إرسال
+* نسخ
+* تحويل لأمر بيع
+* إلغاء
+
+---
+
+# 12. DELIVERY / PICKING — PLANNED
+
+المستودع يرى:
+
+* الطلب
+* العميل
+* المنتجات
+* الكمية المطلوبة
+* الكمية المحضرة
+* الكمية المسلمة
+
+Lifecycle:
+
+```text
+Pending
+Picking
+Packed
+Shipped
+Delivered
+```
+
+---
+
+# 13. CUSTOMERS — العملاء
+
+# Customer List
+
+تعرض:
+
+* الاسم
+* الهاتف
+* الفرع
+* الرصيد
+* آخر عملية
+* الحالة
+
+---
+
+# 13.1 Create Customer
+
+الحقول:
+
+### Basic
+
+* الاسم
+* الاسم التجاري
+* الهاتف
+* البريد
+* العنوان
+
+### Financial
+
+* العملة
+* حد الائتمان
+* شروط الدفع
+* حساب العميل
+
+### Business
+
+* الرقم الضريبي
+* التصنيف
+* مندوب المبيعات
+
+---
+
+# 13.2 Customer Detail
+
+Header:
+
+```text
+محمد للتجارة
+الرصيد: 15,000
+```
+
+Tabs:
+
+* Overview
+* Invoices
+* Payments
+* Returns
+* Statement
+* Aging
+* Branches
+* Activity
+
+---
+
+# 13.3 Customer Actions
+
+* تعديل
+* فاتورة
+* قبض
+* كشف حساب
+* إضافة فرع
+* تعليق العميل
+* تصدير
+* طباعة
+
+---
+
+# 13.4 Customer Aging
+
+Buckets:
+
+```text
+Current
+1–30
+31–60
+61–90
+90+
+```
+
+---
+
+# 14. CUSTOMER BRANCHES
+
+الفرع يجب أن يكون كيانًا مستقلًا مرتبطًا بالعميل.
+
+البيانات:
+
+* اسم الفرع
+* العنوان
+* الهاتف
+* جهة الاتصال
+* شروط الدفع
+* ملاحظات
+
+يمكن استخدام الفرع في:
+
+* المبيعات
+* التسليم
+* الفواتير
+* التقارير
+
+---
+
+# 15. PURCHASES — المشتريات
+
+المشتريات ليست مجرد إدخال فاتورة.
+
+المسار:
+
+```text
+Purchase
+→ Receive
+→ Inventory
+→ Supplier Liability
+→ Payment
+```
+
+---
+
+# 15.1 Purchase Orders
+
+إذا كانت موجودة/أو عند تطويرها.
+
+الحقول:
+
+* المورد
+* التاريخ
+* العملة
+* المستودع
+* المنتجات
+* الكميات
+* الأسعار
+* الخصم
+* الضرائب
+* الملاحظات
+
+---
+
+# 15.2 Purchase Order Lifecycle
+
+```text
+Draft
+Confirmed
+Partially Received
+Fully Received
+Cancelled
+Closed
+```
+
+---
+
+# 15.3 Receiving
+
+شاشة الاستلام يجب أن تسمح بـ:
+
+* اختيار أمر الشراء
+* تحديد الكميات
+* استلام جزئي
+* batch
+* serial
+* expiry
+* location
+
+---
+
+# 15.4 Partial Receiving
+
+مثال:
+
+PO:
+
+```text
+100 قطعة
+```
+
+استلم:
+
+```text
+60
+```
+
+النظام:
+
+```text
+Received = 60
+Remaining = 40
+```
+
+ولا يعتبر الطلب مكتملًا.
+
+---
+
+# 16. SUPPLIERS — الموردون
+
+مماثل للعملاء لكن من منظور الالتزامات.
+
+Tabs:
+
+* Overview
+* Purchases
+* Payments
+* Returns
+* Statement
+* Aging
+* Activity
+
+---
+
+# 17. INVENTORY — المخزون
+
+هذه من أهم وحدات YASeen.
+
+---
+
+# 17.1 Inventory Dashboard
+
+بطاقات:
+
+* إجمالي الأصناف
+* قيمة المخزون
+* منخفض المخزون
+* منتهية الصلاحية
+* قريبة الانتهاء
+* الحركات اليوم
+* المخزون المحجوز
+
+---
+
+# 17.2 Products
+
+## Product List
+
+Filters:
+
+* category
+* warehouse
+* status
+* low stock
+* expiry
+* batch
+* serial
+
+---
+
+# 17.3 Product Detail
+
+يجب أن يرى المستخدم:
+
+```text
+Product
+────────────────
+SKU
+Barcode
+Name
+Category
+Unit
+Cost
+Sale Price
+```
+
+ثم:
+
+* Available
+* Reserved
+* On Hand
+* Incoming
+* Minimum
+* Maximum
+
+---
+
+# 17.4 Product Inventory
+
+عرض حسب:
+
+```text
+Warehouse
+   ↓
+Location
+   ↓
+Batch
+   ↓
+Serial
+```
+
+---
+
+# 17.5 Product Movements
+
+كل حركة تعرض:
+
+* التاريخ
+* النوع
+* الكمية
+* المصدر
+* الوجهة
+* المستند
+* المستخدم
+
+أنواع:
+
+* Purchase
+* Sale
+* Return
+* Transfer
+* Adjustment
+* Consumption
+
+---
+
+# 17.6 Stock Transfer
+
+Form:
+
+```text
+From Warehouse
+To Warehouse
+Date
+Items
+Quantity
+Batch
+Serial
+Reason
+```
+
+Lifecycle:
+
+```text
+Draft
+Confirmed
+Completed
+Cancelled
+```
+
+---
+
+# 17.7 Stock Adjustment
+
+يجب أن يكون مقيد الصلاحيات.
+
+البيانات:
+
+* المنتج
+* الكمية الحالية
+* الكمية الجديدة
+* الفرق
+* السبب
+* المستودع
+* الموقع
+
+لا تسمح بتعديل الرصيد مباشرة دون تسجيل حركة.
+
+---
+
+# 17.8 Batch Management
+
+كل Batch:
+
+* رقم الدفعة
+* المنتج
+* تاريخ الإنتاج
+* تاريخ الانتهاء
+* الكمية
+* الموقع
+* المورد
+
+---
+
+# 17.9 Serial Management
+
+Serial Number:
+
+* المنتج
+* الرقم
+* الحالة
+* الموقع
+* المستند
+* تاريخ الدخول
+* تاريخ الخروج
+
+---
+
+# 17.10 Expiry
+
+صفحة:
+
+**Expiry Management**
+
+Filters:
+
+* منتهي
+* خلال 7 أيام
+* خلال 30 يومًا
+* خلال 90 يومًا
+
+Actions:
+
+* نقل
+* إتلاف
+* إرجاع
+* تعديل
+* تقرير
+
+---
+
+# 17.11 FIFO Valuation
+
+يجب ألا يظهر للمستخدم كتعقيد محاسبي.
+
+النظام يتولى حساب التكلفة وفق طبقات FIFO.
+
+في التفاصيل المتقدمة يمكن عرض:
+
+```text
+Layer
+Quantity
+Unit Cost
+Remaining
+Source
+Date
+```
+
+---
+
+# 18. CASH & FUNDS — الصندوق والأموال
+
+يجب أن يكون واضحًا جدًا للمستخدم.
+
+---
+
+# 18.1 Funds List
+
+مثال:
+
+* الصندوق الرئيسي
+* البنك
+* صندوق الفرع
+* حساب بنكي
+
+---
+
+# 18.2 Cash In
+
+البيانات:
+
+* المصدر
+* المبلغ
+* العملة
+* التاريخ
+* الحساب
+* الوصف
+* المرفقات
+
+---
+
+# 18.3 Cash Out
+
+نفس الفكرة لكن خروج الأموال.
+
+---
+
+# 18.4 Transfer
+
+```text
+From
+To
+Amount
+Currency
+Date
+Reference
+```
+
+يجب أن ينتج عن التحويل أثر مزدوج منطقي.
+
+---
+
+# 18.5 Payment Allocation
+
+عند قبض 10,000 من عميل لديه:
+
+```text
+Invoice A = 4,000
+Invoice B = 3,000
+Invoice C = 5,000
+```
+
+يستطيع المستخدم تخصيص:
+
+```text
+A = 4,000
+B = 3,000
+C = 3,000
+```
+
+ويبقى C:
+
+```text
+2,000
+```
+
+---
+
+# 19. RECONCILIATION
+
+شاشة التسوية.
+
+تعرض:
+
+```text
+System Balance
+Bank Balance
+Difference
+```
+
+ثم العمليات غير المطابقة.
+
+Actions:
+
+* Match
+* Unmatch
+* Add adjustment
+* Ignore
+* Resolve
+
+---
+
+# 20. ACCOUNTING — المحاسبة
+
+المحاسبة هي المحرك الداخلي للنظام وليست بالضرورة الواجهة الأولى للمستخدم.
+
+---
+
+# 20.1 Chart of Accounts
+
+Tree:
+
+```text
+Assets
+ ├── Cash
+ ├── Bank
+ ├── Receivables
+ └── Inventory
+
+Liabilities
+ ├── Payables
+ └── Loans
+
+Equity
+
+Revenue
+
+Expenses
+```
+
+---
+
+# 20.2 Account List
+
+Columns:
+
+* Code
+* Name
+* Type
+* Parent
+* Currency
+* Status
+
+Actions:
+
+* Create
+* Edit
+* Disable
+* Open statement
+* View ledger
+
+---
+
+# 20.3 Create Account
+
+Fields:
+
+* Code
+* Name
+* Parent
+* Type
+* Currency
+* Allow transactions
+* Cost center required
+* Active
+
+Validation:
+
+* code unique
+* parent valid
+* type compatible
+* cannot create transaction under non-postable parent
+
+---
+
+# 21. JOURNAL ENTRIES
+
+# List
+
+Filters:
+
+* date
+* status
+* account
+* reference
+* user
+* source
+
+---
+
+# 21.1 Create Journal Entry
+
+Header:
+
+* date
+* reference
+* description
+
+Lines:
+
+```text
+Account
+Description
+Debit
+Credit
+Cost Center
+Currency
+Exchange Rate
+```
+
+Validation:
+
+```text
+Total Debit = Total Credit
+```
+
+---
+
+# 21.2 Journal Lifecycle
+
+```text
+Draft
+ ↓
+Posted
+```
+
+بعد Post:
+
+لا يسمح بالتعديل المباشر.
+
+إذا كان هناك خطأ:
+
+```text
+Reverse
+```
+
+ثم إنشاء التصحيح.
+
+---
+
+# 21.3 Source Traceability
+
+كل قيد ناتج من عملية يجب أن يحتوي على:
+
+```text
+Source Type
+Source ID
+```
+
+مثال:
+
+```text
+Source:
+Sales Invoice INV-1005
+```
+
+وبالتالي يستطيع المستخدم الانتقال:
+
+Invoice → Journal Entry
+
+أو:
+
+Journal Entry → Invoice
+
+---
+
+# 22. GENERAL LEDGER
+
+المستخدم يحدد:
+
+* الحساب
+* التاريخ
+* الفرع
+* مركز التكلفة
+* العملة
+
+ثم:
+
+```text
+Opening Balance
+Transactions
+Debit
+Credit
+Running Balance
+Closing Balance
+```
+
+---
+
+# 23. TRIAL BALANCE
+
+Filters:
+
+* date
+* fiscal period
+* branch
+* cost center
+
+Columns:
+
+```text
+Account
+Debit
+Credit
+```
+
+ويجب:
+
+```text
+Total Debit = Total Credit
+```
+
+---
+
+# 24. INCOME STATEMENT
+
+عرض:
+
+```text
+Revenue
+- Cost of Sales
+= Gross Profit
+
+- Operating Expenses
+= Operating Profit
+
+± Other Income/Expenses
+
+= Net Profit
+```
+
+مع إمكانية المقارنة:
+
+```text
+Current Period
+Previous Period
+Budget
+```
+
+---
+
+# 25. BALANCE SHEET
+
+```text
+Assets
+Liabilities
+Equity
+```
+
+ويجب أن يتحقق:
+
+```text
+Assets = Liabilities + Equity
+```
+
+---
+
+# 26. CASH FLOW
+
+تصنيف:
+
+* Operating
+* Investing
+* Financing
+
+الفترة:
+
+* Today
+* This Month
+* This Year
+* Custom
+
+---
+
+# 27. ACCOUNT STATEMENT
+
+يمكن فتح كشف أي حساب.
+
+يعرض:
+
+```text
+Opening
+Date
+Reference
+Description
+Debit
+Credit
+Balance
+```
+
+---
+
+# 28. FISCAL PERIODS
+
+إدارة الفترات:
+
+```text
+Open
+Closed
+```
+
+إذا كانت الفترة مغلقة:
+
+لا يمكن إنشاء/ترحيل عمليات فيها إلا بصلاحية خاصة.
+
+---
+
+# 29. YEAR-END CLOSING
+
+يجب أن تكون عملية حساسة.
+
+قبل الإغلاق:
+
+Checklist:
+
+* لا توجد عمليات معلقة
+* القيود متوازنة
+* الفترات مكتملة
+* التسويات منتهية
+
+ثم:
+
+`Close Year`
+
+يجب أن تكون العملية قابلة للتتبع.
+
+---
+
+# 30. BUDGETS
+
+الميزانية ليست رصيدًا محاسبيًا.
+
+هي:
+
+**Plan vs Actual**
+
+---
+
+# 30.1 Budget List
+
+تعرض:
+
+* الاسم
+* الفترة
+* الحالة
+* الإجمالي
+* المستخدم
+* نسبة الاستخدام
+
+---
+
+# 30.2 Create Budget
+
+Header:
+
+* Name
+* Period
+* Currency
+* Branch
+* Cost Center
+
+Lines:
+
+```text
+Account
+Planned Amount
+```
+
+---
+
+# 30.3 Budget vs Actual
+
+مثال:
+
+```text
+Electricity
+
+Budget       10,000
+Actual        8,000
+Remaining     2,000
+Usage            80%
+Variance       2,000
+```
+
+---
+
+# 30.4 Budget Alerts
+
+مثلاً:
+
+* 80% usage → Warning
+* 100% → Exceeded
+
+لكن الإشعارات والقواعد يجب أن تكون قابلة للإعداد.
+
+---
+
+# 31. COST CENTERS
+
+مثال:
+
+```text
+Sales
+Marketing
+Warehouse
+Administration
+Branch A
+Branch B
+```
+
+يمكن ربطها بالعمليات.
+
+---
+
+# 32. PROFIT CENTERS
+
+استخدمها لتحديد:
+
+```text
+Branch A
+Product Line
+Business Unit
+```
+
+ثم قياس:
+
+```text
+Revenue
+Cost
+Profit
+Margin
+```
+
+---
+
+# 33. WORKFLOWS
+
+الـ Workflow يجب ألا يكون إلزاميًا لكل عملية.
+
+الشركة الصغيرة يمكن أن تعمل مباشرة.
+
+الشركة الأكبر يمكنها فرض:
+
+```text
+Purchase > 10,000
+→ Manager Approval
+→ Finance Approval
+→ Post
+```
+
+---
+
+# 33.1 Workflow Definition
+
+الحقول:
+
+* Name
+* Entity
+* Conditions
+* Steps
+* Approvers
+* Escalation
+* SLA
+
+---
+
+# 33.2 Approval Inbox
+
+يعرض:
+
+```text
+Pending
+Approved
+Rejected
+Delegated
+Expired
+```
+
+---
+
+# 33.3 Approval Detail
+
+المستخدم يرى:
+
+* العملية
+* المبلغ
+* صاحب الطلب
+* التفاصيل
+* التعليقات
+* المرفقات
+* التاريخ
+
+Actions:
+
+* Approve
+* Reject
+* Request Changes
+
+---
+
+# 33.4 Batch Approval
+
+تحديد عدة عمليات:
+
+```text
+✓
+✓
+✓
+```
+
+ثم:
+
+`Approve Selected`
+
+مع منع اعتماد عملية غير صالحة.
+
+---
+
+# 34. ROLES & PERMISSIONS
+
+الأدوار المقترحة:
+
+### system_admin
+
+تحكم كامل على مستوى النظام.
+
+### company_admin
+
+إدارة الشركة.
+
+### accountant
+
+المحاسبة والتقارير.
+
+### cashier
+
+القبض والدفع والمبيعات حسب الصلاحية.
+
+### sales
+
+المبيعات والعملاء.
+
+### purchasing
+
+المشتريات والموردون.
+
+### warehouse
+
+المخزون.
+
+### manager
+
+الموافقة والتقارير.
+
+### viewer
+
+قراءة فقط.
+
+---
+
+# 34.1 Permission Model
+
+الصلاحية يجب أن تكون على الأقل:
+
+```text
+Module
+Resource
+Action
+Scope
+```
+
+مثال:
+
+```text
+Sales
+Invoice
+Create
+Own Branch
+```
+
+أو:
+
+```text
+Accounting
+Journal
+Post
+All Branches
+```
+
+---
+
+# 34.2 Actions
+
+الصلاحيات:
+
+* View
+* Create
+* Edit
+* Delete
+* Post
+* Reverse
+* Approve
+* Export
+* Print
+* Refund
+* Adjust
+* Configure
+
+---
+
+# 35. IMPORTANT SECURITY RULE
+
+إخفاء زر في UI ليس Permission.
+
+مثلاً:
+
+```dart
+if (!canPost) hideButton();
+```
+
+هذا جيد للواجهة.
+
+لكن API يجب أن يتحقق أيضًا:
+
+```text
+User
+→ Permission
+→ Scope
+→ Action
+→ Execute
+```
+
+لا تعتمد على Flutter لإجبار الصلاحيات.
+
+---
+
+# 36. SETTINGS
+
+الإعدادات يجب أن تكون منظمة، لا صفحة ضخمة مليئة بالخيارات.
+
+---
+
+# 36.1 Company
+
+* اسم الشركة
+* الشعار
+* العنوان
+* الهاتف
+* البريد
+* الرقم الضريبي
+* العملة الأساسية
+* السنة المالية
+
+---
+
+# 36.2 Branches / Sites
+
+لكل فرع:
+
+* الاسم
+* العنوان
+* الحالة
+* العملة
+* المستودعات
+* المستخدمون
+
+---
+
+# 36.3 Currencies
+
+* Currency
+* Symbol
+* Decimal places
+* Exchange rates
+
+---
+
+# 36.4 Exchange Rates
+
+تاريخ:
+
+```text
+USD
+EUR
+SYP
+...
+```
+
+حسب العملات المفعلة.
+
+---
+
+# 36.5 Fiscal Settings
+
+* Fiscal year
+* Periods
+* Locking
+* Closing
+
+---
+
+# 36.6 UI Settings
+
+المستخدم/المدير يستطيع التحكم في:
+
+* Theme
+* Language
+* Density
+* Sidebar
+* Dashboard
+* Date format
+* Number format
+
+---
+
+# 36.7 MODULE SETTINGS
+
+واجهة:
+
+```text
+Sales          [ON]
+Purchasing     [ON]
+Inventory      [ON]
+Accounting     [ON]
+Budgets        [OFF]
+POS            [OFF]
+CRM            [OFF]
+```
+
+---
+
+# 36.8 MENU SETTINGS
+
+يمكن تحديد ما يظهر في القائمة.
+
+لكن:
+
+**Menu visibility ≠ permission**
+
+---
+
+# 36.9 FIELD CONFIGURATION
+
+في الوحدات القابلة للتخصيص يمكن تحديد:
+
+```text
+Field
+Visible
+Required
+Read Only
+Order
+```
+
+مثال:
+
+```text
+Customer Tax Number
+Visible: ON
+Required: OFF
+```
+
+---
+
+# 37. REPORTS
+
+التقارير يجب أن تكون منظمة حسب مجال العمل.
+
+## Sales
+
+* Sales by date
+* Sales by customer
+* Sales by product
+* Sales by branch
+* Sales by salesperson
+* Returns
+* Profitability
+
+## Purchases
+
+* Purchases by supplier
+* Purchases by product
+* Purchase returns
+* Supplier balances
+
+## Inventory
+
+* Stock on hand
+* Stock valuation
+* Movements
+* Low stock
+* Expiry
+* Batches
+* Serial numbers
+* Transfers
+
+## Finance
+
+* Cash
+* Receivables
+* Payables
+* General Ledger
+* Trial Balance
+* Income Statement
+* Balance Sheet
+* Cash Flow
+
+## Budgets
+
+* Budget vs Actual
+* Variance
+* Cost Center Budget
+
+---
+
+# 38. REPORT BUILDER — PLANNED
+
+المستخدم المتقدم يستطيع:
+
+1. اختيار Dataset.
+2. اختيار الأعمدة.
+3. Filters.
+4. Grouping.
+5. Sorting.
+6. Save Report.
+7. Export.
+8. Add to Dashboard.
+
+---
+
+# 39. NOTIFICATIONS
+
+أنواع:
+
+### Informational
+
+"تم استلام الطلب."
+
+### Warning
+
+"المخزون أقل من الحد."
+
+### Approval
+
+"فاتورة بانتظار الموافقة."
+
+### Error
+
+"فشلت المزامنة."
+
+### Critical
+
+"الفترة المالية مغلقة."
+
+كل إشعار يجب أن يقود إلى مكان المشكلة.
+
+---
+
+# 40. DOCUMENT ATTACHMENTS — PLANNED/EXTENSION
+
+يمكن إرفاق:
+
+* PDF
+* صورة
+* مستند
+* فاتورة
+* عقد
+
+على:
+
+* Customer
+* Supplier
+* Invoice
+* Purchase
+* Payment
+* Journal
+* Expense
+
+مع:
+
+* uploader
+* timestamp
+* permissions
+* download
+* delete وفق الصلاحية
+
+---
+
+# 41. EXPENSES — PLANNED إذا لم تكن موجودة
+
+شاشة المصروفات:
+
+```text
+Date
+Category
+Amount
+Currency
+Payment Method
+Cost Center
+Description
+Attachment
+```
+
+Lifecycle:
+
+```text
+Draft
+Submitted
+Approved
+Posted
+Rejected
+```
+
+---
+
+# 42. POS — PLANNED
+
+واجهة POS مختلفة عن ERP التقليدي.
+
+الشاشة:
+
+```text
+Search / Barcode
+Products Grid
+Cart
+Customer
+Payment
+Total
+```
+
+اختصارات:
+
+* Barcode
+* Quantity
+* Discount
+* Hold
+* Resume
+* Return
+* Cash
+* Card
+
+---
+
+# 43. BARCODE
+
+Barcode يجب أن يعمل عبر النظام وليس فقط في POS.
+
+يمكن استخدامه في:
+
+* البحث
+* البيع
+* الاستلام
+* الجرد
+* النقل
+* الصرف
+
+---
+
+# 44. IMPORT / EXPORT — PLANNED/EXTENSION
+
+Import:
+
+* Products
+* Customers
+* Suppliers
+* Opening balances
+* Inventory
+* Chart of accounts
+
+قبل الاستيراد:
+
+```text
+Upload
+↓
+Validate
+↓
+Preview
+↓
+Errors
+↓
+Confirm
+↓
+Import
+```
+
+لا تستورد مباشرة.
+
+---
+
+# 45. AUDIT TRAIL
+
+كل عملية حساسة يجب أن تكون قابلة للتتبع.
+
+مثال:
+
+```text
+User Ahmed
+Created Invoice #1002
+09:31
+IP / Device if policy permits
+```
+
+ثم:
+
+```text
+Changed amount
+From 1000
+To 1200
+```
+
+يجب عدم السماح للمستخدم بتعديل سجل التدقيق.
+
+---
+
+# 46. COMMON LIST SCREEN
+
+كل List Screen يجب أن تتبع نمطًا موحدًا.
+
+```text
+Title
+Description
+
+[+ New]
+
+Search
+Filters
+Saved Filters
+
+Table / Cards
+
+Pagination
+```
+
+---
+
+# 46.1 List Actions
+
+كل عنصر قد يحتوي:
+
+```text
+Open
+Edit
+Duplicate
+Print
+Export
+Archive
+Delete
+```
+
+لكن فقط ما يسمح به lifecycle والصلاحيات.
+
+---
+
+# 47. COMMON DETAIL SCREEN
+
+كل Detail Screen:
+
+```text
+Header
+Status
+Primary Actions
+
+Summary
+
+Tabs
+
+Activity
+Attachments
+Related Documents
+```
+
+مثال Invoice:
+
+```text
+Invoice #1004
+Posted
+
+[Print] [Payment] [Return]
+
+Customer
+Items
+Totals
+Payments
+Accounting
+Inventory
+Activity
+```
+
+---
+
+# 48. COMMON CREATE FORM
+
+كل Form:
+
+1. معلومات أساسية.
+2. تفاصيل.
+3. إعدادات متقدمة عند الحاجة.
+4. Summary.
+5. Actions.
+
+الأزرار:
+
+```text
+Save Draft
+Save & Continue
+Confirm
+Cancel
+```
+
+ولا تعرض عشرات الأزرار بلا داعٍ.
+
+---
+
+# 49. CONFIRMATION DIALOGS
+
+لا تستخدم:
+
+> Are you sure?
+
+بل:
+
+> هل تريد عكس القيد رقم JE-10025؟
+>
+> سيؤدي ذلك إلى إنشاء قيد عكسي ولن يتم حذف القيد الأصلي.
+
+Buttons:
+
+`إلغاء`
+
+`عكس القيد`
+
+---
+
+# 50. ERROR STATES
+
+خطأ API:
+
+> تعذر حفظ العملية. تحقق من الاتصال وحاول مرة أخرى.
+
+خطأ صلاحيات:
+
+> ليس لديك صلاحية لتنفيذ هذه العملية.
+
+فترة مغلقة:
+
+> الفترة المالية مغلقة. اختر تاريخًا ضمن فترة مفتوحة أو اطلب من المسؤول فتحها.
+
+مخزون غير كاف:
+
+> الكمية المطلوبة 100، والمتاح 65.
+
+---
+
+# 51. EMPTY STATES
+
+لا تعرض:
+
+> No data.
+
+بل:
+
+> لا توجد فواتير بعد.
+>
+> أنشئ أول فاتورة لتبدأ تسجيل مبيعاتك.
+
+Button:
+
+`+ إنشاء فاتورة`
+
+---
+
+# 52. LOADING
+
+يجب استخدام:
+
+* Skeleton
+* Progress indicator
+* Disabled action أثناء الحفظ
+
+ولا تجعل الشاشة تتجمد بلا تفسير.
+
+---
+
+# 53. OFFLINE
+
+هذه نقطة أساسية.
+
+يجب أن يستطيع التطبيق تنفيذ العمليات التي يسمح بها التصميم أثناء عدم وجود الإنترنت.
+
+الحالات:
+
+```text
+Saved Locally
+Pending Sync
+Syncing
+Synced
+Failed
+Conflict
+```
+
+---
+
+# 53.1 Offline UI
+
+يجب أن يظهر بوضوح:
+
+```text
+Offline
+```
+
+لكن لا يمنع المستخدم من العمل إذا كانت العملية مدعومة Offline.
+
+---
+
+# 53.2 Sync Queue
+
+كل عملية Offline لها:
+
+```text
+event_id
+entity
+operation
+payload
+created_at
+status
+retry_count
+```
+
+---
+
+# 53.3 Idempotency
+
+إعادة إرسال نفس العملية لا يجب أن تنشئ:
+
+* فاتورتين
+* دفعتين
+* حركتي مخزون
+* قيدين
+
+---
+
+# 53.4 Conflict
+
+إذا حدث Conflict:
+
+لا تختفِ العملية.
+
+اعرض:
+
+```text
+حدث تعارض في هذه العملية.
+
+نسخة الجهاز
+نسخة الخادم
+```
+
+ثم سياسة واضحة للحل.
+
+---
+
+# 54. MOBILE UX
+
+Mobile ليس Desktop مصغرًا.
+
+---
+
+## Bottom Navigation
+
+مثال:
+
+```text
+الرئيسية
+المبيعات
++
+المخزون
+المزيد
+```
+
+زر `+` مركزي للعمليات.
+
+---
+
+# 54.1 Mobile Cards
+
+بدل جدول كبير:
+
+```text
+فاتورة #1004
+محمد للتجارة
+12,500 ل.س
+متبقي 2,500
+منذ ساعتين
+```
+
+---
+
+# 54.2 Mobile Forms
+
+* حقول كبيرة
+* لوحة أرقام للمبالغ
+* Date Picker مناسب
+* Barcode scanner
+* Search سريع
+* Sticky action button
+
+---
+
+# 55. DESKTOP UX
+
+Desktop مناسب لـ:
+
+* Tables
+* Accounting
+* Reports
+* Configuration
+* Bulk operations
+* Advanced filtering
+
+يدعم:
+
+* Keyboard shortcuts
+* Multi-column layouts
+* Side panels
+* Resizable tables
+* Dense mode
+
+---
+
+# 56. RESPONSIVE RULE
+
+لا يكفي:
+
+```text
+width < 600
+```
+
+لتغيير التصميم.
+
+يجب التفكير في:
+
+* available width
+* interaction mode
+* density
+* information priority
+
+---
+
+# 57. DARK MODE
+
+خلفية:
+
+Deep Navy / Blue Black.
+
+لا تستخدم:
+
+* pure black
+* neon colors
+* excessive glow
+
+---
+
+# 58. DESIGN SYSTEM
+
+يجب بناء Design System قبل بناء عشرات الشاشات.
+
+---
+
+## 58.1 Colors
+
+### Brand
+
+Deep Navy
+
+### Primary
+
+Blue / Indigo
+
+### Success
+
+Green
+
+### Warning
+
+Amber
+
+### Error
+
+Red
+
+### Info
+
+Blue
+
+---
+
+# 58.2 Typography
+
+Arabic First.
+
+اقتراح:
+
+**IBM Plex Sans Arabic**
+
+مع خط Latin متناسق مثل:
+
+**Inter**
+
+Hierarchy:
+
+```text
+Display
+H1
+H2
+H3
+Body
+Body Small
+Caption
+Label
+```
+
+---
+
+# 58.3 Components
+
+يجب إنشاء مكونات موحدة:
+
+* Button
+* IconButton
+* TextField
+* NumberField
+* CurrencyField
+* SearchField
+* Dropdown
+* MultiSelect
+* DatePicker
+* DataTable
+* Card
+* StatusChip
+* Dialog
+* Drawer
+* BottomSheet
+* Snackbar
+* EmptyState
+* ErrorState
+* LoadingState
+* Pagination
+* Tabs
+* Breadcrumb
+* Stepper
+* Timeline
+
+---
+
+# 59. STATUS SYSTEM
+
+الحالات يجب أن تكون موحدة.
+
+Draft:
+
+رمز/لون محايد.
+
+Pending:
+
+تحذيري.
+
+Approved:
+
+Success.
+
+Posted:
+
+Primary/strong.
+
+Cancelled:
+
+Muted.
+
+Rejected:
+
+Error.
+
+---
+
+# 60. DATA VISUALIZATION
+
+لا تستخدم ألوانًا كثيرة.
+
+الرسوم يجب أن تساعد على اتخاذ قرار.
+
+مثال:
+
+بدل 12 لونًا:
+
+```text
+Budget
+Actual
+Variance
+```
+
+ثلاثة عناصر واضحة تكفي.
+
+---
+
+# 61. BRAND IDENTITY
+
+الهوية يجب أن تعكس:
+
+**YASeen Business Cycle**
+
+فكرة الشعار:
+
+* Y مخفية داخل بنية هندسية.
+* Core مركزي.
+* حركة مستمرة.
+* أربعة مكونات مترابطة.
+
+ترمز الدورة إلى:
+
+```text
+Purchase
+Inventory
+Sales
+Money
+Accounting
+Reports
+Decision
+```
+
+لا تستخدم في الشعار رموزًا حرفية مثل:
+
+* آلة حاسبة
+* عربة
+* عملة
+* صندوق
+* رسم بياني
+* Database
+* Cloud
+* AI
+* Shield
+* Farm
+* Poultry
+* Medical
+
+---
+
+# 62. LOGIN
+
+الشاشة:
+
+```text
+YASeen
+
+Email
+Password
+
+[Login]
+
+Forgot password
+
+Language
+Theme
+```
+
+تصميم Premium هادئ.
+
+---
+
+# 63. ONBOARDING
+
+عند إنشاء شركة:
+
+### Step 1
+
+Business Type
+
+```text
+Retail
+Distribution
+Services
+Manufacturing
+Other
+```
+
+### Step 2
+
+Modules
+
+```text
+Sales
+Inventory
+Purchasing
+Accounting
+Budgets
+...
+```
+
+### Step 3
+
+Currency
+
+### Step 4
+
+Fiscal Year
+
+### Step 5
+
+Company information
+
+### Step 6
+
+Users / roles
+
+ثم:
+
+`Finish Setup`
+
+---
+
+# 64. BUSINESS PROFILE
+
+يمكن للنظام توفير إعداد ابتدائي:
+
+## Retail
+
+يفعل:
+
+* Sales
+* Customers
+* Inventory
+* Cash
+
+## Distribution
+
+يفعل:
+
+* Sales
+* Purchasing
+* Inventory
+* Customers
+* Suppliers
+* Accounting
+
+## Factory
+
+يفعل مستقبلاً:
+
+* Manufacturing
+* Inventory
+* Purchasing
+* Sales
+* Accounting
+* Costing
+
+لكن profile هو **starting point فقط**.
+
+يمكن للمستخدم تعديل كل شيء لاحقًا.
+
+---
+
+# 65. ACCOUNTING AUTOMATION
+
+كل عملية تجارية يجب أن يكون لها Accounting Mapping.
+
+مثال:
+
+Sale:
+
+```text
+Customer/Cash
+       ↓
+Revenue
+```
+
+وإذا كان المخزون:
+
+```text
+COGS
+       ↓
+Inventory
+```
+
+Purchase:
+
+```text
+Inventory
+       ↓
+Supplier
+```
+
+Payment:
+
+```text
+Supplier
+       ↓
+Cash/Bank
+```
+
+لا تربط UI مباشرة بقيود محاسبية عشوائية.
+
+---
+
+# 66. INVENTORY AUTOMATION
+
+Sales:
+
+```text
+Invoice
+→ Stock Out
+```
+
+Purchase Receive:
+
+```text
+Receive
+→ Stock In
+```
+
+Return:
+
+```text
+Return
+→ Reverse stock effect
+```
+
+Transfer:
+
+```text
+Location A
+→ Location B
+```
+
+---
+
+# 67. DOCUMENT RELATIONSHIPS
+
+كل مستند يجب أن يعرف المستندات المرتبطة به.
+
+مثال:
+
+```text
+Quotation
+ ↓
+Sales Order
+ ↓
+Delivery
+ ↓
+Invoice
+ ↓
+Payment
+```
+
+أو:
+
+```text
+Purchase Order
+ ↓
+Receipt
+ ↓
+Supplier Invoice
+ ↓
+Payment
+```
+
+عند فتح أي مستند:
+
+`Related Documents`
+
+---
+
+# 68. BUSINESS TIMELINE
+
+في Detail Screens:
+
+```text
+09:00 Created
+09:05 Confirmed
+09:10 Approved
+09:12 Posted
+09:20 Payment received
+```
+
+هذه الميزة تجعل النظام قابلًا للتدقيق والفهم.
+
+---
+
+# 69. BULK OPERATIONS
+
+Desktop خصوصًا:
+
+المستخدم يستطيع تحديد عدة سجلات.
+
+ثم:
+
+* Export
+* Approve
+* Archive
+* Assign
+* Change status
+* Print
+
+لكن العمليات الخطرة تحتاج Confirmation.
+
+---
+
+# 70. SAVED FILTERS
+
+مثال:
+
+المستخدم ينشئ:
+
+**عملاء متأخرون أكثر من 30 يومًا**
+
+ويحفظ الفلتر.
+
+يظهر لاحقًا:
+
+`My Saved Views`
+
+---
+
+# 71. EXPORT
+
+يدعم حسب الحاجة:
+
+* CSV
+* Excel
+* PDF
+
+التصدير يجب أن يحترم:
+
+* permissions
+* filters
+* columns
+
+---
+
+# 72. PRINT
+
+المستندات المطبوعة يجب أن تحمل هوية YASeen حتى بدون الشعار.
+
+Invoice:
+
+```text
+Company
+Customer
+Items
+Totals
+Payment
+Tax
+Footer
+```
+
+ويجب أن تكون جاهزة للطباعة الحرارية عند الحاجة مستقبلاً.
+
+---
+
+# 73. ACCESSIBILITY
+
+يجب مراعاة:
+
+* Contrast
+* Font scaling
+* Keyboard navigation
+* Screen readers
+* Focus states
+* Touch targets
+* Semantic labels
+
+لا تعتمد على اللون وحده للدلالة على الحالة.
+
+---
+
+# 74. RTL
+
+العربية هي الاتجاه الأساسي.
+
+لكن:
+
+* الأرقام تبقى واضحة.
+* التواريخ واضحة.
+* العملة واضحة.
+* الأكواد وSKU وUUID لا يتم قلبها بصريًا.
+* البريد الإلكتروني LTR.
+* URLs LTR.
+* الأرقام المحاسبية يجب أن تكون سهلة القراءة.
+
+---
+
+# 75. MULTI-CURRENCY
+
+كل عملية مالية يجب أن تميز بين:
+
+```text
+Transaction Currency
+Base Currency
+Exchange Rate
+```
+
+مثال:
+
+```text
+Invoice:
+USD 1,000
+
+Rate:
+10,000
+
+Base:
+10,000,000
+```
+
+مع الحفاظ على الدقة وعدم استخدام floating-point بطريقة تؤدي إلى أخطاء مالية.
+
+---
+
+# 76. TAX ENGINE — PLANNED/EXTENSION
+
+يجب تصميمه مستقبلاً ليكون قابلًا للإعداد:
+
+* Tax
+* Rate
+* Inclusive
+* Exclusive
+* Exempt
+* Tax Account
+
+ولا تفترض نظامًا ضريبيًا واحدًا لكل الدول.
+
+---
+
+# 77. MULTI-COMPANY — PLANNED
+
+إذا تم دعم أكثر من شركة:
+
+```text
+System
+ ├── Company A
+ ├── Company B
+ └── Company C
+```
+
+يجب عزل البيانات.
+
+المستخدم يمكن أن يكون:
+
+```text
+Admin Company A
+Viewer Company B
+```
+
+حسب الصلاحيات.
+
+---
+
+# 78. INTERCOMPANY — FUTURE
+
+لا يتم تنفيذها كبيع وهمي بين شركتين.
+
+يجب أن يكون لها:
+
+* Due From
+* Due To
+* mirrored documents
+* elimination logic عند الحاجة
+
+---
+
+# 79. CRM — PLANNED
+
+CRM يمكن أن يشمل:
+
+* Leads
+* Opportunities
+* Activities
+* Contacts
+* Sales pipeline
+* Follow-ups
+
+لكن لا تجعل CRM شرطًا لاستخدام المبيعات.
+
+---
+
+# 80. MANUFACTURING — FUTURE
+
+إذا أضيف:
+
+```text
+Product
+ ↓
+BOM
+ ↓
+Work Order
+ ↓
+Material Consumption
+ ↓
+Production
+ ↓
+Finished Goods
+```
+
+مع التكلفة.
+
+---
+
+# 81. FIXED ASSETS — FUTURE/EXTENSION
+
+الشاشة:
+
+* Asset List
+* Create Asset
+* Acquisition
+* Depreciation
+* Transfer
+* Disposal
+
+---
+
+# 82. EMPLOYEES / PAYROLL — FUTURE
+
+لا يتم خلطها مع Customer/Supplier.
+
+يجب أن تكون وحدة مستقلة.
+
+---
+
+# 83. PROJECTS — FUTURE
+
+إذا تمت إضافتها:
+
+```text
+Project
+ ├── Tasks
+ ├── Budget
+ ├── Expenses
+ ├── Revenue
+ └── Profitability
+```
+
+لكن لا حاجة لفرض Projects على كل شركة.
+
+---
+
+# 84. RELATION WITH COST CENTERS
+
+Project يمكن أن يستخدم Cost Center.
+
+لكن:
+
+**Cost Center ≠ Project**
+
+ولا يجب الخلط بينهما.
+
+---
+
+# 85. UI CUSTOMIZATION ENGINE
+
+الإعدادات المستقبلية يجب أن تسمح للمدير:
+
+```text
+Modules
+Menus
+Fields
+Workflows
+Dashboard
+Reports
+```
+
+مثال:
+
+شركة صغيرة:
+
+```text
+Sales ✓
+Inventory ✓
+Purchasing ✓
+Accounting ✕
+Budgets ✕
+CRM ✕
+```
+
+المستخدم يرى فقط ما يحتاجه.
+
+---
+
+# 86. SECURITY MODEL
+
+كل request:
+
+```text
+Authentication
+ ↓
+Authorization
+ ↓
+Tenant/Company Scope
+ ↓
+Branch Scope
+ ↓
+Resource Permission
+ ↓
+Business Validation
+ ↓
+Transaction
+```
+
+---
+
+# 87. DATA INTEGRITY
+
+العمليات المالية والمخزنية الحساسة يجب أن تكون Atomic.
+
+مثال Invoice:
+
+```text
+Create Invoice
++
+Create Stock Movement
++
+Create Accounting Effect
+```
+
+لا يجب أن يحدث:
+
+```text
+Invoice succeeded
+Stock failed
+Accounting failed
+```
+
+بدون آلية واضحة لمعالجة الحالة.
+
+---
+
+# 88. IDEMPOTENCY
+
+كل عملية قابلة لإعادة الإرسال يجب أن تملك معرفًا ثابتًا.
+
+مثال:
+
+```text
+event_id
+```
+
+إذا وصل الحدث مرتين:
+
+```text
+first → execute
+second → return existing result
+```
+
+---
+
+# 89. AUDITABILITY
+
+يجب أن نستطيع الإجابة عن:
+
+* من فعل؟
+* ماذا فعل؟
+* متى؟
+* على ماذا؟
+* ما القيمة السابقة؟
+* ما القيمة الجديدة؟
+* ما المستند المرتبط؟
+* ما القيد المرتبط؟
+
+---
+
+# 90. MOBILE OFFLINE
+
+الـ Mobile يجب ألا يعتمد على الإنترنت في كل نقرة.
+
+يجب أن يعمل Local First عندما تكون العملية مدعومة.
+
+الواجهة يجب أن تكون سريعة حتى مع:
+
+```text
+0 Mbps
+```
+
+---
+
+# 91. SYNC CENTER
+
+شاشة مستقبلية مهمة:
+
+**Synchronization Center**
+
+تعرض:
+
+```text
+Pending: 5
+Synced: 125
+Failed: 2
+Conflicts: 1
+```
+
+يمكن للمستخدم:
+
+* Retry
+* Open
+* Resolve
+
+حسب الصلاحية.
+
+---
+
+# 92. PERFORMANCE
+
+يجب عدم تحميل آلاف السجلات دفعة واحدة.
+
+استخدم:
+
+* Pagination
+* Lazy loading
+* Filtering server-side عند الحاجة
+* Local caching
+* Incremental sync
+
+---
+
+# 93. SEARCH PERFORMANCE
+
+البحث يجب أن يبدأ سريعًا.
+
+في Mobile:
+
+* debounce
+* local search عندما يكون مناسبًا
+* server search عند الحاجة
+
+---
+
+# 94. FORM AUTOSAVE
+
+يمكن استخدام autosave فقط حيث يكون منطقيًا.
+
+في المستندات المهمة:
+
+```text
+Draft saved locally
+```
+
+لكن لا تجعل autosave يؤدي إلى Post.
+
+---
+
+# 95. DELETE POLICY
+
+المستندات المرحّلة ماليًا:
+
+**لا Delete**
+
+بدلًا من ذلك:
+
+```text
+Reverse
+Cancel
+Return
+Correction
+```
+
+حسب نوع العملية.
+
+---
+
+# 96. APPROVAL POLICY
+
+أي عملية حساسة يمكن ربطها بـ Workflow.
+
+مثال:
+
+```text
+Expense > 1,000
+→ Manager
+
+Expense > 10,000
+→ Manager
+→ Finance
+```
+
+لكن يجب ألا تجعل Workflow إلزاميًا لكل الشركات.
+
+---
+
+# 97. USER EXPERIENCE FOR ACCOUNTANTS
+
+المحاسب يجب أن يجد:
+
+* Journal
+* GL
+* Trial Balance
+* Reports
+* Fiscal Periods
+* Closing
+* Reconciliation
+
+بسهولة.
+
+لكن هذه الأدوات لا يجب أن تفرض نفسها على:
+
+* Cashier
+* Salesperson
+* Warehouse Worker
+
+---
+
+# 98. USER EXPERIENCE FOR SALESPERSON
+
+بعد الدخول:
+
+```text
+Dashboard
+Sales
+Customers
+```
+
+ولا يرى:
+
+* Trial Balance
+* Journal
+* Fiscal Close
+
+إلا إذا كانت صلاحياته تسمح.
+
+---
+
+# 99. USER EXPERIENCE FOR WAREHOUSE
+
+يركز على:
+
+* Inventory
+* Receiving
+* Transfers
+* Adjustments
+* Batches
+* Serials
+* Expiry
+
+---
+
+# 100. USER EXPERIENCE FOR OWNER/MANAGER
+
+يركز على:
+
+```text
+Revenue
+Profit
+Cash
+Receivables
+Payables
+Inventory
+Budget
+Alerts
+```
+
+وليس على القيود اليومية.
+
+---
+
+# 101. MASTER OPERATION MODEL
+
+كل عملية في YASeen يجب أن تفكر بهذا الشكل:
+
+```text
+Who?
+What?
+When?
+Where?
+Why?
+Amount?
+Quantity?
+Currency?
+Status?
+Approval?
+Accounting Effect?
+Inventory Effect?
+Cash Effect?
+Audit?
+```
+
+---
+
+# 102. OPERATION STATE MACHINE
+
+ليس كل مستند يستخدم نفس الحالات.
+
+لكن النمط العام:
+
+```text
+Draft
+ ↓
+Submitted
+ ↓
+Approved
+ ↓
+Confirmed
+ ↓
+Posted
+ ↓
+Completed
+```
+
+والحالات الاستثنائية:
+
+```text
+Rejected
+Cancelled
+Returned
+Reversed
+Failed
+```
+
+لا تستخدم كل الحالات لكل كيان.
+
+---
+
+# 103. SCREEN DESIGN TEMPLATE
+
+أي شاشة جديدة يجب توثيقها بهذه الطريقة:
+
+```text
+Screen Name
+Purpose
+User Roles
+Permissions
+Entry Points
+Data Displayed
+Filters
+Actions
+Create Flow
+Edit Flow
+Validation
+Status Lifecycle
+Accounting Effect
+Inventory Effect
+Cash Effect
+Related Documents
+Audit
+Offline Behavior
+Error States
+Empty State
+Mobile Layout
+Desktop Layout
+Acceptance Criteria
+```
+
+---
+
+# 104. AI DESIGN AGENT RULE
+
+عند تصميم أي شاشة:
+
+لا تبدأ بالرسم.
+
+ابدأ بفهم:
+
+```text
+Business Goal
+User
+Role
+Permission
+Data
+Operation
+State
+Dependencies
+```
+
+ثم:
+
+```text
+Information Architecture
+Wireframe
+Interaction
+Visual Design
+Responsive Design
+States
+```
+
+---
+
+# 105. AI CODING AGENT RULE
+
+قبل كتابة الكود:
+
+1. اقرأ الـ repository.
+2. حدد architecture الحالية.
+3. حدد models.
+4. حدد APIs.
+5. حدد database.
+6. حدد routes.
+7. حدد permissions.
+8. حدد existing components.
+9. لا تعيد بناء شيء موجود بلا سبب.
+10. لا تنشئ duplicate business logic.
+
+---
+
+# 106. COMPONENT REUSE
+
+إذا كان هناك:
+
+```text
+AppButton
+AppTextField
+AppDataTable
+AppDialog
+```
+
+استخدمها.
+
+لا تنشئ:
+
+```text
+CustomButton1
+CustomButton2
+CustomButton3
+```
+
+لكل شاشة.
+
+---
+
+# 107. DESIGN TOKENS
+
+كل شيء يجب أن يعتمد على Tokens:
+
+```text
+Color
+Spacing
+Radius
+Typography
+Elevation
+Border
+Animation
+```
+
+ولا تضع:
+
+```text
+Color(0xFF...)
+```
+
+في كل Widget.
+
+---
+
+# 108. ANIMATION
+
+الـ motion يجب أن يعكس:
+
+**flow**
+
+مثلاً:
+
+* إضافة item → يدخل للسلة.
+* انتقال بين tabs → smooth.
+* حفظ → feedback سريع.
+* Sync → indicator واضح.
+
+لا تستخدم animations لمجرد الاستعراض.
+
+---
+
+# 109. LOGO SYSTEM
+
+الشعار:
+
+**Hidden Y + Core + Continuous Business Flow**
+
+يجب أن يعمل:
+
+* 16px
+* 24px
+* 32px
+* 64px
+* 512px
+
+ويجب ألا يعتمد على تفاصيل صغيرة تضيع عند التصغير.
+
+---
+
+# 110. BRAND PATTERN
+
+يمكن استخراج pattern من هندسة الشعار.
+
+استخداماته:
+
+* Login
+* Splash
+* Marketing
+* Empty states
+* Reports
+* Invoice header
+* Background accents
+
+لكن بشكل خفيف جدًا.
+
+---
+
+# 111. ICONOGRAPHY
+
+الأيقونات:
+
+* موحدة
+* بسيطة
+* واضحة
+* نفس stroke
+* نفس visual weight
+
+لا تستخدم icon لكل شيء بلا نظام.
+
+---
+
+# 112. EMPTY STATES
+
+لكل وحدة Empty State خاص بها.
+
+Inventory:
+
+> لا توجد أصناف بعد.
+
+Customers:
+
+> لم تتم إضافة عملاء.
+
+Invoices:
+
+> لا توجد فواتير ضمن هذه الفترة.
+
+Reports:
+
+> لا توجد بيانات كافية لإنشاء التقرير.
+
+---
+
+# 113. ERROR UX
+
+كل خطأ يجب أن يجيب:
+
+```text
+What happened?
+Why?
+What can I do?
+```
+
+مثال:
+
+> تعذر ترحيل الفاتورة لأن الفترة المالية مغلقة.
+>
+> اختر تاريخًا ضمن فترة مفتوحة أو تواصل مع مسؤول النظام.
+
+---
+
+# 114. SUCCESS UX
+
+لا تستخدم:
+
+> Success!!!
+
+بل:
+
+> تم حفظ الفاتورة كمسودة.
+
+أو:
+
+> تم ترحيل الفاتورة بنجاح.
+
+---
+
+# 115. DESTRUCTIVE ACTIONS
+
+الأفعال الخطرة:
+
+* Delete
+* Reverse
+* Cancel
+* Close Period
+* Close Year
+* Stock Adjustment
+
+يجب أن تكون:
+
+* Permission protected
+* Clearly marked
+* Confirmed
+* Audited
+
+---
+
+# 116. SEARCHABLE RELATIONSHIPS
+
+من Customer:
+
+`Invoices`
+
+من Invoice:
+
+`Customer`
+
+من Invoice:
+
+`Journal`
+
+من Journal:
+
+`Invoice`
+
+من Product:
+
+`Movements`
+
+من Movement:
+
+`Source Document`
+
+يجب أن يكون النظام مترابطًا وليس مجموعة جداول منفصلة.
+
+---
+
+# 117. "WHY?" INFORMATION
+
+عندما تتغير نتيجة مالية، يجب أن يستطيع المستخدم فهم السبب.
+
+مثال:
+
+Profit انخفض.
+
+يمكن الوصول إلى:
+
+```text
+Profit
+ ↓
+COGS increased
+ ↓
+Product X
+ ↓
+Purchase batch
+ ↓
+Supplier
+```
+
+---
+
+# 118. DASHBOARD DRILL-DOWN
+
+كل رقم مهم في Dashboard يجب أن يكون قابلًا للنقر.
+
+مثال:
+
+```text
+Receivables = 125,000
+```
+
+Click:
+
+→ Customer Aging
+
+ثم:
+
+→ Customer
+
+ثم:
+
+→ Invoice
+
+---
+
+# 119. REPORT DRILL-DOWN
+
+Report:
+
+```text
+Sales = 1,000,000
+```
+
+Click:
+
+```text
+Customer A
+Customer B
+Customer C
+```
+
+ثم invoice.
+
+---
+
+# 120. FINAL PRODUCT STRUCTURE
+
+الرؤية النهائية:
+
+```text
+                         YASeen
+                           │
+              ┌────────────┴────────────┐
+              │                         │
+           Business                  Finance
+              │                         │
+     ┌────────┼────────┐         ┌──────┼──────┐
+     │        │        │         │      │      │
+   Sales   Purchase  Inventory  Cash  Accounting Budget
+     │        │        │         │      │      │
+     └────────┴────────┴─────────┴──────┴──────┘
+                           │
+                       Analytics
+                           │
+                       Decisions
+```
+
+---
+
+# 121. FUTURE ECOSYSTEM
+
+YASeen يجب أن يكون Master Business Platform.
+
+يمكن أن تتصل به تطبيقات متخصصة.
+
+مثال:
+
+```text
+YASeen
+   │
+   ├── Madjana
+   │
+   ├── POS
+   │
+   ├── Mobile Warehouse
+   │
+   ├── CRM
+   │
+   ├── Manufacturing
+   │
+   └── Other Vertical Apps
+```
+
+YASeen هو المصدر التجاري/المالي المركزي.
+
+التطبيقات المتخصصة تدير العمليات الخاصة بها.
+
+---
+
+# 122. MADJANA INTEGRATION
+
+عند التكامل مع Madjana:
+
+Madjana يدير:
+
+```text
+Farm
+ ↓
+Barn
+ ↓
+Flock
+```
+
+YASeen يدير:
+
+```text
+Products
+Inventory
+Purchasing
+Sales
+Cash
+Accounting
+Cost Centers
+Budgets
+```
+
+ولا يجب أن يقوم Madjana بالكتابة مباشرة إلى قاعدة بيانات YASeen.
+
+التكامل:
+
+```text
+Madjana
+   ↓
+API / Events
+   ↓
+YASeen
+```
+
+---
+
+# 123. PHARMACY / OWN FARM SCENARIO
+
+إذا كانت الشركة تمتلك:
+
+```text
+Veterinary Pharmacy
++
+Own Farms
+```
+
+فإن صرف الدواء من مستودع الشركة إلى مزرعة مملوكة لها ليس بيعًا خارجيًا.
+
+بل:
+
+```text
+Internal Issue / Transfer
+```
+
+مع إمكانية ربطه بـ:
+
+```text
+Farm
+Barn
+Flock
+Cost Center
+```
+
+أما بيع الدواء إلى مزرعة عميل:
+
+```text
+Normal Sale
+```
+
+---
+
+# 124. SOURCE OF TRUTH
+
+YASeen:
+
+**Commercial + Financial Source of Truth**
+
+Madjana:
+
+**Operational Farm Source of Truth**
+
+يجب ألا يتم خلط المجالين.
+
+---
+
+# 125. QUALITY BAR
+
+أي شاشة جديدة لا تعتبر جاهزة إلا إذا كانت تحتوي على:
+
+### Functional
+
+* Create
+* Read
+* Update
+* Correct lifecycle
+* Permissions
+* Validation
+
+### UX
+
+* Loading
+* Empty
+* Error
+* Success
+* Confirmation
+
+### Responsive
+
+* Mobile
+* Desktop
+
+### Security
+
+* Backend authorization
+* Audit
+
+### Offline
+
+* إذا كانت العملية مدعومة Offline
+
+### Data
+
+* Relations
+* Accounting
+* Inventory
+* Cash effects
+
+عند الحاجة.
+
+---
+
+# 126. ACCEPTANCE CRITERIA TEMPLATE
+
+لكل Feature:
+
+```text
+Given:
+المستخدم لديه صلاحية إنشاء فاتورة.
+
+When:
+ينشئ فاتورة جديدة.
+
+Then:
+يمكنه اختيار العميل وإضافة المنتجات.
+
+And:
+يتم حساب الإجمالي.
+
+And:
+يتم التحقق من المخزون.
+
+And:
+يمكن حفظها Draft.
+
+When:
+يتم Post.
+
+Then:
+يتم إنشاء الأثر المحاسبي.
+
+And:
+يتم إنشاء حركة المخزون عند الحاجة.
+
+And:
+يتم تسجيل Audit Event.
+
+And:
+يمكن فتح المستندات المرتبطة.
+```
+
+---
+
+# 127. FINAL DESIGN PRINCIPLE
+
+لا تصمم YASeen كبرنامج محاسبي مليء بالجداول.
+
+ولا كبرنامج SaaS تجميلي فارغ.
+
+صممه كنظام أعمال حقيقي.
+
+المستخدم يجب أن يشعر:
+
+> "أنا أدير شركتي."
+
+وليس:
+
+> "أنا أستخدم برنامج محاسبة."
+
+---
+
+# 128. FINAL UI PRINCIPLE
+
+كل شاشة يجب أن تجعل الإجابة على ثلاثة أسئلة واضحة:
+
+### أين أنا؟
+
+Breadcrumb + title.
+
+### ماذا أرى؟
+
+Information hierarchy.
+
+### ماذا أستطيع أن أفعل؟
+
+Primary actions.
+
+---
+
+# 129. FINAL UX PRINCIPLE
+
+العملية يجب أن تكون أقصر ما يمكن دون التضحية بالدقة.
+
+مثال:
+
+بيع منتج:
+
+```text
+Search Product
+→ Quantity
+→ Customer
+→ Payment
+→ Confirm
+```
+
+وليس:
+
+```text
+Open accounting
+→ choose account
+→ create journal
+→ choose inventory account
+→ ...
+```
+
+النظام يتولى التعقيد.
+
+---
+
+# 130. FINAL PRODUCT PRINCIPLE
+
+**Complexity belongs inside the system, not inside the user's head.**
+
+التعقيد يجب أن يكون داخل النظام، وليس داخل عقل المستخدم.
+
+---
+
+# 131. FINAL AI INSTRUCTION
+
+عند استخدام هذه الوثيقة لتصميم أو تطوير YASeen:
+
+لا تقم ببناء جميع الشاشات دفعة واحدة.
+
+اتبع الترتيب:
+
+### Phase 1 — Design System
+
+* Colors
+* Typography
+* Components
+* Layout
+* Navigation
+* States
+
+### Phase 2 — Core UX
+
+* Login
+* Onboarding
+* Dashboard
+* Navigation
+* Search
+
+### Phase 3 — Core Business
+
+* Sales
+* Customers
+* Inventory
+* Purchases
+* Suppliers
+* Cash
+
+### Phase 4 — Financial
+
+* Accounting
+* Reports
+* Budgets
+* Cost Centers
+* Reconciliation
+
+### Phase 5 — Governance
+
+* Users
+* Roles
+* Permissions
+* Workflows
+* Audit
+
+### Phase 6 — Advanced
+
+* POS
+* CRM
+* Delivery
+* Barcode
+* Import/Export
+* Documents
+* Advanced reporting
+
+### Phase 7 — Vertical Ecosystem
+
+* Madjana
+* Manufacturing
+* Other specialized applications
+
+---
+
+# 132. DO NOT
+
+لا:
+
+* تضف شاشات بلا حاجة.
+* تكرر نفس الوظيفة في عدة أماكن.
+* تجعل كل شيء جدولًا.
+* تجعل المحاسبة هي الواجهة الأولى.
+* تخفي أخطاء المزامنة.
+* تسمح بتكرار العمليات Offline.
+* تسمح بتعديل القيود المرحّلة مباشرة.
+* تعتمد على صلاحيات Flutter فقط.
+* تضع Business Logic داخل UI.
+* تربط التطبيقات مباشرة بقواعد بيانات بعضها.
+* تستخدم ألوانًا كثيرة.
+* تستخدم gradients مبالغًا فيها.
+* تستخدم Glassmorphism كهوية أساسية.
+* تجعل التصميم شبيهًا بـ Odoo لمجرد أنه ERP.
+* تنسخ SAP/Oracle UI.
+* تجعل YASeen نسخة من أي ERP آخر.
+
+---
+
+# 133. DO
+
+يجب:
+
+* الحفاظ على البساطة.
+* إظهار المعلومات المهمة فقط.
+* دعم التفاصيل المتقدمة عند الحاجة.
+* بناء Design System حقيقي.
+* دعم RTL بشكل أصلي.
+* دعم Mobile بشكل حقيقي.
+* دعم Desktop بشكل حقيقي.
+* جعل Offline واضحًا.
+* جعل Sync موثوقًا.
+* جعل كل عملية قابلة للتتبع.
+* جعل النظام Modular.
+* جعل النظام Configurable.
+* فصل Business Logic عن UI.
+* فرض الصلاحيات في Backend.
+* الحفاظ على سلامة البيانات المالية والمخزنية.
+
+---
+
+# 134. THE YASeen TEST
+
+قبل اعتماد أي شاشة اسأل:
+
+### 1
+
+هل يستطيع المستخدم فهم الشاشة خلال 3 ثوانٍ؟
+
+### 2
+
+هل يعرف ماذا يفعل بعدها؟
+
+### 3
+
+هل يستطيع تنفيذ العملية بأقل عدد منطقي من الخطوات؟
+
+### 4
+
+هل يعرف نتيجة العملية؟
+
+### 5
+
+هل يستطيع الرجوع إلى مصدر البيانات؟
+
+### 6
+
+هل يعرف من قام بالعملية؟
+
+### 7
+
+هل يستطيع النظام التعامل مع Offline إذا كانت العملية مدعومة؟
+
+### 8
+
+هل الصلاحيات مطبقة على Backend؟
+
+### 9
+
+هل Mobile وDesktop مصممان بشكل مناسب لكل منهما؟
+
+### 10
+
+هل هذه الميزة تزيد قيمة النظام فعلًا؟
+
+إذا كانت الإجابة "لا" على عدة أسئلة، فلا تعتمد الشاشة بعد.
+
+---
+
+# 135. FINAL STATEMENT
+
+YASeen يجب أن يصبح:
+
+**منصة أعمال عربية حديثة، بسيطة للمستخدم، عميقة عند الحاجة، تعمل عبر الهاتف والكمبيوتر، قابلة للتخصيص، قادرة على العمل Offline، وتربط العمليات اليومية بالمخزون والأموال والمحاسبة والتقارير في نظام واحد.**
+
+الهدف ليس أن يكون YASeen أكبر ERP.
+
+الهدف أن يكون:
+
+**ERP يفهم طريقة عمل الشركة ويتكيف معها.**
+
+**One ERP. Adapted to Your Business.**
+
+---
+
+# END OF MASTER SPECIFICATION
