@@ -226,8 +226,13 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
                 "email": user.email,
                 "roles": [r.name for r in user.roles],
                 "permissions": sorted({p.code for r in user.roles for p in r.permissions}),
-                "is_super_admin": user.is_super_admin,
+                "is_super_admin": bool(getattr(user, 'is_super_admin', False)),
             }
+
+            # ✅ المدير العام (super_admin) يحصل على كل الصلاحيات
+            if user_dict["is_super_admin"]:
+                from core.application.security.authorization import Permission
+                user_dict["permissions"] = sorted(p.value for p in Permission)
 
             from core.application.security.authorization import UserContext, set_current_user_context
             set_current_user_context(UserContext(

@@ -214,3 +214,60 @@ async def receive_purchase_order(order_id: str, request: ReceivePurchaseOrderReq
     except Exception as e:
         logger.error(f"Error receiving purchase order: {e}", exc_info=True)
         return ApiResponse(success=False, message=str(e), errors=[str(e)])
+
+
+class ReturnPurchaseOrderRequest(BaseModel):
+    reason: str = Field(..., min_length=2)
+
+
+@router.post("/api/purchase-orders/{order_id}/return", response_model=ApiResponse)
+async def return_purchase_order(
+    order_id: str,
+    request: ReturnPurchaseOrderRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    try:
+        from core.domain.purchasing.entities import PurchaseOrder, PurchaseLine
+        from core.domain.purchasing.value_objects import PurchaseOrderId
+        from core.domain.shared.value_objects import Money
+
+        with bootstrap.uow() as uow:
+            repo = uow.purchase_orders
+            original = repo.get_by_id(PurchaseOrderId.from_string(order_id))
+            if not original:
+                return ApiResponse(success=False, message="أمر الشراء غير موجود")
+            if not original.is_posted:
+                return ApiResponse(success=False, message="لا يمكن إنشاء مرتجع لأمر شراء غير مرحل")
+
+            return_order = PurchaseOrder(
+                supplier_id=original.supplier_id,
+                supplier_name=original.supplier_name,
+                currency=original.currency,
+                notes=f"مرتجع من أمر الشراء {original.number} - {request.reason}",
+                created_by=current_user["username"],
+            )
+            for line in original.lines:
+                pline = PurchaseLine(
+                    product_code=line.product_code,
+                    product_name=line.product_name,
+                    quantity=-line.quantity,
+                    unit_price=Money(line.unit_price.amount, original.currency),
+                    notes=f"مرتجع - {request.reason}",
+                )
+                return_order.add_line(pline)
+
+            repo.save(return_order)
+            uow.commit()
+
+        return ApiResponse(
+            success=True,
+            message="تم إنشاء مرتجع أمر الشراء بنجاح",
+            data={
+                'id': str(return_order.id.value),
+                'status': 'draft',
+                'reason': request.reason,
+            },
+        )
+    except Exception as e:
+        logger.error(f"Error returning purchase order: {e}", exc_info=True)
+        return ApiResponse(success=False, message=str(e), errors=[str(e)])

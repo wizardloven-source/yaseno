@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:dio/dio.dart';
 
 class ErrorUtils {
   /// Sanitizes raw exception messages into user-friendly Arabic messages
   static String sanitize(dynamic error) {
+    // If it's a DioException carrying a server response, prefer the server's
+    // detail message (e.g. "كلمة المرور يجب ألا تقل عن 10 أحرف").
+    final serverDetail = _serverDetailFromDio(error);
+    if (serverDetail != null) return serverDetail;
+
     final message = error.toString();
 
     // DioExceptions often contain URLs and status codes
@@ -58,6 +64,23 @@ class ErrorUtils {
     }
 
     return cleaned;
+  }
+
+  /// يستخرج رسالة الخطأ التفصيلية التي أرسلها الخادم (detail) من DioException.
+  static String? _serverDetailFromDio(dynamic error) {
+    if (error is! DioException) return null;
+    final data = error.response?.data;
+    if (data is Map) {
+      final detail = data['detail'];
+      if (detail is String && detail.trim().isNotEmpty) return detail.trim();
+      if (detail is List && detail.isNotEmpty) {
+        final first = detail.first;
+        if (first is Map && (first['msg'] is String)) {
+          return (first['msg'] as String).trim();
+        }
+      }
+    }
+    return null;
   }
 
   /// Shows a sanitized error in a SnackBar

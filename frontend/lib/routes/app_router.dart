@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import 'package:ya_seen_erp_flutter/services/api_client.dart';
+import 'package:ya_seen_erp_flutter/presentation/providers/auth_provider.dart';
 import 'package:ya_seen_erp_flutter/presentation/screens/auth/splash_screen.dart';
 import 'package:ya_seen_erp_flutter/presentation/screens/auth/login_screen.dart';
 import 'package:ya_seen_erp_flutter/presentation/screens/dashboard/dashboard_screen.dart';
@@ -57,6 +59,12 @@ import 'package:ya_seen_erp_flutter/presentation/screens/funds/fund_transfer_scr
 // ============================================================
 import 'package:ya_seen_erp_flutter/presentation/screens/purchasing/purchase_order_list_screen.dart';
 import 'package:ya_seen_erp_flutter/presentation/screens/purchasing/purchase_order_form_screen.dart';
+
+// ============================================================
+// المرتجعات (Returns)
+// ============================================================
+import 'package:ya_seen_erp_flutter/presentation/screens/returns/sales_return_screen.dart';
+import 'package:ya_seen_erp_flutter/presentation/screens/returns/purchase_return_screen.dart';
 
 // ============================================================
 // الدفعات (Payments)
@@ -141,6 +149,16 @@ class AppRouter {
       final isLoginRoute = location == '/login';
       if (!isLoggedIn && !isLoginRoute) return '/login';
       if (isLoggedIn && isLoginRoute) return '/';
+
+      // §2.3 حماية الوصول للأقسام المتقدمة حسب الصلاحيات
+      final auth = context.read<AuthProvider>();
+      if (isLoggedIn && _requiresPermission(location) != null && auth != null) {
+        final required = _requiresPermission(location)!;
+        final allowed = auth.isSuperAdmin ||
+            auth.hasPermission('manage_users') ||
+            auth.hasAnyPermission(required);
+        if (!allowed) return '/';
+      }
       return null;
     },
     routes: [
@@ -350,6 +368,18 @@ class AppRouter {
               final id = state.pathParameters['id']!;
               return PurchaseOrderFormScreen(orderId: id, readOnly: true);
             },
+          ),
+
+          // المرتجعات (Returns)
+          GoRoute(
+            path: '/returns/sales',
+            name: 'sales_returns',
+            builder: (context, state) => const SalesReturnScreen(),
+          ),
+          GoRoute(
+            path: '/returns/purchases',
+            name: 'purchase_returns',
+            builder: (context, state) => const PurchaseReturnScreen(),
           ),
 
           // الدفعات (Payments)
@@ -571,4 +601,36 @@ class AppRouter {
       ),
     ],
   );
+
+  // §2.3 الصلاحيات المطلوبة لفتح كل قسم متقدم.
+  // المسارات غير المذكورة هي "أساسية" يُسمح بها لكل المستخدمين المصادق عليهم
+  // (مثال: dashboard، العملاء، المنتجات، الفواتير، الصناديق، الدفعات، المخزون).
+  static List<String>? _requiresPermission(String route) {
+    if (route.startsWith('/journal-entries') ||
+        route.startsWith('/general-ledger') ||
+        route.startsWith('/chart-of-accounts') ||
+        route.startsWith('/fiscal-periods') ||
+        route.startsWith('/opening-balances') ||
+        route.startsWith('/reports/')) {
+      return ['post_entry', 'manage_accounts'];
+    }
+    if (route.startsWith('/assets') ||
+        route.startsWith('/currencies') ||
+        route.startsWith('/sites') ||
+        route.startsWith('/centers') ||
+        route.startsWith('/branches') ||
+        route.startsWith('/settings')) {
+      return ['system_config'];
+    }
+    if (route.startsWith('/workflows') ||
+        route.startsWith('/approvals')) {
+      return ['create_draft', 'system_config'];
+    }
+    if (route.startsWith('/users') ||
+        route.startsWith('/roles') ||
+        route.startsWith('/audit')) {
+      return ['manage_users'];
+    }
+    return null;
+  }
 }

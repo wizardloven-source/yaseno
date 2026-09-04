@@ -342,6 +342,15 @@ class ApiService {
     return response.data;
   }
 
+  Future<Map<String, dynamic>> returnPurchaseOrder(String orderId,
+      {required String reason}) async {
+    final response = await _client.dio.post(
+      '/purchase-orders/$orderId/return',
+      data: {'reason': reason},
+    );
+    return response.data;
+  }
+
   // =========================================================================
   // Inventory
   // =========================================================================

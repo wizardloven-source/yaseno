@@ -15,8 +15,28 @@ class AuthProvider extends ChangeNotifier {
   List<String> get roles => List<String>.from(_user?['roles'] ?? []);
   List<String> get permissions => List<String>.from(_user?['permissions'] ?? []);
 
+  bool get isSuperAdmin => _user?['is_super_admin'] == true;
+
+  /// يعرّف ما إذا كان المستخدم يملك صلاحية ما.
+  ///
+  /// يدعم التطابق المباشر، أو بأي بادئة مقطع/فئة:
+  /// مثلًا "settings.manage_users" يطابق "manage_users"،
+  /// و "accounting.post_entry" يطابق "post_entry".
   bool hasPermission(String permission) {
-    return permissions.contains(permission);
+    final code = _suffix(permission);
+    return permissions.contains(permission) ||
+        permissions.contains(code) ||
+        permissions.any((p) => _suffix(p) == code);
+  }
+
+  bool hasAnyPermission(List<String> accepted) {
+    return accepted.any(hasPermission);
+  }
+
+  /// يستخرج الجزء الأخير بعد آخر نقطة، أو يعيد النص كما هو.
+  static String _suffix(String value) {
+    final idx = value.lastIndexOf('.');
+    return idx == -1 ? value : value.substring(idx + 1);
   }
 
   bool hasRole(String role) {

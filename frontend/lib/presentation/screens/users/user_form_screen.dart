@@ -168,6 +168,9 @@ class _UserFormScreenState extends State<UserFormScreen> {
                       obscureText: _obscurePassword,
                       validator: (v) {
                         if (!_isEdit && (v == null || v.isEmpty)) return 'مطلوب';
+                        if (v != null && v.isNotEmpty && v.length < 10) {
+                          return 'كلمة المرور يجب ألا تقل عن 10 أحرف';
+                        }
                         return null;
                       },
                     ),

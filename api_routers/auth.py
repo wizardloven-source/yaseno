@@ -73,6 +73,13 @@ async def login(request: LoginRequest, rate_limit: None = Depends(rate_limiter(1
         user_repo.save(user)
         uow.commit()
 
+        # ✅ حساب الصلاحيات: المدير العام (super_admin) يحصل على كل الصلاحيات
+        from core.application.security.authorization import Permission, get_user_permissions_from_db
+        if getattr(user, 'is_super_admin', False):
+            permission_codes = sorted(p.value for p in Permission)
+        else:
+            permission_codes = sorted(get_user_permissions_from_db(str(user.id.value), uow))
+
         return LoginResponse(
             access_token=access_token,
             refresh_token=refresh_token,
@@ -82,6 +89,8 @@ async def login(request: LoginRequest, rate_limit: None = Depends(rate_limiter(1
                 "username": user.username,
                 "email": user.email,
                 "roles": [r.name for r in user.roles],
+                "permissions": permission_codes,
+                "is_super_admin": bool(getattr(user, 'is_super_admin', False)),
             }
         )
 

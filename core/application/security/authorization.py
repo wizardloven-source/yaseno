@@ -96,6 +96,7 @@ class Permission(Enum):
     OPEN_PERIOD = "open_period"
     MANAGE_ACCOUNTS = "manage_accounts"
     MANAGE_USERS = "manage_users"
+    SETTINGS_MANAGE_USERS = "settings.manage_users"
     SYSTEM_CONFIG = "system_config"
     
     @classmethod

@@ -173,42 +173,48 @@ class SidebarWidget extends StatelessWidget {
                 const Divider(height: 4),
 
                 // ---- المحاسبة ----
-                _buildSectionHeader('المحاسبة', context),
-                _buildMenuItem(
-                  context,
-                  icon: Icons.receipt_long,
-                  label: 'قيود اليومية',
-                  route: '/journal-entries',
-                  isSelected: currentRoute.startsWith('/journal-entries'),
-                ),
-                _buildMenuItem(
-                  context,
-                  icon: Icons.account_tree,
-                  label: 'دفتر الأستاذ',
-                  route: '/general-ledger',
-                  isSelected: currentRoute == '/general-ledger',
-                ),
-                _buildMenuItem(
-                  context,
-                  icon: Icons.list_alt,
-                  label: 'دليل الحسابات',
-                  route: '/chart-of-accounts',
-                  isSelected: currentRoute == '/chart-of-accounts',
-                ),
-                _buildMenuItem(
-                  context,
-                  icon: Icons.calendar_month,
-                  label: 'الفترات المالية',
-                  route: '/fiscal-periods',
-                  isSelected: currentRoute == '/fiscal-periods',
-                ),
-                _buildMenuItem(
-                  context,
-                  icon: Icons.menu_book,
-                  label: 'الأرصدة الافتتاحية',
-                  route: '/opening-balances',
-                  isSelected: currentRoute == '/opening-balances',
-                ),
+                if (_canShow(context, ['post_entry', 'manage_accounts']))
+                  _buildSectionHeader('المحاسبة', context),
+                if (_canShow(context, ['post_entry', 'create_entry']))
+                  _buildMenuItem(
+                    context,
+                    icon: Icons.receipt_long,
+                    label: 'قيود اليومية',
+                    route: '/journal-entries',
+                    isSelected: currentRoute.startsWith('/journal-entries'),
+                  ),
+                if (_canShow(context, ['post_entry', 'manage_accounts']))
+                  _buildMenuItem(
+                    context,
+                    icon: Icons.account_tree,
+                    label: 'دفتر الأستاذ',
+                    route: '/general-ledger',
+                    isSelected: currentRoute == '/general-ledger',
+                  ),
+                if (_canShow(context, ['post_entry', 'manage_accounts']))
+                  _buildMenuItem(
+                    context,
+                    icon: Icons.list_alt,
+                    label: 'دليل الحسابات',
+                    route: '/chart-of-accounts',
+                    isSelected: currentRoute == '/chart-of-accounts',
+                  ),
+                if (_canShow(context, ['post_entry', 'open_period', 'close_period']))
+                  _buildMenuItem(
+                    context,
+                    icon: Icons.calendar_month,
+                    label: 'الفترات المالية',
+                    route: '/fiscal-periods',
+                    isSelected: currentRoute == '/fiscal-periods',
+                  ),
+                if (_canShow(context, ['post_entry', 'manage_accounts']))
+                  _buildMenuItem(
+                    context,
+                    icon: Icons.menu_book,
+                    label: 'الأرصدة الافتتاحية',
+                    route: '/opening-balances',
+                    isSelected: currentRoute == '/opening-balances',
+                  ),
 
                 const Divider(height: 4),
 
@@ -244,8 +250,22 @@ class SidebarWidget extends StatelessWidget {
                 ),
                 _buildMenuItem(
                   context,
+                  icon: Icons.replay,
+                  label: 'مرتجع المبيعات',
+                  route: '/returns/sales',
+                  isSelected: currentRoute.startsWith('/returns/sales'),
+                ),
+                _buildMenuItem(
+                  context,
+                  icon: Icons.replay_circle_filled,
+                  label: 'مرتجع المشتريات',
+                  route: '/returns/purchases',
+                  isSelected: currentRoute.startsWith('/returns/purchases'),
+                ),
+                _buildMenuItem(
+                  context,
                   icon: Icons.shopping_cart,
-                  label: 'أوامر الشراء',
+                  label: 'المشتريات',
                   route: '/purchase-orders',
                   isSelected: currentRoute.startsWith('/purchase-orders'),
                 ),
@@ -280,65 +300,74 @@ class SidebarWidget extends StatelessWidget {
                   route: '/inventory',
                   isSelected: currentRoute == '/inventory',
                 ),
-                _buildMenuItem(
-                  context,
-                  icon: Icons.apartment,
-                  label: 'الأصول الثابتة',
-                  route: '/assets',
-                  isSelected: currentRoute == '/assets',
-                ),
+                if (_canShow(context, ['system_config', 'post_entry']))
+                  _buildMenuItem(
+                    context,
+                    icon: Icons.apartment,
+                    label: 'الأصول الثابتة',
+                    route: '/assets',
+                    isSelected: currentRoute == '/assets',
+                  ),
 
                 const Divider(height: 4),
 
                 // ---- الإعدادات ----
-                _buildSectionHeader('الإعدادات', context),
-                _buildMenuItem(
-                  context,
-                  icon: Icons.currency_exchange,
-                  label: 'العملات',
-                  route: '/currencies',
-                  isSelected: currentRoute == '/currencies',
-                ),
-                _buildMenuItem(
-                  context,
-                  icon: Icons.location_on,
-                  label: 'المواقع',
-                  route: '/sites',
-                  isSelected: currentRoute == '/sites',
-                ),
-                _buildMenuItem(
-                  context,
-                  icon: Icons.account_balance,
-                  label: 'مراكز التكلفة',
-                  route: '/centers',
-                  isSelected: currentRoute == '/centers',
-                ),
-                _buildMenuItem(
-                  context,
-                  icon: Icons.store,
-                  label: 'فروع العملاء',
-                  route: '/branches',
-                  isSelected: currentRoute == '/branches',
-                ),
+                if (_canShow(context, ['system_config']))
+                  _buildSectionHeader('الإعدادات', context),
+                if (_canShow(context, ['system_config']))
+                  _buildMenuItem(
+                    context,
+                    icon: Icons.currency_exchange,
+                    label: 'العملات',
+                    route: '/currencies',
+                    isSelected: currentRoute == '/currencies',
+                  ),
+                if (_canShow(context, ['system_config']))
+                  _buildMenuItem(
+                    context,
+                    icon: Icons.location_on,
+                    label: 'المواقع',
+                    route: '/sites',
+                    isSelected: currentRoute == '/sites',
+                  ),
+                if (_canShow(context, ['system_config']))
+                  _buildMenuItem(
+                    context,
+                    icon: Icons.account_balance,
+                    label: 'مراكز التكلفة',
+                    route: '/centers',
+                    isSelected: currentRoute == '/centers',
+                  ),
+                if (_canShow(context, ['system_config']))
+                  _buildMenuItem(
+                    context,
+                    icon: Icons.store,
+                    label: 'فروع العملاء',
+                    route: '/branches',
+                    isSelected: currentRoute == '/branches',
+                  ),
 
                 const Divider(height: 4),
 
                 // ---- سير العمل والإشعارات ----
-                _buildSectionHeader('سير العمل والإشعارات', context),
-                _buildMenuItem(
-                  context,
-                  icon: Icons.account_tree,
-                  label: 'تعريف سير العمل',
-                  route: '/workflows',
-                  isSelected: currentRoute.startsWith('/workflows'),
-                ),
-                _buildMenuItem(
-                  context,
-                  icon: Icons.approval,
-                  label: 'الاعتمادات',
-                  route: '/approvals',
-                  isSelected: currentRoute.startsWith('/approvals'),
-                ),
+                if (_canShow(context, ['create_draft', 'system_config']))
+                  _buildSectionHeader('سير العمل والإشعارات', context),
+                if (_canShow(context, ['create_draft', 'system_config']))
+                  _buildMenuItem(
+                    context,
+                    icon: Icons.account_tree,
+                    label: 'تعريف سير العمل',
+                    route: '/workflows',
+                    isSelected: currentRoute.startsWith('/workflows'),
+                  ),
+                if (_canShow(context, ['create_draft']))
+                  _buildMenuItem(
+                    context,
+                    icon: Icons.approval,
+                    label: 'الاعتمادات',
+                    route: '/approvals',
+                    isSelected: currentRoute.startsWith('/approvals'),
+                  ),
                 _buildMenuItem(
                   context,
                   icon: Icons.notifications,
@@ -350,82 +379,94 @@ class SidebarWidget extends StatelessWidget {
                 const Divider(height: 4),
 
                 // ---- التقارير ----
-                _buildSectionHeader('التقارير', context),
-                _buildMenuItem(
-                  context,
-                  icon: Icons.account_balance,
-                  label: 'ميزان المراجعة',
-                  route: '/reports/trial-balance',
-                  isSelected: currentRoute.startsWith('/reports/trial-balance'),
-                ),
-                _buildMenuItem(
-                  context,
-                  icon: Icons.trending_up,
-                  label: 'قائمة الدخل',
-                  route: '/reports/income-statement',
-                  isSelected: currentRoute.startsWith('/reports/income-statement'),
-                ),
-                _buildMenuItem(
-                  context,
-                  icon: Icons.pie_chart,
-                  label: 'الميزانية العمومية',
-                  route: '/reports/balance-sheet',
-                  isSelected: currentRoute.startsWith('/reports/balance-sheet'),
-                ),
-                _buildMenuItem(
-                  context,
-                  icon: Icons.payments,
-                  label: 'التدفقات النقدية',
-                  route: '/reports/cash-flow',
-                  isSelected: currentRoute.startsWith('/reports/cash-flow'),
-                ),
-                _buildMenuItem(
-                  context,
-                  icon: Icons.hourglass_empty,
-                  label: 'تقادم الذمم',
-                  route: '/reports/aging',
-                  isSelected: currentRoute.startsWith('/reports/aging'),
-                ),
-                _buildMenuItem(
-                  context,
-                  icon: Icons.compare_arrows,
-                  label: 'المطابقة البنكية',
-                  route: '/reports/reconciliation',
-                  isSelected: currentRoute.startsWith('/reports/reconciliation'),
-                ),
-                _buildMenuItem(
-                  context,
-                  icon: Icons.donut_large,
-                  label: 'الموازنات',
-                  route: '/reports/budgets',
-                  isSelected: currentRoute.startsWith('/reports/budgets'),
-                ),
+                if (_canShow(context, ['post_entry', 'manage_accounts']))
+                  _buildSectionHeader('التقارير', context),
+                if (_canShow(context, ['post_entry', 'manage_accounts']))
+                  _buildMenuItem(
+                    context,
+                    icon: Icons.account_balance,
+                    label: 'ميزان المراجعة',
+                    route: '/reports/trial-balance',
+                    isSelected: currentRoute.startsWith('/reports/trial-balance'),
+                  ),
+                if (_canShow(context, ['post_entry', 'manage_accounts']))
+                  _buildMenuItem(
+                    context,
+                    icon: Icons.trending_up,
+                    label: 'قائمة الدخل',
+                    route: '/reports/income-statement',
+                    isSelected: currentRoute.startsWith('/reports/income-statement'),
+                  ),
+                if (_canShow(context, ['post_entry', 'manage_accounts']))
+                  _buildMenuItem(
+                    context,
+                    icon: Icons.pie_chart,
+                    label: 'الميزانية العمومية',
+                    route: '/reports/balance-sheet',
+                    isSelected: currentRoute.startsWith('/reports/balance-sheet'),
+                  ),
+                if (_canShow(context, ['post_entry', 'manage_accounts']))
+                  _buildMenuItem(
+                    context,
+                    icon: Icons.payments,
+                    label: 'التدفقات النقدية',
+                    route: '/reports/cash-flow',
+                    isSelected: currentRoute.startsWith('/reports/cash-flow'),
+                  ),
+                if (_canShow(context, ['post_entry', 'manage_accounts']))
+                  _buildMenuItem(
+                    context,
+                    icon: Icons.hourglass_empty,
+                    label: 'تقادم الذمم',
+                    route: '/reports/aging',
+                    isSelected: currentRoute.startsWith('/reports/aging'),
+                  ),
+                if (_canShow(context, ['post_entry', 'manage_accounts']))
+                  _buildMenuItem(
+                    context,
+                    icon: Icons.compare_arrows,
+                    label: 'المطابقة البنكية',
+                    route: '/reports/reconciliation',
+                    isSelected: currentRoute.startsWith('/reports/reconciliation'),
+                  ),
+                if (_canShow(context, ['post_entry', 'manage_accounts']))
+                  _buildMenuItem(
+                    context,
+                    icon: Icons.donut_large,
+                    label: 'الموازنات',
+                    route: '/reports/budgets',
+                    isSelected: currentRoute.startsWith('/reports/budgets'),
+                  ),
 
                 const Divider(height: 4),
 
                 // ---- النظام ----
-                _buildSectionHeader('النظام', context),
-                _buildMenuItem(
-                  context,
-                  icon: Icons.group,
-                  label: 'المستخدمين',
-                  route: '/users',
-                  isSelected: currentRoute.startsWith('/users'),
-                ),
-                _buildMenuItem(
-                  context,
-                  icon: Icons.security,
-                  label: 'الأدوار والصلاحيات',
-                  route: '/roles',
-                  isSelected: currentRoute.startsWith('/roles'),
-                ),
-                _buildMenuItem(
-                  context,
-                  icon: Icons.history,
-                  label: 'سجل التدقيق',
-                  route: '/audit',
-                  isSelected: currentRoute.startsWith('/audit'),
-                ),
+                if (_canShow(context, ['manage_users']))
+                  _buildSectionHeader('النظام', context),
+                if (_canShow(context, ['manage_users']))
+                  _buildMenuItem(
+                    context,
+                    icon: Icons.group,
+                    label: 'المستخدمين',
+                    route: '/users',
+                    isSelected: currentRoute.startsWith('/users'),
+                  ),
+                if (_canShow(context, ['manage_users']))
+                  _buildMenuItem(
+                    context,
+                    icon: Icons.security,
+                    label: 'الأدوار والصلاحيات',
+                    route: '/roles',
+                    isSelected: currentRoute.startsWith('/roles'),
+                  ),
+                if (_canShow(context, ['manage_users']))
+                  _buildMenuItem(
+                    context,
+                    icon: Icons.history,
+                    label: 'سجل التدقيق',
+                    route: '/audit',
+                    isSelected: currentRoute.startsWith('/audit'),
+                  ),
                 _buildMenuItem(
                   context,
                   icon: Icons.person,
@@ -433,13 +474,14 @@ class SidebarWidget extends StatelessWidget {
                   route: '/profile',
                   isSelected: currentRoute == '/profile',
                 ),
-                _buildMenuItem(
-                  context,
-                  icon: Icons.settings,
-                  label: 'الإعدادات',
-                  route: '/settings',
-                  isSelected: currentRoute.startsWith('/settings'),
-                ),
+                if (_canShow(context, ['system_config']))
+                  _buildMenuItem(
+                    context,
+                    icon: Icons.settings,
+                    label: 'الإعدادات',
+                    route: '/settings',
+                    isSelected: currentRoute.startsWith('/settings'),
+                  ),
               ],
             ),
           ),
@@ -500,6 +542,17 @@ class SidebarWidget extends StatelessWidget {
   // ============================================================
   // دوال مساعدة
   // ============================================================
+
+  // القائمة الجانبية تُبسط لكل أنواع الشركات (§2.3 Modular):
+  // - المؤسسات (is_admin / من يملك صلاحية واسعة) ترى كل الأقسام المتقدمة.
+  // - الدكان الصغير يرى فقط الأقسام المصرّح بها (مبيعات، عملاء، مخزون، نقد).
+  bool _canShow(BuildContext context, List<String> required) {
+    final auth = context.watch<AuthProvider>();
+    if (auth.isSuperAdmin) return true;
+    if (auth.hasPermission('manage_users')) return true;
+    if (required.isEmpty) return true;
+    return auth.hasAnyPermission(required);
+  }
 
   Widget _buildSectionHeader(String title, BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
