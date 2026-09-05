@@ -377,7 +377,7 @@ class _SuppliersListScreenState extends State<SuppliersListScreen> {
       }
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('فشل تغيير الحالة: $e'), backgroundColor: AppColors.danger));
+        SnackBar(content: Text('فشل تغيير الحالة: ${ErrorUtils.sanitize(e)}'), backgroundColor: AppColors.danger));
     }
   }
 

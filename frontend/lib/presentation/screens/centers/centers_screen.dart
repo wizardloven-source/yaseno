@@ -52,7 +52,7 @@ class _CentersScreenState extends State<CentersScreen> {
     });
     try {
       final response = await _api.get('centers');
-      final data = response['data'];
+      final data = response['data'] ?? response;
       final items = (data is Map ? data['items'] : data) ?? [];
       setState(() {
         _centers = (items as List).cast<Map<String, dynamic>>();

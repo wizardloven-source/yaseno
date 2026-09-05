@@ -250,8 +250,8 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                 if (value == null || value.isEmpty) {
                                   return 'الرجاء إدخال كلمة المرور';
                                 }
-                                if (value.length < 6) {
-                                  return 'كلمة المرور يجب أن تكون 6 أحرف على الأقل';
+                                if (value.length < 10) {
+                                  return 'يجب أن تكون كلمة المرور 10 أحرف على الأقل';
                                 }
                                 return null;
                               },

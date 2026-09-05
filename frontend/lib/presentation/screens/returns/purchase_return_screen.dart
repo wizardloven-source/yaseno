@@ -32,8 +32,7 @@ class _PurchaseReturnScreenState extends State<PurchaseReturnScreen> {
     });
     try {
       final response = await _api.get('purchase-orders');
-      final data = response['data'];
-      final items = (data is Map ? data['items'] : data) ?? [];
+      final items = response['items'] ?? [];
       final all = (items as List).cast<Map<String, dynamic>>();
       setState(() {
         _orders = all.where((o) {

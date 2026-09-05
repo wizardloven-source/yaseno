@@ -152,14 +152,14 @@ class ApiService {
       'lines': lines,
       if (transactionType != null) 'transaction_type': transactionType,
     });
-    return JournalEntry.fromJson(response.data);
+    return JournalEntry.fromJson(response.data['data'] ?? response.data);
   }
 
   Future<JournalEntry> postJournalEntry(
       String entryId, String postedBy) async {
     final response =
         await _client.dio.post('/journal-entries/$entryId/post');
-    return JournalEntry.fromJson(response.data);
+    return JournalEntry.fromJson(response.data['data'] ?? response.data);
   }
 
   Future<JournalEntry> reverseJournalEntry(
@@ -168,7 +168,7 @@ class ApiService {
       '/journal-entries/$entryId/reverse',
       queryParameters: {'reason': reason},
     );
-    return JournalEntry.fromJson(response.data);
+    return JournalEntry.fromJson(response.data['data'] ?? response.data);
   }
 
   // =========================================================================

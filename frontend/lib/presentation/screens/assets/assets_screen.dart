@@ -80,7 +80,7 @@ class _AssetsScreenState extends State<AssetsScreen> {
       if (_filterStatus != null) params['status'] = _filterStatus;
 
       final response = await _api.get('assets', queryParameters: params);
-      final data = response['data'];
+      final data = response['data'] ?? response;
       final items = (data is Map ? data['items'] : data) ?? [];
       final total = (data is Map && data['total_pages'] != null)
           ? data['total_pages']

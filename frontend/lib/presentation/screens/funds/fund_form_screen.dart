@@ -125,13 +125,13 @@ class _FundFormScreenState extends State<FundFormScreen> {
                       TextFormField(
                         controller: _codeController,
                         decoration: const InputDecoration(labelText: 'رمز الصندوق', border: OutlineInputBorder()),
-                        validator: (v) => (v == null || v.trim().isEmpty) ? 'مطلوب' : null,
+                        validator: (v) => (v == null || v.trim().isEmpty) ? 'رمز الصندوق مطلوب' : null,
                       ),
                       const SizedBox(height: 16),
                       TextFormField(
                         controller: _accountCodeController,
                         decoration: const InputDecoration(labelText: 'رمز الحساب المرتبط', border: OutlineInputBorder()),
-                        validator: (v) => (v == null || v.trim().isEmpty) ? 'مطلوب' : null,
+                        validator: (v) => (v == null || v.trim().isEmpty) ? 'رمز الحساب مطلوب' : null,
                       ),
                       const SizedBox(height: 16),
                       TextFormField(
@@ -144,7 +144,7 @@ class _FundFormScreenState extends State<FundFormScreen> {
                     TextFormField(
                       controller: _nameController,
                       decoration: const InputDecoration(labelText: 'اسم الصندوق', border: OutlineInputBorder()),
-                      validator: (v) => (v == null || v.trim().isEmpty) ? 'مطلوب' : null,
+                      validator: (v) => (v == null || v.trim().isEmpty) ? 'اسم الصندوق مطلوب' : null,
                     ),
                     const SizedBox(height: 16),
                     DropdownButtonFormField<String>(

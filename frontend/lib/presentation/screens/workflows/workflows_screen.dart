@@ -53,7 +53,7 @@ class _WorkflowsScreenState extends State<WorkflowsScreen> {
         'workflows',
         queryParameters: params.isNotEmpty ? params : null,
       );
-      final data = response['data'];
+      final data = response['data'] ?? response;
       final items = (data is Map ? data['items'] : data) ?? [];
       setState(() {
         _workflows = (items as List).cast<Map<String, dynamic>>();

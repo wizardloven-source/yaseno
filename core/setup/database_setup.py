@@ -129,9 +129,14 @@ class DatabaseSetup:
 
                 db_name = settings.database.database
                 logger.info(f"Creating database: {db_name}")
+                
+                # التحقق من أمان اسم قاعدة البيانات (أحرف وأرقام وشرطات فقط)
+                import re
+                if not re.match(r'^[a-zA-Z0-9_]+$', db_name):
+                    raise ValueError(f"Invalid database name: {db_name}")
 
-                # استخدام quoting آمن لاسم قاعدة البيانات
-                conn.execute(text(f'CREATE DATABASE "{db_name}"'))
+                # استخدام parameterized query لاسم قاعدة البيانات
+                conn.execute(text('CREATE DATABASE :db_name'), {'db_name': db_name})
                 logger.info("Database created successfully")
                 return True
 

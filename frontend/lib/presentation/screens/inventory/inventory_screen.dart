@@ -95,7 +95,7 @@ class _StockTabState extends State<_StockTab> {
           if (_searchText.isNotEmpty) 'search': _searchText,
         },
       );
-      final data = response['data'];
+      final data = response['data'] ?? response;
       final items = (data is Map ? data['items'] : data) ?? [];
       setState(() {
         _movements = (items as List).cast<Map<String, dynamic>>();
@@ -330,7 +330,7 @@ class _StockTabState extends State<_StockTab> {
   Future<void> _showItemMovements(String entityType, String entityId) async {
     try {
       final response = await _api.get('inventory/$entityType/$entityId/movements');
-      final data = response['data'];
+      final data = response['data'] ?? response;
       final items = (data is Map ? data['items'] : data) ?? [];
       final movements = (items as List).cast<Map<String, dynamic>>();
       if (!mounted) return;
@@ -812,7 +812,7 @@ class _MovementsTabState extends State<_MovementsTab>
     setState(() => _isLoading = true);
     try {
       final response = await _api.get('inventory/movements', queryParameters: {'limit': 50});
-      final data = response['data'];
+      final data = response['data'] ?? response;
       final items = (data is Map ? data['items'] : data) ?? [];
       setState(() {
         _recentMovements = (items as List).cast<Map<String, dynamic>>();
@@ -1227,7 +1227,7 @@ class _TransfersTabState extends State<_TransfersTab> {
     setState(() => _isLoading = true);
     try {
       final response = await _api.get('inventory/transfers');
-      final data = response['data'];
+      final data = response['data'] ?? response;
       final items = (data is Map ? data['items'] : data) ?? [];
       setState(() {
         _transfers = (items as List).cast<Map<String, dynamic>>();

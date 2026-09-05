@@ -163,8 +163,6 @@ class Money:
             return self
         if self.currency != other.currency:
             raise ValueError(f"Cannot subtract different currencies: {self.currency} and {other.currency}")
-        if self.amount < other.amount:
-            raise ValueError(f"Insufficient funds: {self.amount} < {other.amount}")
         return Money(self.amount - other.amount, self.currency)
     
     def __mul__(self, multiplier: Decimal) -> 'Money':

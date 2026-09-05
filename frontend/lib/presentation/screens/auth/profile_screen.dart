@@ -207,7 +207,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   ),
                                   validator: (v) {
                                     if (v == null || v.isEmpty) return 'مطلوب';
-                                    if (v.length < 6) return 'يجب أن تكون 6 أحرف على الأقل';
+                                    if (v.length < 10) return 'يجب أن تكون كلمة المرور 10 أحرف على الأقل';
                                     return null;
                                   },
                                 ),

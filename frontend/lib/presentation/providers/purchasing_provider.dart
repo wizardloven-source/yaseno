@@ -32,7 +32,7 @@ class PurchasingProvider extends ChangeNotifier {
         if (toDate != null) 'to_date': toDate.toIso8601String().split('T')[0],
       });
       final items = response['items'] ?? response['purchase_orders'] ?? [];
-      _purchaseOrders = (items as List)
+      _purchaseOrders = (items is List ? items : [])
           .map((e) => PurchaseOrder.fromJson(e as Map<String, dynamic>))
           .toList();
       _error = null;

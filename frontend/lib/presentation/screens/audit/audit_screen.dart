@@ -107,7 +107,7 @@ class _AuditScreenState extends State<AuditScreen> {
       }
 
       final response = await _api.get('audit', queryParameters: params);
-      final data = response['data'];
+      final data = response['data'] ?? response;
       final items = (data is Map ? data['items'] : data) ?? [];
       final total = data is Map ? (data['total'] ?? 0) : 0;
 

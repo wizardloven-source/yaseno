@@ -1,4 +1,4 @@
-# core/shared/error_handler.py (جديد)
+# core/shared/error_handler.py
 
 """
 Unified Error Handler - Centralized error handling for the entire application
@@ -8,15 +8,37 @@ import logging
 from typing import Optional, Dict, Any, Callable
 from functools import wraps
 from datetime import datetime
+from dataclasses import dataclass, field
 
 from .exceptions import (
     DomainError, ApplicationError, InfrastructureError,
     ValidationError, BusinessRuleViolation, NotFoundError,
-    ConcurrentModificationError, PermissionDeniedError,
-    ErrorDetails, ErrorCodes
+    ConcurrentModificationError, PermissionDeniedError
 )
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class ErrorDetails:
+    """هيكل بيانات تفاصيل الخطأ"""
+    code: str
+    message: str
+    user_message: str
+    details: Dict[str, Any] = field(default_factory=dict)
+    timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
+
+
+class ErrorCodes:
+    """رموز الخطأ الموحدة"""
+    VALIDATION_FAILED = "ERR-001"
+    ENTITY_NOT_FOUND = "ERR-002"
+    UNBALANCED_ENTRY = "ERR-003"
+    PERMISSION_DENIED = "ERR-401"
+    CONCURRENT_MODIFICATION = "ERR-004"
+    DATABASE_ERROR = "ERR-500"
+    INTERNAL_ERROR = "ERR-500"
+    NOT_FOUND = "ERR-404"
 
 
 class ErrorHandler:
@@ -92,7 +114,7 @@ class ErrorHandler:
             "error_code": details.code,
             "error_type": type(error).__name__,
             "message": details.message,
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": details.timestamp,
         }
         if context:
             log_data["context"] = context
@@ -134,24 +156,26 @@ class ErrorHandler:
     
     def _handle_not_found_error(self, error: NotFoundError, context: Dict) -> ErrorDetails:
         """Handle entity not found errors"""
+        entity_type = getattr(error, 'entity_type', 'العنصر')
+        entity_id = getattr(error, 'entity_id', '')
         return ErrorDetails(
-            code=ErrorCodes.ENTITY_NOT_FOUND,
+            code=ErrorCodes.NOT_FOUND,
             message=str(error),
-            user_message=f"العنصر {error.entity_type} غير موجود.",
-            details={"entity_type": error.entity_type, "entity_id": error.entity_id}
+            user_message=f"العنصر {entity_type} غير موجود.",
+            details={"entity_type": entity_type, "entity_id": str(entity_id)}
         )
     
     def _handle_concurrency_error(self, error: ConcurrentModificationError, context: Dict) -> ErrorDetails:
         """Handle optimistic locking errors"""
         return ErrorDetails(
-            code=ErrorCodes.VALIDATION_FAILED,
+            code=ErrorCodes.CONCURRENT_MODIFICATION,
             message=str(error),
             user_message="تم تعديل هذا العنصر بواسطة مستخدم آخر. الرجاء تحديث الصفحة والمحاولة مرة أخرى.",
             details={
-                "entity_type": error.entity_type,
-                "entity_id": error.entity_id,
-                "expected_version": error.expected_version,
-                "actual_version": error.actual_version
+                "entity_type": getattr(error, 'entity_type', ''),
+                "entity_id": str(getattr(error, 'entity_id', '')),
+                "expected_version": getattr(error, 'expected_version', None),
+                "actual_version": getattr(error, 'actual_version', None)
             }
         )
     
@@ -161,7 +185,7 @@ class ErrorHandler:
             code=ErrorCodes.PERMISSION_DENIED,
             message=str(error),
             user_message="ليس لديك صلاحية للقيام بهذه العملية.",
-            details={"permission": error.permission, "user_id": error.user_id}
+            details={"permission": getattr(error, 'permission', ''), "user_id": getattr(error, 'user_id', '')}
         )
     
     def _handle_domain_error(self, error: DomainError, context: Dict) -> ErrorDetails:

@@ -29,7 +29,7 @@ class _BranchesScreenState extends State<BranchesScreen> {
     setState(() { _isLoading = true; _error = null; });
     try {
       final response = await _api.get('branches');
-      final data = response['data'];
+      final data = response['data'] ?? response;
       final items = (data is Map ? data['items'] : data) ?? [];
       setState(() {
         _branches = (items as List).cast<Map<String, dynamic>>();

@@ -25,7 +25,7 @@ class FundsProvider extends ChangeNotifier {
         if (type != null) 'fund_type': type,
       });
       final items = response['items'] ?? response['funds'] ?? [];
-      _funds = (items as List)
+      _funds = (items is List ? items : [])
           .map((e) => Fund.fromJson(e as Map<String, dynamic>))
           .toList();
       _error = null;

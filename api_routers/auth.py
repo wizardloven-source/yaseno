@@ -175,7 +175,6 @@ async def refresh_token(request: dict, rate_limit: None = Depends(rate_limiter(1
         raise
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid refresh token")
-        raise HTTPException(status_code=401, detail="Invalid refresh token")
 
 
 @router.get("/me")

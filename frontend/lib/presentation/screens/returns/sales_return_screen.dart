@@ -34,8 +34,7 @@ class _SalesReturnScreenState extends State<SalesReturnScreen> {
       final response = await _api.get('invoices', queryParameters: {
         'limit': 500,
       });
-      final data = response['data'];
-      final items = (data is Map ? data['items'] : data) ?? [];
+      final items = response['items'] ?? [];
       final all = (items as List).cast<Map<String, dynamic>>();
       setState(() {
         _invoices = all.where((inv) {

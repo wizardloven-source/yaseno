@@ -58,7 +58,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         setState(() => _companyName = settings['company_name'] ?? 'Ya Seen ERP');
       }
       anySuccess = true;
-    } catch (_) {}
+    } catch (e) { debugPrint('Dashboard load error: $e'); }
 
     // Load currency
     try {
@@ -66,7 +66,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final baseData = baseRes['data'];
       final symbol = (baseData is Map ? baseData['symbol'] : null) ?? 'د.ع';
       if (mounted) setState(() => _currencySymbol = symbol);
-    } catch (_) {}
+    } catch (e) { debugPrint('Dashboard load error: $e'); }
 
     // Load counts (each independently)
     try {
@@ -74,28 +74,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final journalItems = journalData['items'] ?? [];
       if (mounted) setState(() => _journalCount = journalItems is List ? journalItems.length : 0);
       anySuccess = true;
-    } catch (_) {}
+    } catch (e) { debugPrint('Dashboard load error: $e'); }
 
     try {
       final invoiceData = await _api.get('invoices');
       final invoiceItems = invoiceData['items'] ?? [];
       if (mounted) setState(() => _invoiceCount = invoiceItems is List ? invoiceItems.length : 0);
       anySuccess = true;
-    } catch (_) {}
+    } catch (e) { debugPrint('Dashboard load error: $e'); }
 
     try {
       final paymentData = await _api.get('payments');
       final paymentItems = paymentData['items'] ?? [];
       if (mounted) setState(() => _paymentCount = paymentItems is List ? paymentItems.length : 0);
       anySuccess = true;
-    } catch (_) {}
+    } catch (e) { debugPrint('Dashboard load error: $e'); }
 
     try {
       final fundData = await _api.get('funds');
       final fundItems = fundData['items'] ?? [];
       if (mounted) setState(() => _fundCount = fundItems is List ? fundItems.length : 0);
       anySuccess = true;
-    } catch (_) {}
+    } catch (e) { debugPrint('Dashboard load error: $e'); }
 
     // Load financial summary
     try {
@@ -111,7 +111,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         }
         if (mounted) setState(() => _totalBalance = totalDebit - totalCredit);
       }
-    } catch (_) {}
+    } catch (e) { debugPrint('Dashboard load error: $e'); }
 
     // Load recent journals
     try {
@@ -120,7 +120,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       if (mounted && journalItems is List) {
         setState(() => _recentJournals = journalItems.cast<Map<String, dynamic>>());
       }
-    } catch (_) {}
+    } catch (e) { debugPrint('Dashboard load error: $e'); }
 
     // Load recent invoices and compute revenue
     try {
@@ -137,7 +137,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           _totalRevenue = revenue;
         });
       }
-    } catch (_) {}
+    } catch (e) { debugPrint('Dashboard load error: $e'); }
 
     // Load payments total
     try {
@@ -157,7 +157,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           });
         }
       }
-    } catch (_) {}
+    } catch (e) { debugPrint('Dashboard load error: $e'); }
 
     // Load low stock
     try {
@@ -166,7 +166,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       if (mounted && lowItems is List) {
         setState(() => _lowStockCount = lowItems.length);
       }
-    } catch (_) {}
+    } catch (e) { debugPrint('Dashboard load error: $e'); }
 
     if (mounted) {
       setState(() {
@@ -242,7 +242,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (hour < 12) {
       greeting = 'صباح الخير';
     } else if (hour < 17) {
-      greeting = 'مساء النهار';
+      greeting = 'مساء الخير';
     } else {
       greeting = 'مساء الخير';
     }

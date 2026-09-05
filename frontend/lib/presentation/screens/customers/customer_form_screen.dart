@@ -42,7 +42,15 @@ class _CustomerFormScreenState extends State<CustomerFormScreen> {
   String _selectedStatus = 'active';
   List<String> _currencies = [];
 
+  final Map<String, String> _countryLabels = {
+    'LB': 'لبنان', 'US': 'الولايات المتحدة', 'UK': 'المملكة المتحدة',
+    'FR': 'فرنسا', 'AE': 'الإمارات', 'SA': 'السعودية',
+  };
   final List<String> _countries = ['LB', 'US', 'UK', 'FR', 'AE', 'SA'];
+  
+  final Map<String, String> _statusLabels = {
+    'active': 'نشط', 'inactive': 'غير نشط', 'suspended': 'معلّق', 'blocked': 'محظور',
+  };
   final List<String> _statuses = ['active', 'inactive', 'suspended', 'blocked'];
 
   @override
@@ -325,7 +333,7 @@ class _CustomerFormScreenState extends State<CustomerFormScreen> {
                       items: _countries.map((country) {
                         return DropdownMenuItem(
                           value: country,
-                          child: Text(country),
+                          child: Text(_countryLabels[country] ?? country),
                         );
                       }).toList(),
                       onChanged: (value) {
@@ -404,7 +412,7 @@ class _CustomerFormScreenState extends State<CustomerFormScreen> {
                 items: _statuses.map((status) {
                   return DropdownMenuItem(
                     value: status,
-                    child: Text(status),
+                    child: Text(_statusLabels[status] ?? status),
                   );
                 }).toList(),
                 onChanged: (value) {

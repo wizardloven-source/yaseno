@@ -2,6 +2,7 @@
 import 'package:dio/dio.dart';
 import 'package:logger/logger.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'dart:async';
 import 'dart:convert';
 
 class ApiClient {
@@ -20,6 +21,7 @@ class ApiClient {
   String _baseUrl = _envBaseUrl;
   String? _accessToken;
   String? _refreshToken;
+  Completer<void>? _refreshMutex;
   
   ApiClient._internal() {
     _dio = Dio(BaseOptions(
@@ -58,15 +60,30 @@ class ApiClient {
         },
         onError: (DioException e, handler) async {
           if (e.response?.statusCode == 401 && !e.requestOptions.path.contains('/auth/')) {
-            // محاولة تحديث Token
+            // محاولة تحديث Token مع mutex لمنع التحديث المتزامن
+            if (_refreshMutex != null) {
+              try {
+                await _refreshMutex!.future;
+                final options = e.requestOptions;
+                options.headers['Authorization'] = 'Bearer $_accessToken';
+                final retryResponse = await _dio.fetch(options);
+                return handler.resolve(retryResponse);
+              } catch (err) {
+                return handler.next(e);
+              }
+            }
+            _refreshMutex = Completer<void>();
             try {
               await _refreshTokenCall();
+              _refreshMutex!.complete();
+              _refreshMutex = null;
               final options = e.requestOptions;
               options.headers['Authorization'] = 'Bearer $_accessToken';
               final retryResponse = await _dio.fetch(options);
               return handler.resolve(retryResponse);
             } catch (err) {
-              // فشل التحديث - تسجيل الخروج
+              _refreshMutex!.completeError(err);
+              _refreshMutex = null;
               await logout();
               return handler.next(e);
             }

@@ -519,10 +519,10 @@ async def budget_vs_actual_report(
                     ), {"code": l["account_code"]}).mappings().first()
                     account_type = acct["account_type"] if acct else "expense"
                     row = uow.session.execute(text(
-                        "SELECT COALESCE(SUM(l2.debit_amount), 0) AS debit, COALESCE(SUM(l2.credit_amount), 0) AS credit "
-                        "FROM ledger_entries je "
-                        "JOIN journal_lines l2 ON l2.journal_entry_id = je.id "
-                        "JOIN accounts a ON a.id = l2.account_id "
+                        "SELECT COALESCE(SUM(jl.debit_amount), 0) AS debit, COALESCE(SUM(jl.credit_amount), 0) AS credit "
+                        "FROM journal_entries je "
+                        "JOIN journal_lines jl ON jl.journal_entry_id = je.id "
+                        "JOIN accounts a ON a.id = jl.account_id "
                         "WHERE a.code = :code AND je.is_posted = TRUE "
                         "AND je.entry_date::date BETWEEN :start AND :end"
                     ), {"code": l["account_code"], "start": p_start, "end": p_end}).mappings().first()

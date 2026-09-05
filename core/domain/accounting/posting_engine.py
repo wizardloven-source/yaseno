@@ -18,6 +18,9 @@ from dataclasses import dataclass, field
 import logging
 import threading
 
+# قفل عام مشترك لجميع محركات الترحيل — يمنع التداخل عبر الحالات
+_GLOBAL_POSTING_LOCK = threading.Lock()
+
 from .entities import JournalEntry, JournalLine
 from core.domain.shared.value_objects import AccountCode, Money
 from .value_objects import JournalEntryId, EntryId
@@ -159,8 +162,8 @@ class PostingEngine:
         self._validator = PostingValidator()
         self._clock = get_clock()
         
-        # ✅ قفل آمن لمنع الترحيل المتداخل
-        self._posting_lock = threading.Lock()
+        # ✅ قفل آمن لمنع الترحيل المتداخل — مشترك بين جميع الحالات
+        self._posting_lock = _GLOBAL_POSTING_LOCK
         
         # ✅ حساب فروقات العملات
         self._fx_difference_account = AccountCode(fx_difference_account)

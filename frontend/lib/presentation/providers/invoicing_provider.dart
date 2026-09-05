@@ -32,7 +32,7 @@ class InvoicingProvider extends ChangeNotifier {
         if (toDate != null) 'to_date': toDate.toIso8601String().split('T')[0],
       });
       final items = response['items'] ?? response['invoices'] ?? [];
-      _invoices = (items as List)
+      _invoices = (items is List ? items : [])
           .map((e) => Invoice.fromJson(e as Map<String, dynamic>))
           .toList();
       _error = null;

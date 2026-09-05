@@ -63,7 +63,7 @@ class _SitesScreenState extends State<SitesScreen> {
     try {
       final response = await _api.get('sites',
           queryParameters: {'include_inactive': true});
-      final data = response['data'];
+      final data = response['data'] ?? response;
       final items = (data is Map ? data['items'] : data) ?? [];
 
       String? defaultId;
@@ -99,7 +99,7 @@ class _SitesScreenState extends State<SitesScreen> {
       }
       final response = await _api.get('sites/search',
           queryParameters: {'q': _searchText, 'limit': 100});
-      final data = response['data'];
+      final data = response['data'] ?? response;
       final items = (data is Map ? data['items'] : data) ?? [];
       setState(() {
         _sites = (items as List).cast<Map<String, dynamic>>();

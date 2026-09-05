@@ -35,7 +35,7 @@ class _FundListScreenState extends State<FundListScreen> {
     });
     try {
       final response = await _api.get('funds');
-      final data = response['data'];
+      final data = response['data'] ?? response;
       final items = (data is Map ? data['items'] : data) ?? [];
       setState(() {
         _funds = (items as List).cast<Map<String, dynamic>>();

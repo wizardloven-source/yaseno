@@ -39,8 +39,7 @@ class _PurchaseOrderListScreenState extends State<PurchaseOrderListScreen> {
       final response = await _api.get('purchase-orders', queryParameters: {
         if (_statusFilter.isNotEmpty) 'status': _statusFilter,
       });
-      final data = response['data'];
-      final items = (data is Map ? data['items'] : data) ?? [];
+      final items = response['items'] ?? [];
       setState(() {
         _orders = (items as List).cast<Map<String, dynamic>>();
         _isLoading = false;

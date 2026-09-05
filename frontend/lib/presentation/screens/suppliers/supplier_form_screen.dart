@@ -41,7 +41,15 @@ class _SupplierFormScreenState extends State<SupplierFormScreen> {
   String _selectedStatus = 'active';
   List<String> _currencies = [];
 
+  final Map<String, String> _countryLabels = {
+    'LB': 'لبنان', 'US': 'الولايات المتحدة', 'UK': 'المملكة المتحدة',
+    'FR': 'فرنسا', 'AE': 'الإمارات', 'SA': 'السعودية', 'CN': 'الصين', 'IN': 'الهند',
+  };
   final List<String> _countries = ['LB', 'US', 'UK', 'FR', 'AE', 'SA', 'CN', 'IN'];
+  
+  final Map<String, String> _statusLabels = {
+    'active': 'نشط', 'inactive': 'غير نشط', 'suspended': 'معلّق', 'blocked': 'محظور',
+  };
   final List<String> _statuses = ['active', 'inactive', 'suspended', 'blocked'];
 
   @override
@@ -351,7 +359,7 @@ class _SupplierFormScreenState extends State<SupplierFormScreen> {
                       items: _countries.map((country) {
                         return DropdownMenuItem(
                           value: country,
-                          child: Text(country),
+                          child: Text(_countryLabels[country] ?? country),
                         );
                       }).toList(),
                       onChanged: (value) {

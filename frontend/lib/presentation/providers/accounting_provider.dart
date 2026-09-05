@@ -140,7 +140,7 @@ class AccountingProvider extends ChangeNotifier {
       });
       
       final accountsList = response['accounts'] ?? response['items'] ?? [];
-      _accounts = (accountsList as List)
+      _accounts = (accountsList is List ? accountsList : [])
           .map((item) => Account.fromJson(item as Map<String, dynamic>))
           .toList();
       _error = null;

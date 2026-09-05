@@ -153,7 +153,7 @@ class _JournalEntryListScreenState extends State<JournalEntryListScreen> {
                         icon: const Icon(Icons.calendar_today, size: 16),
                         label: Text(
                           _fromDate != null
-                              ? DateFormat('MM/dd').format(_fromDate!)
+                              ? DateFormat('dd/MM').format(_fromDate!)
                               : 'من',
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -167,7 +167,7 @@ class _JournalEntryListScreenState extends State<JournalEntryListScreen> {
                         icon: const Icon(Icons.calendar_today, size: 16),
                         label: Text(
                           _toDate != null
-                              ? DateFormat('MM/dd').format(_toDate!)
+                              ? DateFormat('dd/MM').format(_toDate!)
                               : 'إلى',
                           overflow: TextOverflow.ellipsis,
                         ),
