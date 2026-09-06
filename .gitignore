@@ -1,84 +1,56 @@
-# ===========================
+```
 # Python
-# ===========================
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
-*.egg-info/
-dist/
+.Python
 build/
-*.egg
+develop-eggs/
+dist/
+downloads/
+eggs/
 .eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
 
-# ===========================
-# Virtual Environment
-# ===========================
+# Virtual environments
 venv/
-.venv/
-env/
 ENV/
+env.bak/
+.venv/
 
-# ===========================
-# Environment & Secrets
-# ===========================
-.env
-.env.local
-.env.production
-.jwt_secret
-*.pem
-*.key
-
-# ===========================
 # IDE
-# ===========================
 .vscode/
 .idea/
 *.swp
 *.swo
-*~
-.project
-.settings/
 
-# ===========================
-# Debug & Logs
-# ===========================
-debug_*.py
-debug_*.txt
-dbg_*.txt
-dbg_*.py
-build_log.txt
+# Logs
 *.log
 
-# ===========================
-# Test & Cache
-# ===========================
-.pytest_cache/
+# Environment variables
+.env
+.env.local
+.env.*
+
+# Coverage
 .coverage
+coverage/
 htmlcov/
-.tox/
-.nox/
 
-# ===========================
-# Backups (should not be in repo)
-# ===========================
-Project_Backup_Code_*/
-*_backup_*.txt
-*_backup_*.py
+# Testing
+.pytest_cache/
+.mypy_cache/
+.hypothesis/
 
-# ===========================
-# OS
-# ===========================
-.DS_Store
-Thumbs.db
-desktop.ini
-
-# ===========================
-# Flutter (root level)
-# ===========================
-frontend/build/
-frontend/.dart_tool/
-frontend/.pub-cache/
-frontend/pubspec.lock
-
-.env.example
+# Distribution / packaging
+.pybuild/
+```
