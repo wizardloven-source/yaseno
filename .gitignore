@@ -1,84 +1,186 @@
-# ===========================
+```
 # Python
-# ===========================
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
-*.egg-info/
-dist/
+.Python
 build/
-*.egg
+develop-eggs/
+dist/
+downloads/
+eggs/
 .eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
 
-# ===========================
-# Virtual Environment
-# ===========================
-venv/
+# Environment
 .venv/
+venv/
 env/
 ENV/
 
-# ===========================
-# Environment & Secrets
-# ===========================
-.env
-.env.local
-.env.production
-.jwt_secret
-*.pem
-*.key
-
-# ===========================
 # IDE
-# ===========================
 .vscode/
 .idea/
 *.swp
 *.swo
-*~
-.project
-.settings/
+*.tmp
 
-# ===========================
-# Debug & Logs
-# ===========================
-debug_*.py
-debug_*.txt
-dbg_*.txt
-dbg_*.py
-build_log.txt
+# Logs
 *.log
 
-# ===========================
-# Test & Cache
-# ===========================
-.pytest_cache/
+# Coverage
 .coverage
+htmlcov/
+.coverage.*
+.cov.config
+
+# Database
+*.sqlite3
+*.db
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+.pytest_cache/
+.mypy_cache/
+.hypothesis/
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
 htmlcov/
 .tox/
 .nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
 
-# ===========================
-# Backups (should not be in repo)
-# ===========================
-Project_Backup_Code_*/
-*_backup_*.txt
-*_backup_*.py
+# Translations
+*.mo
+*.pot
 
-# ===========================
-# OS
-# ===========================
-.DS_Store
-Thumbs.db
-desktop.ini
+# Django stuff:
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
 
-# ===========================
-# Flutter (root level)
-# ===========================
-frontend/build/
-frontend/.dart_tool/
-frontend/.pub-cache/
-frontend/pubspec.lock
+# Flask stuff:
+instance/
+.webassets-cache
 
-.env.example
+# Scrapy stuff:
+.scrapy
+
+# Sphinx documentation
+docs/_build/
+
+# PyBuilder
+.pybuilder/
+target/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+.python-version
+
+# pipenv
+Pipfile.lock
+
+# PEP 582
+__pypackages__/
+
+# Celery stuff
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# pytype static type analyzer
+.pytype/
+
+# Cython debug symbols
+cython_debug/
+
+# PyCharm
+# JetBrains specific template is maintained in a separate JetBrains.gitignore that can be found at https://github.com/github/gitignore/blob/main/Global/JetBrains.gitignore
+# and can be added to the global gitignore or merged into this file.  For a more nuclear option (not recommended) you can uncomment the following to ignore the entire idea folder.
+#.idea/
+```
