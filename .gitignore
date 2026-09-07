@@ -23,7 +23,6 @@ wheels/
 
 # Virtual environments
 venv/
-env/
 ENV/
 .venv/
 .env/
@@ -33,10 +32,14 @@ ENV/
 .idea/
 *.swp
 *.swo
-*.tmp
 
 # Logs
 *.log
+
+# Environment variables
+.env
+.env.local
+.env.*
 
 # Coverage
 .coverage
