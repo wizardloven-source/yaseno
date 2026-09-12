@@ -1,2 +1,39 @@
-# Documentation
-YASeen_ERP_GAP_ANALYSIS.md
+```gitignore
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Coverage reports
+.coverage
+htmlcov/
+coverage/
+
+# Environment variables
+.env
+.env.local
+.env.*
+.venv/
+venv/
+ENV/
+
+# Testing
+.pytest_cache/
+.mypy_cache/
+.hypothesis/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*.tmp
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+```
