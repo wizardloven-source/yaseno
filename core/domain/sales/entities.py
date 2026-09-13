@@ -300,8 +300,7 @@ class SalesQuotation:
             shipping_address=self.shipping_address,
             payment_terms=self.payment_terms,
             notes=self.notes,
-            source_quotation_id=str(self.id.value),
-            sequence=1  # يجب أن يأتي من Sequence Service
+            source_quotation_id=str(self.id.value)
         )
         
         # نسخ العناصر
@@ -410,6 +409,10 @@ class OrderItem:
     @property
     def total_with_tax(self) -> Money:
         return Money(self.total_after_discount.amount + self.tax_amount.amount, self.total_after_discount.currency)
+    
+    @property
+    def currency(self) -> str:
+        return self.unit_price.currency
     
     @property
     def is_fully_delivered(self) -> bool:
@@ -755,9 +758,28 @@ class DeliveryItem:
     # مرجع للعنصر في أمر البيع
     order_item_line_id: Optional[str] = None
     
+    # معلومات إضافية للتتبع
+    warehouse_id: Optional[str] = None
+    batch_number: Optional[str] = None
+    serial_numbers: List[str] = field(default_factory=list)
+    
+    @property
+    def ordered_quantity(self) -> Decimal:
+        """Alias for quantity for compatibility"""
+        return self.quantity
+    
+    @property
+    def remaining_quantity(self) -> Decimal:
+        """الكمية المتبقية للتسليم"""
+        return self.quantity - self.delivered_quantity
+    
     @property
     def is_fully_delivered(self) -> bool:
         return self.delivered_quantity >= self.quantity
+    
+    @property
+    def is_partially_delivered(self) -> bool:
+        return Decimal('0') < self.delivered_quantity < self.quantity
     
     @property
     def pending_quantity(self) -> Decimal:
