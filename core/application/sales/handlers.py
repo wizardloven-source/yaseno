@@ -437,3 +437,182 @@ class CompleteDeliveryHandler:
         
         delivery.mark_delivered(received_by=command.received_by)
         return await self.repository.save(delivery)
+
+
+# ============================================================================
+# SalesReturn Handlers - معالجات إرجاع المبيعات (PHASE 1)
+# ============================================================================
+
+class CreateSalesReturnHandler:
+    """معالج إنشاء إرجاع مبيعات"""
+    
+    def __init__(self, return_repository: IReturnRepository):
+        self.repository = return_repository
+    
+    async def handle(self, command: CreateSalesReturnCommand) -> SalesReturn:
+        from core.domain.sales.value_objects import InvoiceId
+        from core.domain.shared.value_objects import CustomerId
+        
+        # إنشاء عناصر الإرجاع
+        items = []
+        for item_cmd in command.items:
+            item = ReturnItem(
+                product_code=item_cmd.product_code,
+                product_name=item_cmd.product_name,
+                quantity=item_cmd.quantity,
+                unit_price=item_cmd.unit_price,
+                reason=item_cmd.reason,
+                condition=item_cmd.condition,
+                discount_percent=item_cmd.discount_percent,
+                discount_amount=item_cmd.discount_amount,
+                tax_rate=item_cmd.tax_rate,
+                tax_amount=item_cmd.tax_amount
+            )
+            items.append(item)
+        
+        # إنشاء الإرجاع
+        sales_return = SalesReturn.create(
+            customer_id=CustomerId(command.customer_id),
+            customer_name=command.customer_name,
+            invoice_id=InvoiceId(command.invoice_id) if command.invoice_id else None,
+            currency=command.currency,
+            items=items,
+            notes=command.notes,
+            internal_reference=command.internal_reference
+        )
+        
+        return await self.repository.save(sales_return)
+
+
+class SubmitSalesReturnHandler:
+    """معالج تقديم إرجاع المبيعات للموافقة"""
+    
+    def __init__(self, return_repository: IReturnRepository):
+        self.repository = return_repository
+    
+    async def handle(self, command: SubmitSalesReturnCommand) -> SalesReturn:
+        from core.domain.sales.value_objects import ReturnId
+        
+        sales_return = await self.repository.get_by_id(ReturnId(command.return_id))
+        
+        if not sales_return:
+            raise NotFoundError(f"Sales Return not found with ID: {command.return_id}")
+        
+        sales_return.submit()
+        return await self.repository.save(sales_return)
+
+
+class ApproveSalesReturnHandler:
+    """معالج الموافقة على إرجاع المبيعات"""
+    
+    def __init__(self, return_repository: IReturnRepository):
+        self.repository = return_repository
+    
+    async def handle(self, command: ApproveSalesReturnCommand) -> SalesReturn:
+        from core.domain.sales.value_objects import ReturnId
+        
+        sales_return = await self.repository.get_by_id(ReturnId(command.return_id))
+        
+        if not sales_return:
+            raise NotFoundError(f"Sales Return not found with ID: {command.return_id}")
+        
+        sales_return.approve(approved_by=command.approved_by, approval_date=command.approval_date)
+        return await self.repository.save(sales_return)
+
+
+class RejectSalesReturnHandler:
+    """معالج رفض إرجاع المبيعات"""
+    
+    def __init__(self, return_repository: IReturnRepository):
+        self.repository = return_repository
+    
+    async def handle(self, command: RejectSalesReturnCommand) -> SalesReturn:
+        from core.domain.sales.value_objects import ReturnId
+        
+        sales_return = await self.repository.get_by_id(ReturnId(command.return_id))
+        
+        if not sales_return:
+            raise NotFoundError(f"Sales Return not found with ID: {command.return_id}")
+        
+        sales_return.reject(reason=command.reason)
+        return await self.repository.save(sales_return)
+
+
+class ReceiveSalesReturnHandler:
+    """معالج استلام البضائع المرتجعة"""
+    
+    def __init__(self, return_repository: IReturnRepository):
+        self.repository = return_repository
+    
+    async def handle(self, command: ReceiveSalesReturnCommand) -> SalesReturn:
+        from core.domain.sales.value_objects import ReturnId
+        
+        sales_return = await self.repository.get_by_id(ReturnId(command.return_id))
+        
+        if not sales_return:
+            raise NotFoundError(f"Sales Return not found with ID: {command.return_id}")
+        
+        sales_return.receive_goods(
+            warehouse_id=command.warehouse_id,
+            received_by=command.received_by,
+            received_date=command.received_date
+        )
+        return await self.repository.save(sales_return)
+
+
+class InspectSalesReturnHandler:
+    """معالج فحص البضائع المرتجعة"""
+    
+    def __init__(self, return_repository: IReturnRepository):
+        self.repository = return_repository
+    
+    async def handle(self, command: InspectSalesReturnCommand) -> SalesReturn:
+        from core.domain.sales.value_objects import ReturnId
+        
+        sales_return = await self.repository.get_by_id(ReturnId(command.return_id))
+        
+        if not sales_return:
+            raise NotFoundError(f"Sales Return not found with ID: {command.return_id}")
+        
+        sales_return.inspect_items(
+            inspected_by=command.inspected_by,
+            inspection_date=command.inspection_date,
+            inspection_notes=command.inspection_notes
+        )
+        return await self.repository.save(sales_return)
+
+
+class CompleteSalesReturnHandler:
+    """معالج إكمال إرجاع المبيعات وإنشاء مذكرة الدائن"""
+    
+    def __init__(self, return_repository: IReturnRepository):
+        self.repository = return_repository
+    
+    async def handle(self, command: CompleteSalesReturnCommand) -> SalesReturn:
+        from core.domain.sales.value_objects import ReturnId
+        
+        sales_return = await self.repository.get_by_id(ReturnId(command.return_id))
+        
+        if not sales_return:
+            raise NotFoundError(f"Sales Return not found with ID: {command.return_id}")
+        
+        sales_return.complete(completed_by=command.completed_by)
+        return await self.repository.save(sales_return)
+
+
+class CancelSalesReturnHandler:
+    """معالج إلغاء إرجاع المبيعات"""
+    
+    def __init__(self, return_repository: IReturnRepository):
+        self.repository = return_repository
+    
+    async def handle(self, command: CancelSalesReturnCommand) -> SalesReturn:
+        from core.domain.sales.value_objects import ReturnId
+        
+        sales_return = await self.repository.get_by_id(ReturnId(command.return_id))
+        
+        if not sales_return:
+            raise NotFoundError(f"Sales Return not found with ID: {command.return_id}")
+        
+        sales_return.cancel(cancelled_by=command.cancelled_by, reason=command.reason)
+        return await self.repository.save(sales_return)
