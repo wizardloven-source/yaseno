@@ -48,7 +48,7 @@ from core.domain.invoicing.exceptions import (
 
 from core.domain.inventory.entities import StockMovement
 from core.domain.inventory.value_objects import (
-    UnitCost, EntityId, StockMovementType
+    EntityId, StockMovementType, InventoryLayer, Money
 )
 from core.domain.inventory.services import StockMovementService
 
@@ -158,7 +158,7 @@ class TestDoubleEntryInvariant:
         # Verify the invariant
         debit_total, credit_total = entry._calculate_totals()
         assert debit_total == credit_total, "Debit must equal credit"
-        assert entry.is_balanced() is True
+        assert entry.is_balanced is True
     
     def test_unbalanced_entry_cannot_be_posted(self, sample_account_codes):
         """Unbalanced entries MUST be rejected - this is non-negotiable."""
@@ -215,7 +215,7 @@ class TestDoubleEntryInvariant:
         
         debit_total, credit_total = entry._calculate_totals()
         assert debit_total == credit_total == Decimal("1000.00")
-        assert entry.is_balanced() is True
+        assert entry.is_balanced is True
         
         # Should post successfully
         entry.post(posted_by="test_user")
