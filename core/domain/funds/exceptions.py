@@ -280,3 +280,61 @@ class BankAccountNotFoundError(FundError):
     def __init__(self, account_number: str):
         self.account_number = account_number
         super().__init__(f"Bank account not found: {account_number}")
+
+# =============================================================================
+# Bank Reconciliation Exceptions - استثناءات التسوية البنكية
+# =============================================================================
+
+class BankStatementError(FundError):
+    """استثناء عام لكشف الحساب البنكي"""
+    pass
+
+
+class BankStatementAlreadyPostedError(BankStatementError):
+    """كشف الحساب مُرحّل بالفعل"""
+    pass
+
+
+class BankStatementCannotBeModifiedError(BankStatementError):
+    """لا يمكن تعديل كشف الحساب"""
+    pass
+
+
+class BankStatementNotFoundError(BankStatementError):
+    """كشف الحساب غير موجود"""
+    pass
+
+
+class BankStatementInvalidBalanceError(BankStatementError):
+    """رصيد كشف الحساب غير صحيح"""
+    pass
+
+
+class BankReconciliationError(FundError):
+    """استثناء عام للتسوية البنكية"""
+    pass
+
+
+class BankReconciliationAlreadyCompletedError(BankReconciliationError):
+    """التسوية مكتملة بالفعل"""
+    pass
+
+
+class BankReconciliationCannotBeModifiedError(BankReconciliationError):
+    """لا يمكن تعديل التسوية"""
+    pass
+
+
+class BankReconciliationNotFoundError(BankReconciliationError):
+    """التسوية غير موجودة"""
+    pass
+
+
+class InvalidReconciliationMatchError(BankReconciliationError):
+    """مطابقة التسوية غير صالحة"""
+    pass
+
+
+class UnmatchedTransactionsError(BankReconciliationError):
+    """توجد حركات غير مطابقة"""
+    pass

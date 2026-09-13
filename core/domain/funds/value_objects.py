@@ -429,3 +429,44 @@ class ReconciliationStatus(Enum):
     COMPLETED = "completed"
     POSTED = "posted"
     CANCELLED = "cancelled"
+
+# =============================================================================
+# Bank Reconciliation Value Objects - إضافية
+# =============================================================================
+
+@dataclass(frozen=True)
+class BankReconciliationId:
+    """معرف التسوية البنكية"""
+    value: str
+    
+    @classmethod
+    def generate(cls) -> 'BankReconciliationId':
+        from uuid import uuid4
+        return cls(str(uuid4()))
+    
+    def __str__(self) -> str:
+        return self.value
+
+
+@dataclass(frozen=True)
+class BankStatementNumber:
+    """رقم كشف الحساب البنكي"""
+    value: str
+    
+    def __str__(self) -> str:
+        return self.value
+
+
+class ReconciliationMatchType(Enum):
+    """نوع المطابقة في التسوية"""
+    AUTO = "auto"  # مطابقة تلقائية
+    MANUAL = "manual"  # مطابقة يدوية
+    SPLIT = "split"  # مطابقة مقسمة
+    COMBINED = "combined"  # مطابقة مجمعة
+
+
+__all__.extend([
+    "BankReconciliationId",
+    "BankStatementNumber",
+    "ReconciliationMatchType",
+])
