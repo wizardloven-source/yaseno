@@ -4,37 +4,24 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
+.Python
+*.so
+*.egg-info/
+.eggs/
 
 # Dependencies
 .venv/
 venv/
 env/
-.env
-.env.local
-.env.*
-
-# Logs
-*.log
-
-# Editors
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# Build artifacts
-build/
-dist/
-*.egg-info/
-
-# Testing
+ENV/
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
 .coverage
-htmlcov/
 .coverage.*
-.nyc_output/
-coverage/
-
-# OS
-.DS_Store
-Thumbs.db
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.log
 ```

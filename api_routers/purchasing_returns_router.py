@@ -36,7 +36,7 @@ from core.application.purchasing.handlers import (
 
 from core.domain.purchasing.interfaces import IPurchaseReturnRepository
 from core.infrastructure.db.postgres.purchase_return_repository import PostgresPurchaseReturnRepository
-from core.infrastructure.db.uow import DatabaseUnitOfWorkFactory
+from core.infrastructure.db.postgres.unit_of_work import PostgresUnitOfWork
 
 
 router = APIRouter(prefix="/api/purchasing/returns", tags=["Purchase Returns"])

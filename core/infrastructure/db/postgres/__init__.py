@@ -40,6 +40,9 @@ from .customer_branch_repository import PostgresCustomerBranchRepository
 # ========== Sales Return Repository ==========
 from .sales_return_repository import PostgresReturnRepository
 
+# ========== Purchase Return Repository ==========
+from .purchase_return_repository import PostgresPurchaseReturnRepository
+
 
 __all__ = [
     # Unit of Work
@@ -82,4 +85,7 @@ __all__ = [
     
     # Sales Return Repository
     "PostgresReturnRepository",
+    
+    # Purchase Return Repository
+    "PostgresPurchaseReturnRepository",
 ]
