@@ -1,4 +1,14 @@
 ```
-# Test directories
-core/tests/**
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Compiled Python files
+*.pyc
+*.pyo
+*.pyd
+*.so
+*.egg-info/
 ```
