@@ -282,7 +282,7 @@ class SalesQuotation:
     
     def convert_to_order(self) -> 'SalesOrder':
         """تحويل عرض السعر إلى أمر بيع"""
-        if self.status != QuotationStatus.ACCEPTED:
+        if self.status not in [QuotationStatus.ACCEPTED, QuotationStatus.CONVERTED]:
             raise ValueError("Only accepted quotations can be converted to orders")
         
         if self.converted_to_order_id:
@@ -319,6 +319,7 @@ class SalesQuotation:
         self.status = QuotationStatus.CONVERTED
         self.converted_at = utc_now()
         self.updated_at = utc_now()
+        self.converted_to_order_id = str(order.id.value)  # تعيين معرف الأمر
         
         return order
     
@@ -895,7 +896,7 @@ class DeliveryNote:
     
     def mark_delivered(self, received_by: Optional[str] = None) -> None:
         """وضع علامة كـ تم التسليم"""
-        if self.status != DeliveryStatus.IN_TRANSIT:
+        if self.status not in [DeliveryStatus.IN_TRANSIT, DeliveryStatus.SHIPPED]:
             raise ValueError("Only in-transit deliveries can be marked as delivered")
         
         self.status = DeliveryStatus.DELIVERED

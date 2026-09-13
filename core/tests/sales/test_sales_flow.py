@@ -320,7 +320,7 @@ class TestSalesQuotationFlow:
         
         quotation.send()
         
-        with pytest.raises(ValueError, match="non-draft"):
+        with pytest.raises(ValueError, match="مسودة"):
             quotation.update_item(item.line_id, quantity=Decimal('20'))
 
 
@@ -405,7 +405,7 @@ class TestSalesOrderFlow:
             unit_price=Money(Decimal('50.00'), "SAR")
         )
         
-        with pytest.raises(ValueError, match="non-draft"):
+        with pytest.raises(ValueError, match="مسودة"):
             order.add_item(new_item)
     
     def test_partial_delivery_tracking(self):
