@@ -1,142 +1,101 @@
-from dataclasses import dataclass
-from datetime import datetime, date
-from typing import List, Optional, Dict, Any  # ✅ أضف Dict, Any هنا
+# core/application/purchasing/commands.py
+"""
+Purchase Return Commands - أوامر إرجاع المشتريات
+
+✅ محدث: دعم كامل لدورة حياة إرجاع المشتريات
+✅ محدث: دعم Debit Note التلقائي
+"""
+
+from dataclasses import dataclass, field
 from decimal import Decimal
+from datetime import datetime
+from typing import Optional, List, Any
 
 
-@dataclass(frozen=True)
-class CreatePurchaseOrderCommand:
-    supplier_id: str
-    supplier_name: str
-    site_id: Optional[str] = None
-    site_name: Optional[str] = None
-    currency: str = "USD"
-    payment_terms: str = "net_30"
-    expected_delivery_date: Optional[datetime] = None
-    notes: str = ""
-    created_by: str = "system"
-
-
-@dataclass(frozen=True)
-class AddPurchaseLineCommand:
-    order_id: str
+@dataclass
+class PurchaseReturnItemCommand:
+    """أمر سطر إرجاع مشتريات"""
     product_code: str
     product_name: str
     quantity: Decimal
     unit_price: Decimal
-    currency: str
-    notes: str = ""
+    reason: str = ""
+    condition: str = "good"  # good, damaged, expired
+    batch_number: Optional[str] = None
+    serial_numbers: List[str] = field(default_factory=list)
+    expiry_date: Optional[datetime] = None
+    discount_percent: Decimal = Decimal('0')
+    discount_amount: Decimal = Decimal('0')
+    tax_rate: Decimal = Decimal('0')
 
 
-@dataclass(frozen=True)
-class PostPurchaseOrderCommand:
-    order_id: str
-    posted_by: str
-
-
-@dataclass(frozen=True)
-class UpdatePurchaseLineCommand:
-    order_id: str
-    line_id: str
-    quantity: Decimal
-    unit_price: Decimal
-    notes: str = ""
-
-
-@dataclass(frozen=True)
-class RemovePurchaseLineCommand:
-    order_id: str
-    line_id: str
-
-
-@dataclass(frozen=True)
-class ClearPurchaseLinesCommand:
-    order_id: str
-
-
-@dataclass(frozen=True)
-class DeleteDraftPurchaseOrderCommand:
-    order_id: str
-    deleted_by: str = "system"
-
-
-@dataclass(frozen=True)
-class ReceivePurchaseLineCommand:
-    order_id: str
-    line_id: str
-    quantity: Decimal
-    received_by: str = "system"
-
-
-# ========== QUERIES ==========
-
-@dataclass(frozen=True)
-class GetPurchaseOrderQuery:
-    order_id: str
-
-
-@dataclass(frozen=True)
-class ListPurchaseOrdersQuery:
-    status: Optional[str] = None
-    supplier_id: Optional[str] = None
-    from_date: Optional[datetime] = None
-    to_date: Optional[datetime] = None
-    limit: int = 100
-    offset: int = 0
-
-
-# ✅ إضافة استعلام جلب أوامر شراء مورد معين
-@dataclass(frozen=True)
-class GetSupplierOrdersQuery:
-    """استعلام لجلب أوامر شراء مورد معين"""
+@dataclass
+class CreatePurchaseReturnCommand:
+    """أمر إنشاء إرجاع مشتريات"""
+    purchase_order_id: str
+    purchase_order_number: str
     supplier_id: str
-    status: Optional[str] = None
-    from_date: Optional[date] = None
-    to_date: Optional[date] = None
-    limit: int = 100
-    offset: int = 0
+    supplier_name: str
+    site_id: Optional[str] = None
+    site_name: Optional[str] = None
+    warehouse_id: Optional[str] = None
+    currency: str = "USD"
+    notes: str = ""
+    reason: str = ""
+    shipping_method: Optional[str] = None
+    lines: List[PurchaseReturnItemCommand] = field(default_factory=list)
+    created_by: str = ""
 
 
-# ✅ إضافة استعلام البحث في أوامر الشراء
-@dataclass(frozen=True)
-class SearchPurchaseOrdersQuery:
-    """استعلام للبحث في أوامر الشراء"""
-    search_text: str
-    status: Optional[str] = None
-    supplier_id: Optional[str] = None
-    limit: int = 50
-    offset: int = 0
+@dataclass
+class SubmitPurchaseReturnCommand:
+    """أمر تقديم إرجاع المشتريات للموافقة"""
+    return_id: str
+    submitted_by: str
 
 
-# ✅ أمر استلام جميع بنود أمر الشراء دفعة واحدة
-@dataclass(frozen=True)
-class ReceivePurchaseOrderCommand:
-    """أمر استلام جميع بنود أمر الشراء دفعة واحدة"""
-    order_id: str
-    received_by: str = "system"
-    batch_numbers: Optional[Dict[str, str]] = None  # line_id -> batch_number
-    serial_numbers: Optional[Dict[str, List[str]]] = None  # line_id -> [serial_numbers]
-    expiry_dates: Optional[Dict[str, datetime]] = None  # line_id -> expiry_date
-    locations: Optional[Dict[str, str]] = None  # line_id -> location
+@dataclass
+class ApprovePurchaseReturnCommand:
+    """أمر الموافقة على إرجاع المشتريات"""
+    return_id: str
+    approved_by: str
 
 
-# ========== EXPORTS ==========
+@dataclass
+class RejectPurchaseReturnCommand:
+    """أمر رفض إرجاع المشتريات"""
+    return_id: str
+    rejected_by: str
+    reason: str
 
-__all__ = [
-    # Commands
-    "CreatePurchaseOrderCommand",
-    "AddPurchaseLineCommand",
-    "PostPurchaseOrderCommand",
-    "UpdatePurchaseLineCommand",
-    "RemovePurchaseLineCommand",
-    "ClearPurchaseLinesCommand",
-    "DeleteDraftPurchaseOrderCommand",
-    "ReceivePurchaseLineCommand",
-    "ReceivePurchaseOrderCommand",  # ✅ إضافة الأمر الجديد
-    
-    # Queries
-    "GetPurchaseOrderQuery",
-    "ListPurchaseOrdersQuery",
-    "GetSupplierOrdersQuery",
-    "SearchPurchaseOrdersQuery",
-]
+
+@dataclass
+class ShipPurchaseReturnCommand:
+    """أمر شحن إرجاع المشتريات للمورد"""
+    return_id: str
+    shipped_by: str
+    shipping_method: Optional[str] = None
+    tracking_number: Optional[str] = None
+
+
+@dataclass
+class ReceiveBySupplierCommand:
+    """أمر تأكيد استلام المورد للإرجاع"""
+    return_id: str
+    received_by: str
+
+
+@dataclass
+class CompletePurchaseReturnCommand:
+    """أمر إكمال إرجاع المشتريات وإنشاء Debit Note"""
+    return_id: str
+    completed_by: str
+    auto_create_debit_note: bool = True
+
+
+@dataclass
+class CancelPurchaseReturnCommand:
+    """أمر إلغاء إرجاع المشتريات"""
+    return_id: str
+    cancelled_by: str
+    reason: str
