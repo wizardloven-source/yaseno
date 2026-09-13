@@ -1,14 +1,43 @@
 ```
-# Python cache
+# Python
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
+.Python
+env/
+venv/
+.venv/
+.ENV
+.env
+.env.*
+.env.local
+.venv.bak
+pip-log.txt
+pip-delete-this-directory.txt
 
-# Compiled Python files
-*.pyc
-*.pyo
-*.pyd
-*.so
-*.egg-info/
+# Testing
+.coverage
+coverage/
+htmlcov/
+.noserc
+.tox/
+.cover/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*.tmp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Environment specific
+.env.local
 ```
