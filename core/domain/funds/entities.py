@@ -11,7 +11,7 @@ Fund Aggregate Root - كيان الصندوق النقدي (Professional Edition
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from decimal import Decimal
 import logging
 
@@ -19,9 +19,13 @@ logger = logging.getLogger(__name__)
 from typing import List, Optional, Any, Dict
 from uuid import uuid4
 
+from core.domain.accounting.value_objects import JournalEntryId
+
 from .value_objects import (
     FundId, FundCode, FundType, TransactionType, FundStatus,
-    Money, FundLimits, TransactionId, TransferId, TransferStatus, DateRange
+    Money, FundLimits, TransactionId, TransferId, TransferStatus, DateRange,
+    BankStatementId, BankStatementNumber, BankStatementStatus,
+    BankReconciliationId, ReconciliationMatchType, ReconciliationStatus as BankReconciliationStatus
 )
 from .exceptions import (
     InsufficientFundsError,
@@ -1050,3 +1054,160 @@ class FundTransfer:
             f"FundTransfer(id={self.id}, from={self.from_fund_id}, to={self.to_fund_id}, "
             f"amount={self.amount}, status={self.status.value})"
         )
+
+# ============================================================================
+# Bank Reconciliation Entities - كيانات التسوية البنكية
+# ============================================================================
+
+@dataclass
+class BankStatementLine:
+    """سطر في كشف الحساب البنكي"""
+    line_number: int
+    transaction_date: date
+    description: str
+    reference: str
+    debit_amount: Decimal
+    credit_amount: Decimal
+    balance: Decimal
+    matched: bool = False
+    reconciliation_id: Optional[BankReconciliationId] = None
+    
+    @property
+    def net_amount(self) -> Decimal:
+        """المبلغ الصافي (موجب للإيداع، سالب للسحب)"""
+        return self.credit_amount - self.debit_amount
+
+
+@dataclass
+class BankStatement:
+    """كشف حساب بنكي - Aggregate Root"""
+    id: BankStatementId
+    number: BankStatementNumber
+    bank_account_id: str
+    statement_date: date
+    start_date: date
+    end_date: date
+    opening_balance: Decimal
+    closing_balance: Decimal
+    currency: str
+    status: BankStatementStatus
+    lines: List[BankStatementLine] = field(default_factory=list)
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    created_by: str = ""
+    posted_at: Optional[datetime] = None
+    posted_by: Optional[str] = None
+    
+    def add_line(self, line: BankStatementLine) -> None:
+        """إضافة سطر لكشف الحساب"""
+        if self.status == BankStatementStatus.POSTED:
+            raise BankStatementAlreadyPostedError(f"Cannot modify posted statement {self.number}")
+        self.lines.append(line)
+    
+    def post(self, posted_by: str) -> None:
+        """ترحيل كشف الحساب"""
+        if self.status == BankStatementStatus.POSTED:
+            raise BankStatementAlreadyPostedError(f"Statement {self.number} already posted")
+        self.status = BankStatementStatus.POSTED
+        self.posted_at = datetime.now(timezone.utc)
+        self.posted_by = posted_by
+    
+    def validate(self) -> None:
+        """التحقق من صحة كشف الحساب"""
+        if not self.lines:
+            raise ValueError("Bank statement must have at least one line")
+        
+        # التحقق من أن الرصيد النهائي يطابق الحركات
+        calculated_closing = self.opening_balance
+        for line in self.lines:
+            calculated_closing += line.net_amount
+        
+        if abs(calculated_closing - self.closing_balance) > Decimal("0.01"):
+            raise ValueError(f"Closing balance mismatch. Expected: {calculated_closing}, Got: {self.closing_balance}")
+
+
+@dataclass
+class ReconciliationMatch:
+    """مطابقة بين سطر كشف الحساب وحركة نظام"""
+    statement_line_number: int
+    system_transaction_id: str  # Journal Entry ID or Fund Transaction ID
+    system_transaction_date: date
+    system_transaction_amount: Decimal
+    system_transaction_type: str  # "receipt", "payment", "transfer", "journal"
+    difference: Decimal = Decimal("0.00")
+    match_type: ReconciliationMatchType = ReconciliationMatchType.AUTO
+    notes: str = ""
+
+
+@dataclass
+class BankReconciliation:
+    """تسوية بنكية - Aggregate Root"""
+    id: BankReconciliationId
+    bank_statement_id: BankStatementId
+    bank_account_id: str
+    reconciliation_date: date
+    status: BankReconciliationStatus
+    matches: List[ReconciliationMatch] = field(default_factory=list)
+    unmatched_statement_lines: List[int] = field(default_factory=list)
+    unmatched_system_transactions: List[str] = field(default_factory=list)
+    total_matched_debits: Decimal = Decimal("0.00")
+    total_matched_credits: Decimal = Decimal("0.00")
+    reconciled_difference: Decimal = Decimal("0.00")
+    adjustment_journal_entry_id: Optional[JournalEntryId] = None
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    created_by: str = ""
+    completed_at: Optional[datetime] = None
+    completed_by: Optional[str] = None
+    
+    def add_match(self, match: ReconciliationMatch) -> None:
+        """إضافة مطابقة"""
+        if self.status == BankReconciliationStatus.COMPLETED:
+            raise BankReconciliationAlreadyCompletedError(
+                f"Cannot modify completed reconciliation {self.id}"
+            )
+        self.matches.append(match)
+        
+        # تحديث المجاميع
+        if match.system_transaction_amount > 0:
+            self.total_matched_credits += match.system_transaction_amount
+        else:
+            self.total_matched_debits += abs(match.system_transaction_amount)
+        
+        # إزالة من غير المطابقة
+        if match.statement_line_number in self.unmatched_statement_lines:
+            self.unmatched_statement_lines.remove(match.statement_line_number)
+        if match.system_transaction_id in self.unmatched_system_transactions:
+            self.unmatched_system_transactions.remove(match.system_transaction_id)
+    
+    def mark_statement_line_unmatched(self, line_number: int) -> None:
+        """تعليم سطر كشف الحساب كغير مطابق"""
+        if line_number not in self.unmatched_statement_lines:
+            self.unmatched_statement_lines.append(line_number)
+    
+    def mark_system_transaction_unmatched(self, transaction_id: str) -> None:
+        """تعليم حركة النظام كغير مطابقة"""
+        if transaction_id not in self.unmatched_system_transactions:
+            self.unmatched_system_transactions.append(transaction_id)
+    
+    def calculate_difference(self, statement_closing: Decimal, system_balance: Decimal) -> Decimal:
+        """حساب فرق التسوية"""
+        self.reconciled_difference = statement_closing - system_balance
+        return self.reconciled_difference
+    
+    def complete(self, completed_by: str, adjustment_journal_id: Optional[JournalEntryId] = None) -> None:
+        """إكمال التسوية"""
+        if self.status == BankReconciliationStatus.COMPLETED:
+            raise BankReconciliationAlreadyCompletedError(
+                f"Reconciliation {self.id} already completed"
+            )
+        
+        self.status = BankReconciliationStatus.COMPLETED
+        self.completed_at = datetime.now(timezone.utc)
+        self.completed_by = completed_by
+        self.adjustment_journal_entry_id = adjustment_journal_id
+    
+    def validate(self) -> None:
+        """التحقق من صحة التسوية"""
+        if self.reconciled_difference != Decimal("0.00") and not self.adjustment_journal_entry_id:
+            raise InvalidReconciliationMatchError(
+                f"Reconciliation has difference {self.reconciled_difference} but no adjustment entry"
+            )

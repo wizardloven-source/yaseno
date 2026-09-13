@@ -2,8 +2,11 @@ from abc import ABC, abstractmethod
 from typing import Optional, List
 from datetime import date
 
-from .value_objects import PurchaseOrderId, PurchaseOrderNumber, PurchaseOrderStatus
-from .entities import PurchaseOrder
+from .value_objects import (
+    PurchaseOrderId, PurchaseOrderNumber, PurchaseOrderStatus,
+    PurchaseReturnId, PurchaseReturnNumber, PurchaseReturnStatus
+)
+from .entities import PurchaseOrder, PurchaseReturn
 
 
 class IPurchaseOrderRepository(ABC):
@@ -43,4 +46,55 @@ class IPurchaseOrderRepository(ABC):
     
     @abstractmethod
     def delete_draft(self, order_id: PurchaseOrderId) -> bool:
+        pass
+
+
+class IPurchaseReturnRepository(ABC):
+    """
+    Repository Interface for PurchaseReturn Aggregate
+    
+    ✅ مسؤول عن:
+    - حفظ واسترجاع إرجاعات المشتريات
+    - البحث حسب المورد، أمر الشراء، الحالة
+    - توليد الأرقام التسلسلية
+    """
+    
+    @abstractmethod
+    def save(self, return_obj: PurchaseReturn) -> None:
+        """حفظ إرجاع مشتريات"""
+        pass
+    
+    @abstractmethod
+    def get_by_id(self, return_id: PurchaseReturnId) -> Optional[PurchaseReturn]:
+        """الاسترجاع بالمعرف"""
+        pass
+    
+    @abstractmethod
+    def get_by_number(self, number: PurchaseReturnNumber) -> Optional[PurchaseReturn]:
+        """الاسترجاع بالرقم"""
+        pass
+    
+    @abstractmethod
+    def list_by_supplier(self, supplier_id: str, limit: int = 100) -> List[PurchaseReturn]:
+        """قائمة الإرجاعات حسب المورد"""
+        pass
+    
+    @abstractmethod
+    def list_by_purchase_order(self, purchase_order_id: str, limit: int = 100) -> List[PurchaseReturn]:
+        """قائمة الإرجاعات حسب أمر الشراء"""
+        pass
+    
+    @abstractmethod
+    def list_by_status(self, status: PurchaseReturnStatus, limit: int = 100) -> List[PurchaseReturn]:
+        """قائمة الإرجاعات حسب الحالة"""
+        pass
+    
+    @abstractmethod
+    def get_next_number(self) -> PurchaseReturnNumber:
+        """الحصول على الرقم التالي"""
+        pass
+    
+    @abstractmethod
+    def delete_draft(self, return_id: PurchaseReturnId) -> bool:
+        """حذف إرجاع في حالة المسودة"""
         pass

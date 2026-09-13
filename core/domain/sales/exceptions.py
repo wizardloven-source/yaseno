@@ -1,6 +1,7 @@
 # core/domain/sales/exceptions.py
 """
 Sales Domain Exceptions - استثناءات مجال المبيعات
+✅ Sales Return & Credit Note Exceptions (NEW - PHASE 1)
 """
 
 from core.shared.exceptions import BaseError
@@ -35,7 +36,7 @@ class InvalidQuotationStatusError(SalesDomainException):
 class OrderNotFoundException(SalesDomainException):
     """أمر البيع غير موجود"""
     def __init__(self, order_id: str):
-        super().__init__(f"Sales order not found with ID: {quotation_id}")
+        super().__init__(f"Sales order not found with ID: {order_id}")
 
 
 class InvalidOrderStatusError(SalesDomainException):
@@ -87,3 +88,79 @@ class DuplicateOrderNumberError(SalesDomainException):
     """رقم أمر البيع مكرر"""
     def __init__(self, order_number: str):
         super().__init__(f"Duplicate order number: {order_number}")
+
+
+# ============================================================================
+# Sales Return Exceptions (NEW - PHASE 1)
+# ============================================================================
+
+class ReturnNotFoundException(SalesDomainException):
+    """إرجاع المبيعات غير موجود"""
+    def __init__(self, return_id: str):
+        super().__init__(f"Sales return not found with ID: {return_id}")
+
+
+class InvalidReturnStatusError(SalesDomainException):
+    """حالة الإرجاع غير صالحة للعملية المطلوبة"""
+    def __init__(self, current_status: str, required_status: str, operation: str):
+        super().__init__(
+            f"Cannot perform {operation} on return with status {current_status}. "
+            f"Required status: {required_status}"
+        )
+
+
+class CannotModifyCompletedReturnError(SalesDomainException):
+    """لا يمكن تعديل إرجاع مكتمل"""
+    def __init__(self, return_number: str):
+        super().__init__(f"Cannot modify completed return {return_number}")
+
+
+class DuplicateReturnNumberError(SalesDomainException):
+    """رقم الإرجاع مكرر"""
+    def __init__(self, return_number: str):
+        super().__init__(f"Duplicate return number: {return_number}")
+
+
+class ReturnWithoutOriginalInvoiceError(SalesDomainException):
+    """الإرجاع بدون فاتورة أصلية"""
+    def __init__(self):
+        super().__init__("Sales return must reference an original invoice")
+
+
+# ============================================================================
+# Credit Note Exceptions (NEW - PHASE 1)
+# ============================================================================
+
+class CreditNoteNotFoundException(SalesDomainException):
+    """مذكرة الدائنة غير موجودة"""
+    def __init__(self, credit_note_id: str):
+        super().__init__(f"Credit note not found with ID: {credit_note_id}")
+
+
+class InvalidCreditNoteStatusError(SalesDomainException):
+    """حالة مذكرة الدائنة غير صالحة للعملية المطلوبة"""
+    def __init__(self, current_status: str, required_status: str, operation: str):
+        super().__init__(
+            f"Cannot perform {operation} on credit note with status {current_status}. "
+            f"Required status: {required_status}"
+        )
+
+
+class CannotModifyPostedCreditNoteError(SalesDomainException):
+    """لا يمكن تعديل مذكرة دائنة مرحّلة"""
+    def __init__(self, credit_note_number: str):
+        super().__init__(f"Cannot modify posted credit note {credit_note_number}")
+
+
+class DuplicateCreditNoteNumberError(SalesDomainException):
+    """رقم مذكرة الدائنة مكرر"""
+    def __init__(self, credit_note_number: str):
+        super().__init__(f"Duplicate credit note number: {credit_note_number}")
+
+
+class CreditNoteAmountMismatchError(SalesDomainException):
+    """مبلغ مذكرة الدائنة لا يتطابق مع الإرجاع"""
+    def __init__(self, credit_note_amount: float, return_amount: float):
+        super().__init__(
+            f"Credit note amount ({credit_note_amount}) does not match return amount ({return_amount})"
+        )

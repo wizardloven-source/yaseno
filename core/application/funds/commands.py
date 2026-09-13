@@ -218,6 +218,14 @@ __all__ = [
     "DepositToFundCommand",
     "WithdrawFromFundCommand",
     "TransferBetweenFundsCommand",
+    "ImportBankStatementCommand",
+    "CreateBankReconciliationCommand",
+    "MatchTransactionCommand",
+    "UnmatchTransactionCommand",
+    "AddBankFeeCommand",
+    "AddDifferenceCommand",
+    "CompleteReconciliationCommand",
+    "CancelReconciliationCommand",
     
     # Queries
     "GetFundQuery",
@@ -232,3 +240,84 @@ __all__ = [
     # Aliases
     "GetFundBalanceCommand",
 ]
+
+
+# ========== BANK RECONCILIATION COMMANDS ==========
+
+@dataclass(frozen=True)
+class ImportBankStatementCommand:
+    """أمر استيراد كشف حساب بنكي"""
+    account_id: UUID
+    statement_date: datetime
+    opening_balance: Decimal
+    closing_balance: Decimal
+    currency: str
+    lines: list = None
+    reference: Optional[str] = None
+    
+    def __post_init__(self):
+        if self.lines is None:
+            object.__setattr__(self, 'lines', [])
+
+
+@dataclass(frozen=True)
+class CreateBankReconciliationCommand:
+    """أمر إنشاء تسوية بنكية جديدة"""
+    account_id: UUID
+    reconciliation_date: datetime
+    statement_id: Optional[UUID] = None
+    target_balance: Optional[Decimal] = None
+
+
+@dataclass(frozen=True)
+class MatchTransactionCommand:
+    """أمر مطابقة حركة من الكشف مع حركة في النظام"""
+    reconciliation_id: UUID
+    statement_line_id: str
+    transaction_type: str  # 'journal', 'payment', 'receipt'
+    transaction_id: UUID
+    amount: Decimal
+    date: datetime
+    reference: Optional[str] = None
+
+
+@dataclass(frozen=True)
+class UnmatchTransactionCommand:
+    """أمر إلغاء مطابقة حركة"""
+    reconciliation_id: UUID
+    match_id: UUID
+
+
+@dataclass(frozen=True)
+class AddBankFeeCommand:
+    """أمر إضافة رسوم بنكية أثناء التسوية"""
+    reconciliation_id: UUID
+    amount: Decimal
+    description: str
+    account_code: str
+    date: datetime
+    reference: Optional[str] = None
+
+
+@dataclass(frozen=True)
+class AddDifferenceCommand:
+    """أمر تسجيل فرق في التسوية"""
+    reconciliation_id: UUID
+    amount: Decimal
+    reason: str
+    account_code: str
+    date: datetime
+
+
+@dataclass(frozen=True)
+class CompleteReconciliationCommand:
+    """أمر إكمال وتسجيل التسوية البنكية"""
+    reconciliation_id: UUID
+    notes: Optional[str] = None
+
+
+@dataclass(frozen=True)
+class CancelReconciliationCommand:
+    """أمر إلغاء تسوية بنكية"""
+    reconciliation_id: UUID
+    reason: str

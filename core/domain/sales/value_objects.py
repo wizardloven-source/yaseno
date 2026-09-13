@@ -1,6 +1,7 @@
 # core/domain/sales/value_objects.py
 """
 Sales Value Objects - كائنات القيمة لوحدة المبيعات
+✅ SalesReturn & CreditNote Value Objects (NEW - PHASE 1)
 """
 
 from dataclasses import dataclass
@@ -221,3 +222,102 @@ class PaymentTerms:
     @property
     def has_discount(self) -> bool:
         return self.discount_percent > 0 and self.discount_days > 0
+
+
+# ============================================================================
+# Sales Return Value Objects (NEW - PHASE 1)
+# ============================================================================
+
+@dataclass(frozen=True)
+class ReturnId:
+    """معرف إرجاع المبيعات"""
+    value: str
+    
+    def __init__(self, value: Optional[str] = None):
+        object.__setattr__(self, 'value', value or str(uuid.uuid4()))
+    
+    @classmethod
+    def generate(cls) -> 'ReturnId':
+        return cls(str(uuid.uuid4()))
+    
+    def __str__(self) -> str:
+        return self.value[:8]
+
+
+@dataclass(frozen=True)
+class ReturnNumber:
+    """رقم إرجاع المبيعات التسلسلي"""
+    value: str
+    
+    def __init__(self, value: str):
+        if not value or len(value.strip()) == 0:
+            raise ValueError("Return number cannot be empty")
+        object.__setattr__(self, 'value', value.strip().upper())
+    
+    @classmethod
+    def generate(cls, prefix: str = "SR", sequence: int = 1) -> 'ReturnNumber':
+        """توليد رقم إرجاع مبيعات تلقائي"""
+        return cls(f"{prefix}-{sequence:06d}")
+    
+    def __str__(self) -> str:
+        return self.value
+
+
+class ReturnStatus(Enum):
+    """حالات إرجاع المبيعات"""
+    DRAFT = "draft"  # مسودة
+    SUBMITTED = "submitted"  # مقدم
+    APPROVED = "approved"  # موافق عليه
+    RECEIVED = "received"  # تم الاستلام
+    INSPECTED = "inspected"  # تم الفحص
+    COMPLETED = "completed"  # مكتمل
+    REJECTED = "rejected"  # مرفوض
+    CANCELLED = "cancelled"  # ملغى
+
+
+# ============================================================================
+# Credit Note Value Objects (NEW - PHASE 1)
+# ============================================================================
+
+@dataclass(frozen=True)
+class CreditNoteId:
+    """معرف مذكرة الدائنة"""
+    value: str
+    
+    def __init__(self, value: Optional[str] = None):
+        object.__setattr__(self, 'value', value or str(uuid.uuid4()))
+    
+    @classmethod
+    def generate(cls) -> 'CreditNoteId':
+        return cls(str(uuid.uuid4()))
+    
+    def __str__(self) -> str:
+        return self.value[:8]
+
+
+@dataclass(frozen=True)
+class CreditNoteNumber:
+    """رقم مذكرة الدائنة التسلسلي"""
+    value: str
+    
+    def __init__(self, value: str):
+        if not value or len(value.strip()) == 0:
+            raise ValueError("Credit note number cannot be empty")
+        object.__setattr__(self, 'value', value.strip().upper())
+    
+    @classmethod
+    def generate(cls, prefix: str = "CN", sequence: int = 1) -> 'CreditNoteNumber':
+        """توليد رقم مذكرة دائنة تلقائي"""
+        return cls(f"{prefix}-{sequence:06d}")
+    
+    def __str__(self) -> str:
+        return self.value
+
+
+class CreditNoteStatus(Enum):
+    """حالات مذكرة الدائنة"""
+    DRAFT = "draft"  # مسودة
+    ISSUED = "issued"  # صادر
+    POSTED = "posted"  # مرحل
+    APPLIED = "applied"  # تم التطبيق
+    CANCELLED = "cancelled"  # ملغى

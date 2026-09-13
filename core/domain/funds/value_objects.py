@@ -11,6 +11,13 @@ from decimal import Decimal
 from typing import Optional, Set, Callable
 from datetime import datetime, timezone, timedelta
 
+# Import exceptions for validation
+from .exceptions import (
+    InvalidBankStatementIdError,
+    InvalidBankStatementNumberError,
+    InvalidReconciliationIdError,
+)
+
 
 # =============================================================================
 # Enums
@@ -97,6 +104,45 @@ class FundId:
     
     def __str__(self) -> str:
         return str(self.value)
+
+
+@dataclass(frozen=True)
+class BankStatementId:
+    """معرف فريد لكشف الحساب البنكي"""
+    value: str
+    
+    def __post_init__(self):
+        if not self.value or len(self.value) > 50:
+            raise InvalidBankStatementIdError("Bank statement ID must be between 1 and 50 characters")
+    
+    def __str__(self) -> str:
+        return self.value
+
+
+@dataclass(frozen=True)
+class BankStatementNumber:
+    """رقم كشف الحساب البنكي"""
+    value: str
+    
+    def __post_init__(self):
+        if not self.value or len(self.value) > 50:
+            raise InvalidBankStatementNumberError("Bank statement number must be between 1 and 50 characters")
+    
+    def __str__(self) -> str:
+        return self.value
+
+
+@dataclass(frozen=True)
+class ReconciliationId:
+    """معرف فريد لعملية التسوية"""
+    value: str
+    
+    def __post_init__(self):
+        if not self.value or len(self.value) > 50:
+            raise InvalidReconciliationIdError("Reconciliation ID must be between 1 and 50 characters")
+    
+    def __str__(self) -> str:
+        return self.value
 
 
 @dataclass(frozen=True)
@@ -354,4 +400,73 @@ __all__ = [
     "FundLimits",
     # Date Range
     "DateRange",
+    # Bank Reconciliation
+    "BankStatementId",
+    "BankStatementNumber",
+    "BankStatementStatus",
+    "ReconciliationId",
+    "ReconciliationStatus",
 ]
+
+
+# =============================================================================
+# Bank Reconciliation Value Objects (Enums)
+# =============================================================================
+
+class BankStatementStatus(Enum):
+    """حالات كشف الحساب البنكي"""
+    DRAFT = "draft"
+    IMPORTED = "imported"
+    MATCHING = "matching"
+    RECONCILED = "reconciled"
+    POSTED = "posted"
+
+
+class ReconciliationStatus(Enum):
+    """حالات عملية التسوية"""
+    DRAFT = "draft"
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+    POSTED = "posted"
+    CANCELLED = "cancelled"
+
+# =============================================================================
+# Bank Reconciliation Value Objects - إضافية
+# =============================================================================
+
+@dataclass(frozen=True)
+class BankReconciliationId:
+    """معرف التسوية البنكية"""
+    value: str
+    
+    @classmethod
+    def generate(cls) -> 'BankReconciliationId':
+        from uuid import uuid4
+        return cls(str(uuid4()))
+    
+    def __str__(self) -> str:
+        return self.value
+
+
+@dataclass(frozen=True)
+class BankStatementNumber:
+    """رقم كشف الحساب البنكي"""
+    value: str
+    
+    def __str__(self) -> str:
+        return self.value
+
+
+class ReconciliationMatchType(Enum):
+    """نوع المطابقة في التسوية"""
+    AUTO = "auto"  # مطابقة تلقائية
+    MANUAL = "manual"  # مطابقة يدوية
+    SPLIT = "split"  # مطابقة مقسمة
+    COMBINED = "combined"  # مطابقة مجمعة
+
+
+__all__.extend([
+    "BankReconciliationId",
+    "BankStatementNumber",
+    "ReconciliationMatchType",
+])

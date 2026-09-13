@@ -37,6 +37,12 @@ from .currency_repository import PostgresCurrencyRepository
 from .funds_repository import PostgresFundRepository, PostgresFundMovementRepository
 from .customer_branch_repository import PostgresCustomerBranchRepository
 
+# ========== Sales Return Repository ==========
+from .sales_return_repository import PostgresReturnRepository
+
+# ========== Purchase Return Repository ==========
+from .purchase_return_repository import PostgresPurchaseReturnRepository
+
 
 __all__ = [
     # Unit of Work
@@ -76,4 +82,10 @@ __all__ = [
     "PostgresFundRepository",
     "PostgresFundMovementRepository",
     "PostgresCustomerBranchRepository",
+    
+    # Sales Return Repository
+    "PostgresReturnRepository",
+    
+    # Purchase Return Repository
+    "PostgresPurchaseReturnRepository",
 ]

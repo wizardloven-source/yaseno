@@ -4,6 +4,8 @@ Sales Entities - الكيانات التجارية لدورة المبيعات
 ✅ SalesQuotation: عرض السعر
 ✅ SalesOrder: أمر البيع
 ✅ DeliveryNote: إشعار التسليم
+✅ SalesReturn: إرجاع المبيعات (NEW - PHASE 1)
+✅ CreditNote: مذكرة دائنة (NEW - PHASE 1)
 """
 
 from dataclasses import dataclass, field
@@ -17,6 +19,8 @@ from .value_objects import (
     QuotationId, QuotationNumber, QuotationStatus,
     OrderId, OrderNumber, OrderStatus,
     DeliveryId, DeliveryNumber, DeliveryStatus,
+    ReturnId, ReturnNumber, ReturnStatus,
+    CreditNoteId, CreditNoteNumber, CreditNoteStatus,
     CustomerReference, SalesPersonReference, ShippingAddress, PaymentTerms
 )
 
@@ -877,6 +881,331 @@ class DeliveryNote:
             'delivery_date': self.delivery_date.isoformat(),
             'scheduled_date': self.scheduled_date.isoformat() if self.scheduled_date else None,
             'item_count': self.item_count,
+            'created_at': self.created_at.isoformat(),
+            'updated_at': self.updated_at.isoformat(),
+        }
+
+
+# ============================================================================
+# Sales Return Entity (NEW - PHASE 1)
+# ============================================================================
+
+@dataclass
+class ReturnItem:
+    """عنصر في إرجاع المبيعات"""
+    
+    product_code: str
+    product_name: str
+    quantity: Decimal
+    unit_price: Money
+    reason: str = ""  # سبب الإرجاع
+    condition: str = "good"  # حالة المنتج: good, damaged, expired
+    line_id: str = field(default_factory=lambda: str(uuid.uuid4())[:8])
+    
+    # خصم على مستوى السطر (إذا كان هناك خصم إضافي للإرجاع)
+    discount_percent: Decimal = Decimal('0')
+    discount_amount: Money = field(default_factory=lambda: Money.zero())
+    
+    # ضريبة على مستوى السطر
+    tax_rate: Decimal = Decimal('0')
+    tax_amount: Money = field(default_factory=lambda: Money.zero())
+    
+    @property
+    def subtotal(self) -> Money:
+        """المجموع الجزئي قبل الخصم والضريبة"""
+        return Money(self.quantity * self.unit_price.amount, self.unit_price.currency)
+    
+    @property
+    def total_discount(self) -> Money:
+        """إجمالي الخصم للسطر"""
+        if self.discount_percent > 0:
+            return Money(self.subtotal.amount * (self.discount_percent / Decimal('100')), self.subtotal.currency)
+        return self.discount_amount
+    
+    @property
+    def total_after_discount(self) -> Money:
+        """الإجمالي بعد الخصم"""
+        return Money(self.subtotal.amount - self.total_discount.amount, self.subtotal.currency)
+    
+    @property
+    def total_with_tax(self) -> Money:
+        """الإجمالي شامل الضريبة"""
+        return Money(self.total_after_discount.amount + self.tax_amount.amount, self.total_after_discount.currency)
+    
+    @property
+    def currency(self) -> str:
+        return self.unit_price.currency
+
+
+@dataclass
+class SalesReturn:
+    """
+    إرجاع مبيعات - Sales Return
+    Aggregate Root لإرجاعات المبيعات
+    
+    يستخدم لإرجاع منتجات من عميل، وينشئ تلقائياً:
+    1. حركة مخزون عكسية (إعادة المنتجات للمخزن)
+    2. مذكرة دائنة (Credit Note) للعميل
+    """
+    
+    id: ReturnId
+    return_number: ReturnNumber
+    customer_id: str
+    customer_name: str
+    customer_branch_id: Optional[str] = None
+    customer_branch_name: Optional[str] = None
+    
+    # روابط للمستندات الأصلية
+    original_invoice_id: Optional[str] = None
+    original_invoice_number: Optional[str] = None
+    original_delivery_id: Optional[str] = None
+    delivery_note_id: Optional[str] = None  # إشعار الاستلام المرتبط بالإرجاع
+    
+    # التواريخ
+    return_date: datetime = field(default_factory=utc_now)
+    expected_receive_date: Optional[datetime] = None
+    actual_receive_date: Optional[datetime] = None
+    
+    # العناصر
+    items: List[ReturnItem] = field(default_factory=list)
+    
+    # الحالة
+    status: ReturnStatus = ReturnStatus.DRAFT
+    submitted_at: Optional[datetime] = None
+    submitted_by: Optional[str] = None
+    approved_at: Optional[datetime] = None
+    approved_by: Optional[str] = None
+    received_at: Optional[datetime] = None
+    received_by: Optional[str] = None
+    inspected_at: Optional[datetime] = None
+    inspected_by: Optional[str] = None
+    completed_at: Optional[datetime] = None
+    rejected_at: Optional[datetime] = None
+    rejected_by: Optional[str] = None
+    rejection_reason: Optional[str] = None
+    
+    # المالية
+    warehouse_id: str = "MAIN"  # المخزن الذي ستُعاد إليه المنتجات
+    currency: str = "USD"
+    
+    # خصم على مستوى المستند
+    document_discount_percent: Decimal = Decimal('0')
+    document_discount_amount: Money = field(default_factory=lambda: Money.zero())
+    
+    # ضريبة على مستوى المستند
+    document_tax_rate: Decimal = Decimal('0')
+    document_tax_amount: Money = field(default_factory=lambda: Money.zero())
+    
+    # شروط الدفع والملاحظات
+    payment_terms: Optional[PaymentTerms] = None
+    notes: str = ""
+    internal_notes: str = ""  # ملاحظات داخلية
+    
+    # التتبع
+    created_at: datetime = field(default_factory=utc_now)
+    updated_at: datetime = field(default_factory=utc_now)
+    created_by: Optional[str] = None
+    
+    # Credit Note المرتبط
+    credit_note_id: Optional[str] = None
+    credit_note_number: Optional[str] = None
+    
+    # Events
+    _events: List[Any] = field(default_factory=list, repr=False)
+    
+    # =========================================================================
+    # الخصائص المحسوبة
+    # =========================================================================
+    
+    @property
+    def item_count(self) -> int:
+        return len(self.items)
+    
+    @property
+    def subtotal(self) -> Money:
+        """المجموع الكلي قبل الخصم والضريبة"""
+        total = Decimal('0')
+        for item in self.items:
+            total += item.subtotal.amount
+        return Money(total, self.currency)
+    
+    @property
+    def total_discount(self) -> Money:
+        """إجمالي الخصم"""
+        total = self.document_discount_amount
+        for item in self.items:
+            total += item.total_discount.amount
+        return Money(total, self.currency)
+    
+    @property
+    def total_after_discount(self) -> Money:
+        """الإجمالي بعد الخصم"""
+        return Money(self.subtotal.amount - self.total_discount.amount, self.currency)
+    
+    @property
+    def total_tax(self) -> Money:
+        """إجمالي الضريبة"""
+        total = self.document_tax_amount
+        for item in self.items:
+            total += item.tax_amount.amount
+        return Money(total, self.currency)
+    
+    @property
+    def total_amount(self) -> Money:
+        """إجمالي المبلغ المستحق للعميل"""
+        return Money(
+            self.total_after_discount.amount + self.total_tax.amount,
+            self.currency
+        )
+    
+    @property
+    def is_draft(self) -> bool:
+        return self.status == ReturnStatus.DRAFT
+    
+    @property
+    def is_completed(self) -> bool:
+        return self.status == ReturnStatus.COMPLETED
+    
+    @property
+    def is_cancelled(self) -> bool:
+        return self.status == ReturnStatus.CANCELLED
+    
+    @property
+    def is_rejected(self) -> bool:
+        return self.status == ReturnStatus.REJECTED
+    
+    @property
+    def can_add_items(self) -> bool:
+        """هل يمكن إضافة عناصر؟"""
+        return self.status in [ReturnStatus.DRAFT, ReturnStatus.SUBMITTED]
+    
+    @property
+    def can_receive(self) -> bool:
+        """هل يمكن استلام الإرجاع؟"""
+        return self.status in [ReturnStatus.APPROVED]
+    
+    @property
+    def can_complete(self) -> bool:
+        """هل يمكن إكمال الإرجاع؟"""
+        return self.status in [ReturnStatus.RECEIVED, ReturnStatus.INSPECTED]
+    
+    # =========================================================================
+    # العمليات (Methods)
+    # =========================================================================
+    
+    def add_item(self, item: ReturnItem) -> None:
+        """إضافة عنصر لإرجاع المبيعات"""
+        if not self.can_add_items:
+            raise ValueError(f"Cannot add items to return in status {self.status.value}")
+        self.items.append(item)
+        self.updated_at = utc_now()
+    
+    def remove_item(self, line_id: str) -> None:
+        """إزالة عنصر من إرجاع المبيعات"""
+        if not self.can_add_items:
+            raise ValueError(f"Cannot remove items from return in status {self.status.value}")
+        self.items = [item for item in self.items if item.line_id != line_id]
+        self.updated_at = utc_now()
+    
+    def submit(self, submitted_by: str) -> None:
+        """تقديم الإرجاع للموافقة"""
+        if self.status != ReturnStatus.DRAFT:
+            raise ValueError("Only draft returns can be submitted")
+        if not self.items:
+            raise ValueError("Cannot submit empty return")
+        
+        self.status = ReturnStatus.SUBMITTED
+        self.submitted_at = utc_now()
+        self.submitted_by = submitted_by
+        self.updated_at = utc_now()
+    
+    def approve(self, approved_by: str) -> None:
+        """الموافقة على الإرجاع"""
+        if self.status != ReturnStatus.SUBMITTED:
+            raise ValueError("Only submitted returns can be approved")
+        
+        self.status = ReturnStatus.APPROVED
+        self.approved_at = utc_now()
+        self.approved_by = approved_by
+        self.updated_at = utc_now()
+    
+    def reject(self, rejected_by: str, reason: str) -> None:
+        """رفض الإرجاع"""
+        if self.status not in [ReturnStatus.SUBMITTED, ReturnStatus.APPROVED]:
+            raise ValueError("Only submitted or approved returns can be rejected")
+        
+        self.status = ReturnStatus.REJECTED
+        self.rejected_at = utc_now()
+        self.rejected_by = rejected_by
+        self.rejection_reason = reason
+        self.updated_at = utc_now()
+    
+    def receive(self, received_by: str, actual_receive_date: Optional[datetime] = None) -> None:
+        """استلام المنتجات المرجعة"""
+        if self.status != ReturnStatus.APPROVED:
+            raise ValueError("Only approved returns can be received")
+        
+        self.status = ReturnStatus.RECEIVED
+        self.actual_receive_date = actual_receive_date or utc_now()
+        self.received_at = utc_now()
+        self.received_by = received_by
+        self.updated_at = utc_now()
+    
+    def inspect(self, inspected_by: str) -> None:
+        """فحص المنتجات المرجعة"""
+        if self.status != ReturnStatus.RECEIVED:
+            raise ValueError("Only received returns can be inspected")
+        
+        self.status = ReturnStatus.INSPECTED
+        self.inspected_at = utc_now()
+        self.inspected_by = inspected_by
+        self.updated_at = utc_now()
+    
+    def complete(self, credit_note_id: Optional[str] = None, credit_note_number: Optional[str] = None) -> None:
+        """إكمال الإرجاع وإنشاء Credit Note"""
+        if self.status not in [ReturnStatus.RECEIVED, ReturnStatus.INSPECTED]:
+            raise ValueError("Only received or inspected returns can be completed")
+        
+        self.status = ReturnStatus.COMPLETED
+        self.completed_at = utc_now()
+        self.credit_note_id = credit_note_id
+        self.credit_note_number = credit_note_number
+        self.updated_at = utc_now()
+    
+    def cancel(self) -> None:
+        """إلغاء الإرجاع"""
+        if self.status in [ReturnStatus.COMPLETED, ReturnStatus.CANCELLED]:
+            raise ValueError(f"Cannot cancel return in status {self.status.value}")
+        
+        self.status = ReturnStatus.CANCELLED
+        self.updated_at = utc_now()
+    
+    def link_credit_note(self, credit_note_id: str, credit_note_number: str) -> None:
+        """ربط مذكرة الدائنة بالإرجاع"""
+        self.credit_note_id = credit_note_id
+        self.credit_note_number = credit_note_number
+        self.updated_at = utc_now()
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """تحويل إلى قاموس"""
+        return {
+            'id': str(self.id.value),
+            'return_number': str(self.return_number.value),
+            'customer_id': self.customer_id,
+            'customer_name': self.customer_name,
+            'status': self.status.value,
+            'original_invoice_id': self.original_invoice_id,
+            'original_invoice_number': self.original_invoice_number,
+            'return_date': self.return_date.isoformat(),
+            'item_count': self.item_count,
+            'subtotal': str(self.subtotal.amount),
+            'total_discount': str(self.total_discount.amount),
+            'total_tax': str(self.total_tax.amount),
+            'total_amount': str(self.total_amount.amount),
+            'currency': self.currency,
+            'warehouse_id': self.warehouse_id,
+            'credit_note_id': self.credit_note_id,
+            'credit_note_number': self.credit_note_number,
             'created_at': self.created_at.isoformat(),
             'updated_at': self.updated_at.isoformat(),
         }

@@ -357,4 +357,153 @@ __all__ = [
     "InvoiceWorkflowError",
     "InvoiceApprovalRequiredError",
     "InvoiceApprovalRejectedError",
+    
+    # ========================================================================
+    # ✅ Credit Note Exceptions (لإرجاع المبيعات)
+    # ========================================================================
+    "CreditNoteNotFoundException",
+    "CreditNoteAlreadyExistsError",
+    "CannotModifyPostedCreditNoteError",
+    "CreditNoteAlreadyPostedError",
+    "CannotCancelPostedCreditNoteError",
+    "CreditNoteAlreadyCancelledError",
+    "CreditNoteAmountMismatchError",
+    "CreditNoteInvalidStatusError",
+    
+    # ========================================================================
+    # ✅ Debit Note Exceptions (لإرجاع المشتريات)
+    # ========================================================================
+    "DebitNoteNotFoundException",
+    "DebitNoteAlreadyExistsError",
+    "CannotModifyPostedDebitNoteError",
+    "DebitNoteAlreadyPostedError",
+    "CannotCancelPostedDebitNoteError",
+    "DebitNoteAlreadyCancelledError",
+    "DebitNoteAmountMismatchError",
+    "DebitNoteInvalidStatusError",
 ]
+
+# =============================================================================
+# ✅ Credit Note Exception Classes (لإرجاع المبيعات)
+# =============================================================================
+
+class CreditNoteNotFoundException(InvoicingError):
+    """يُرفع عند عدم العثور على مذكرة دائن"""
+    def __init__(self, credit_note_id: str):
+        super().__init__(f"Credit Note {credit_note_id} not found")
+        self.credit_note_id = credit_note_id
+
+
+class CreditNoteAlreadyExistsError(InvoicingError):
+    """يُرفع عند محاولة إنشاء مذكرة دائن موجودة بالفعل"""
+    def __init__(self, credit_note_number: str):
+        super().__init__(f"Credit Note with number {credit_note_number} already exists")
+        self.credit_note_number = credit_note_number
+
+
+class CannotModifyPostedCreditNoteError(InvoicingError):
+    """يُرفع عند محاولة تعديل مذكرة دائن مرحّلة"""
+    def __init__(self, credit_note_id: str):
+        super().__init__(f"Cannot modify posted Credit Note {credit_note_id}")
+        self.credit_note_id = credit_note_id
+
+
+class CreditNoteAlreadyPostedError(InvoicingError):
+    """يُرفع عند محاولة ترحيل مذكرة دائن مرحّلة بالفعل"""
+    def __init__(self, credit_note_id: str):
+        super().__init__(f"Credit Note {credit_note_id} is already posted")
+        self.credit_note_id = credit_note_id
+
+
+class CannotCancelPostedCreditNoteError(InvoicingError):
+    """يُرفع عند محاولة إلغاء مذكرة دائن مرحّلة"""
+    def __init__(self, credit_note_id: str):
+        super().__init__(f"Cannot cancel posted Credit Note {credit_note_id}")
+        self.credit_note_id = credit_note_id
+
+
+class CreditNoteAlreadyCancelledError(InvoicingError):
+    """يُرفع عند محاولة إلغاء مذكرة دائن ملغاة بالفعل"""
+    def __init__(self, credit_note_id: str):
+        super().__init__(f"Credit Note {credit_note_id} is already cancelled")
+        self.credit_note_id = credit_note_id
+
+
+class CreditNoteAmountMismatchError(InvoicingError):
+    """يُرفع عند عدم تطابق مبلغ مذكرة الدائن مع الإرجاع"""
+    def __init__(self, expected: float, actual: float):
+        super().__init__(f"Credit Note amount mismatch: expected {expected}, got {actual}")
+        self.expected = expected
+        self.actual = actual
+
+
+class CreditNoteInvalidStatusError(InvoicingError):
+    """يُرفع عند محاولة تنفيذ إجراء بحالة غير صالحة"""
+    def __init__(self, credit_note_id: str, current_status: str, action: str):
+        super().__init__(f"Cannot {action} Credit Note {credit_note_id} with status {current_status}")
+        self.credit_note_id = credit_note_id
+        self.current_status = current_status
+        self.action = action
+
+
+# =============================================================================
+# ✅ Debit Note Exception Classes (لإرجاع المشتريات)
+# =============================================================================
+
+class DebitNoteNotFoundException(InvoicingError):
+    """يُرفع عند عدم العثور على مذكرة مدينة"""
+    def __init__(self, debit_note_id: str):
+        super().__init__(f"Debit Note {debit_note_id} not found")
+        self.debit_note_id = debit_note_id
+
+
+class DebitNoteAlreadyExistsError(InvoicingError):
+    """يُرفع عند محاولة إنشاء مذكرة مدينة موجودة بالفعل"""
+    def __init__(self, debit_note_number: str):
+        super().__init__(f"Debit Note with number {debit_note_number} already exists")
+        self.debit_note_number = debit_note_number
+
+
+class CannotModifyPostedDebitNoteError(InvoicingError):
+    """يُرفع عند محاولة تعديل مذكرة مدينة مرحّلة"""
+    def __init__(self, debit_note_id: str):
+        super().__init__(f"Cannot modify posted Debit Note {debit_note_id}")
+        self.debit_note_id = debit_note_id
+
+
+class DebitNoteAlreadyPostedError(InvoicingError):
+    """يُرفع عند محاولة ترحيل مذكرة مدينة مرحّلة بالفعل"""
+    def __init__(self, debit_note_id: str):
+        super().__init__(f"Debit Note {debit_note_id} is already posted")
+        self.debit_note_id = debit_note_id
+
+
+class CannotCancelPostedDebitNoteError(InvoicingError):
+    """يُرفع عند محاولة إلغاء مذكرة مدينة مرحّلة"""
+    def __init__(self, debit_note_id: str):
+        super().__init__(f"Cannot cancel posted Debit Note {debit_note_id}")
+        self.debit_note_id = debit_note_id
+
+
+class DebitNoteAlreadyCancelledError(InvoicingError):
+    """يُرفع عند محاولة إلغاء مذكرة مدينة ملغاة بالفعل"""
+    def __init__(self, debit_note_id: str):
+        super().__init__(f"Debit Note {debit_note_id} is already cancelled")
+        self.debit_note_id = debit_note_id
+
+
+class DebitNoteAmountMismatchError(InvoicingError):
+    """يُرفع عند عدم تطابق مبلغ مذكرة المدينة مع الإرجاع"""
+    def __init__(self, expected: float, actual: float):
+        super().__init__(f"Debit Note amount mismatch: expected {expected}, got {actual}")
+        self.expected = expected
+        self.actual = actual
+
+
+class DebitNoteInvalidStatusError(InvoicingError):
+    """يُرفع عند محاولة تنفيذ إجراء بحالة غير صالحة"""
+    def __init__(self, debit_note_id: str, current_status: str, action: str):
+        super().__init__(f"Cannot {action} Debit Note {debit_note_id} with status {current_status}")
+        self.debit_note_id = debit_note_id
+        self.current_status = current_status
+        self.action = action

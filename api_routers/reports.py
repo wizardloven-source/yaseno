@@ -563,3 +563,382 @@ async def budget_vs_actual_report(
     except Exception as e:
         logger.error(f"Error getting budget vs actual report: {e}", exc_info=True)
         return ApiResponse(success=False, message=str(e), errors=[str(e)])
+
+
+# =============================================================================
+# AGING REPORTS - Customer & Supplier Aging
+# =============================================================================
+
+class AgingBucketResponse(BaseModel):
+    bucket_name: str
+    days_from: int
+    days_to: Optional[int]
+    amount: float = 0.0
+    currency: str = "USD"
+
+
+class AgingLineResponse(BaseModel):
+    document_type: str  # invoice, payment
+    document_number: str
+    document_date: date
+    due_date: date
+    original_amount: float
+    paid_amount: float
+    outstanding_amount: float
+    currency: str
+    days_overdue: int
+    current_bucket: str
+    buckets: List[AgingBucketResponse] = []
+
+
+class AgingReportResponse(BaseModel):
+    entity_code: str
+    entity_name: str
+    entity_type: str  # customer or supplier
+    total_outstanding: float = 0.0
+    currency: str = "USD"
+    as_of_date: date
+    lines: List[AgingLineResponse] = []
+    summary: List[AgingBucketResponse] = []
+
+
+@router.get("/api/reports/aging/customers", response_model=ApiResponse)
+async def customer_aging_report(
+    as_of_date: Optional[date] = Query(None, description="تاريخ التقرير - الافتراضي اليوم"),
+    customer_id: Optional[str] = Query(None, description="معرف عميل محدد (اختياري)"),
+    include_zero_balances: bool = Query(False, description="تضمين العملاء بدون مستحقات"),
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    تقرير أعمار الذمم المدينة للعملاء
+    
+    يصنف المستحقات حسب مدة التأخير:
+    - Current (غير مستحق)
+    - 1-30 يوم
+    - 31-60 يوم
+    - 61-90 يوم
+    - +90 يوم
+    """
+    try:
+        from sqlalchemy import text
+        
+        report_date = as_of_date or date.today()
+        
+        with bootstrap.uow() as uow:
+            # الحصول على جميع العملاء أو عميل محدد
+            if customer_id:
+                customers = [uow.customers.get_customer_by_id(uuid.UUID(customer_id))]
+                customers = [c for c in customers if c is not None]
+            else:
+                customers = uow.customers.get_all_customers()
+            
+            aging_reports = []
+            
+            for customer in customers:
+                customer_id_uuid = customer.id if hasattr(customer, 'id') else customer.customer_id
+                customer_code = customer.code if hasattr(customer, 'code') else getattr(customer, 'customer_code', '')
+                customer_name = customer.name if hasattr(customer, 'name') else getattr(customer, 'customer_name', '')
+                
+                # الحصول على فواتير العميل غير المسددة
+                query = text("""
+                    SELECT 
+                        i.id,
+                        i.invoice_number,
+                        i.invoice_date,
+                        i.due_date,
+                        i.total_amount,
+                        i.paid_amount,
+                        i.outstanding_amount,
+                        i.currency,
+                        CASE 
+                            WHEN i.due_date > :report_date THEN 0
+                            ELSE (:report_date::date - i.due_date::date)
+                        END as days_overdue
+                    FROM invoices i
+                    WHERE i.customer_id = :cust_id
+                      AND i.status NOT IN ('cancelled', 'draft')
+                      AND i.outstanding_amount > 0
+                      AND i.invoice_date <= :report_date
+                    ORDER BY i.due_date ASC
+                """)
+                
+                result = uow.session.execute(query, {
+                    'cust_id': customer_id_uuid,
+                    'report_date': report_date
+                })
+                
+                invoices = result.fetchall()
+                
+                if not invoices and not include_zero_balances:
+                    continue
+                
+                # حساب buckets للعميل
+                buckets = {
+                    'current': {'name': 'Current', 'from': 0, 'to': None, 'amount': Decimal('0')},
+                    '1-30': {'name': '1-30 Days', 'from': 1, 'to': 30, 'amount': Decimal('0')},
+                    '31-60': {'name': '31-60 Days', 'from': 31, 'to': 60, 'amount': Decimal('0')},
+                    '61-90': {'name': '61-90 Days', 'from': 61, 'to': 90, 'amount': Decimal('0')},
+                    '+90': {'name': '+90 Days', 'from': 91, 'to': None, 'amount': Decimal('0')}
+                }
+                
+                lines = []
+                total_outstanding = Decimal('0')
+                
+                for inv in invoices:
+                    outstanding = Decimal(str(inv.outstanding_amount))
+                    days_overdue = inv.days_overdue
+                    currency = inv.currency or 'USD'
+                    
+                    # تحديد الـ bucket
+                    if days_overdue <= 0:
+                        bucket_key = 'current'
+                        bucket_name = 'Current'
+                    elif days_overdue <= 30:
+                        bucket_key = '1-30'
+                        bucket_name = '1-30 Days'
+                    elif days_overdue <= 60:
+                        bucket_key = '31-60'
+                        bucket_name = '31-60 Days'
+                    elif days_overdue <= 90:
+                        bucket_key = '61-90'
+                        bucket_name = '61-90 Days'
+                    else:
+                        bucket_key = '+90'
+                        bucket_name = '+90 Days'
+                    
+                    buckets[bucket_key]['amount'] += outstanding
+                    total_outstanding += outstanding
+                    
+                    line_buckets = [
+                        AgingBucketResponse(
+                            bucket_name=b['name'],
+                            days_from=b['from'],
+                            days_to=b['to'],
+                            amount=float(b['amount']),
+                            currency=currency
+                        )
+                        for key, b in buckets.items()
+                    ]
+                    
+                    lines.append(AgingLineResponse(
+                        document_type='invoice',
+                        document_number=inv.invoice_number,
+                        document_date=inv.invoice_date,
+                        due_date=inv.due_date,
+                        original_amount=float(inv.total_amount),
+                        paid_amount=float(inv.paid_amount),
+                        outstanding_amount=float(outstanding),
+                        currency=currency,
+                        days_overdue=max(0, days_overdue),
+                        current_bucket=bucket_name,
+                        buckets=line_buckets
+                    ))
+                
+                # ملخص buckets
+                summary = [
+                    AgingBucketResponse(
+                        bucket_name=b['name'],
+                        days_from=b['from'],
+                        days_to=b['to'],
+                        amount=float(b['amount']),
+                        currency='USD'
+                    )
+                    for key, b in buckets.items()
+                ]
+                
+                if lines or include_zero_balances:
+                    aging_reports.append(AgingReportResponse(
+                        entity_code=customer_code,
+                        entity_name=customer_name,
+                        entity_type='customer',
+                        total_outstanding=float(total_outstanding),
+                        currency='USD',
+                        as_of_date=report_date,
+                        lines=lines,
+                        summary=summary
+                    ))
+            
+            return ApiResponse(
+                success=True,
+                message="تم جلب تقرير أعمار العملاء بنجاح",
+                data={
+                    "as_of_date": report_date.isoformat(),
+                    "total_customers": len(aging_reports),
+                    "reports": aging_reports
+                }
+            )
+    
+    except Exception as e:
+        logger.error(f"Error getting customer aging report: {e}", exc_info=True)
+        return ApiResponse(success=False, message=str(e), errors=[str(e)])
+
+
+@router.get("/api/reports/aging/suppliers", response_model=ApiResponse)
+async def supplier_aging_report(
+    as_of_date: Optional[date] = Query(None, description="تاريخ التقرير - الافتراضي اليوم"),
+    supplier_id: Optional[str] = Query(None, description="معرف مورد محدد (اختياري)"),
+    include_zero_balances: bool = Query(False, description="تضمين الموردين بدون مستحقات"),
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    تقرير أعمار الذمم الدائنة للموردين
+    
+    يصنف المستحقات حسب مدة التأخير:
+    - Current (غير مستحق)
+    - 1-30 يوم
+    - 31-60 يوم
+    - 61-90 يوم
+    - +90 يوم
+    """
+    try:
+        from sqlalchemy import text
+        
+        report_date = as_of_date or date.today()
+        
+        with bootstrap.uow() as uow:
+            # الحصول على جميع الموردين أو مورد محدد
+            if supplier_id:
+                suppliers = [uow.suppliers.get_supplier_by_id(uuid.UUID(supplier_id))]
+                suppliers = [s for s in suppliers if s is not None]
+            else:
+                suppliers = uow.suppliers.get_all_suppliers()
+            
+            aging_reports = []
+            
+            for supplier in suppliers:
+                supplier_id_uuid = supplier.id if hasattr(supplier, 'id') else supplier.supplier_id
+                supplier_code = supplier.code if hasattr(supplier, 'code') else getattr(supplier, 'supplier_code', '')
+                supplier_name = supplier.name if hasattr(supplier, 'name') else getattr(supplier, 'supplier_name', '')
+                
+                # الحصول على فواتير المورد غير المسددة
+                query = text("""
+                    SELECT 
+                        i.id,
+                        i.invoice_number,
+                        i.invoice_date,
+                        i.due_date,
+                        i.total_amount,
+                        i.paid_amount,
+                        i.outstanding_amount,
+                        i.currency,
+                        CASE 
+                            WHEN i.due_date > :report_date THEN 0
+                            ELSE (:report_date::date - i.due_date::date)
+                        END as days_overdue
+                    FROM invoices i
+                    WHERE i.supplier_id = :sup_id
+                      AND i.status NOT IN ('cancelled', 'draft')
+                      AND i.outstanding_amount > 0
+                      AND i.invoice_date <= :report_date
+                    ORDER BY i.due_date ASC
+                """)
+                
+                result = uow.session.execute(query, {
+                    'sup_id': supplier_id_uuid,
+                    'report_date': report_date
+                })
+                
+                invoices = result.fetchall()
+                
+                if not invoices and not include_zero_balances:
+                    continue
+                
+                # حساب buckets للمورد
+                buckets = {
+                    'current': {'name': 'Current', 'from': 0, 'to': None, 'amount': Decimal('0')},
+                    '1-30': {'name': '1-30 Days', 'from': 1, 'to': 30, 'amount': Decimal('0')},
+                    '31-60': {'name': '31-60 Days', 'from': 31, 'to': 60, 'amount': Decimal('0')},
+                    '61-90': {'name': '61-90 Days', 'from': 61, 'to': 90, 'amount': Decimal('0')},
+                    '+90': {'name': '+90 Days', 'from': 91, 'to': None, 'amount': Decimal('0')}
+                }
+                
+                lines = []
+                total_outstanding = Decimal('0')
+                
+                for inv in invoices:
+                    outstanding = Decimal(str(inv.outstanding_amount))
+                    days_overdue = inv.days_overdue
+                    currency = inv.currency or 'USD'
+                    
+                    # تحديد الـ bucket
+                    if days_overdue <= 0:
+                        bucket_key = 'current'
+                        bucket_name = 'Current'
+                    elif days_overdue <= 30:
+                        bucket_key = '1-30'
+                        bucket_name = '1-30 Days'
+                    elif days_overdue <= 60:
+                        bucket_key = '31-60'
+                        bucket_name = '31-60 Days'
+                    elif days_overdue <= 90:
+                        bucket_key = '61-90'
+                        bucket_name = '61-90 Days'
+                    else:
+                        bucket_key = '+90'
+                        bucket_name = '+90 Days'
+                    
+                    buckets[bucket_key]['amount'] += outstanding
+                    total_outstanding += outstanding
+                    
+                    line_buckets = [
+                        AgingBucketResponse(
+                            bucket_name=b['name'],
+                            days_from=b['from'],
+                            days_to=b['to'],
+                            amount=float(b['amount']),
+                            currency=currency
+                        )
+                        for key, b in buckets.items()
+                    ]
+                    
+                    lines.append(AgingLineResponse(
+                        document_type='invoice',
+                        document_number=inv.invoice_number,
+                        document_date=inv.invoice_date,
+                        due_date=inv.due_date,
+                        original_amount=float(inv.total_amount),
+                        paid_amount=float(inv.paid_amount),
+                        outstanding_amount=float(outstanding),
+                        currency=currency,
+                        days_overdue=max(0, days_overdue),
+                        current_bucket=bucket_name,
+                        buckets=line_buckets
+                    ))
+                
+                # ملخص buckets
+                summary = [
+                    AgingBucketResponse(
+                        bucket_name=b['name'],
+                        days_from=b['from'],
+                        days_to=b['to'],
+                        amount=float(b['amount']),
+                        currency='USD'
+                    )
+                    for key, b in buckets.items()
+                ]
+                
+                if lines or include_zero_balances:
+                    aging_reports.append(AgingReportResponse(
+                        entity_code=supplier_code,
+                        entity_name=supplier_name,
+                        entity_type='supplier',
+                        total_outstanding=float(total_outstanding),
+                        currency='USD',
+                        as_of_date=report_date,
+                        lines=lines,
+                        summary=summary
+                    ))
+            
+            return ApiResponse(
+                success=True,
+                message="تم جلب تقرير أعمار الموردين بنجاح",
+                data={
+                    "as_of_date": report_date.isoformat(),
+                    "total_suppliers": len(aging_reports),
+                    "reports": aging_reports
+                }
+            )
+    
+    except Exception as e:
+        logger.error(f"Error getting supplier aging report: {e}", exc_info=True)
+        return ApiResponse(success=False, message=str(e), errors=[str(e)])

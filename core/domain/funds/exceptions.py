@@ -191,4 +191,150 @@ __all__ = [
     "ExchangeRateNotFoundError",
     "ApprovalRequiredError",
     "InvalidAmountError",
+    # Bank Reconciliation Exceptions
+    "BankStatementNotFoundError",
+    "BankStatementAlreadyExistsError",
+    "InvalidBankStatementIdError",
+    "InvalidBankStatementNumberError",
+    "ReconciliationNotFoundError",
+    "ReconciliationAlreadyExistsError",
+    "InvalidReconciliationIdError",
+    "CannotModifyPostedReconciliationError",
+    "CannotModifyCompletedReconciliationError",
+    "ReconciliationMismatchError",
+    "BankAccountNotFoundError",
 ]
+
+
+# =============================================================================
+# Bank Reconciliation Exceptions
+# =============================================================================
+
+class BankStatementNotFoundError(FundError):
+    """يُرفع عندما لا يتم العثور على كشف الحساب البنكي"""
+    def __init__(self, statement_id: str):
+        self.statement_id = statement_id
+        super().__init__(f"Bank statement not found: {statement_id}")
+
+
+class BankStatementAlreadyExistsError(FundError):
+    """يُرفع عند محاولة إنشاء كشف حساب برقم مكرر"""
+    def __init__(self, statement_number: str):
+        self.statement_number = statement_number
+        super().__init__(f"Bank statement number already exists: {statement_number}")
+
+
+class InvalidBankStatementIdError(FundError):
+    """يُرفع عندما يكون معرف كشف الحساب غير صالح"""
+    pass
+
+
+class InvalidBankStatementNumberError(FundError):
+    """يُرفع عندما يكون رقم كشف الحساب غير صالح"""
+    pass
+
+
+class ReconciliationNotFoundError(FundError):
+    """يُرفع عندما لا يتم العثور على عملية التسوية"""
+    def __init__(self, reconciliation_id: str):
+        self.reconciliation_id = reconciliation_id
+        super().__init__(f"Reconciliation not found: {reconciliation_id}")
+
+
+class ReconciliationAlreadyExistsError(FundError):
+    """يُرفع عند محاولة إنشاء تسوية بمعرف مكرر"""
+    def __init__(self, reconciliation_id: str):
+        self.reconciliation_id = reconciliation_id
+        super().__init__(f"Reconciliation already exists: {reconciliation_id}")
+
+
+class InvalidReconciliationIdError(FundError):
+    """يُرفع عندما يكون معرف التسوية غير صالح"""
+    pass
+
+
+class CannotModifyPostedReconciliationError(FundError):
+    """يُرفع عند محاولة تعديل تسوية منشورة"""
+    def __init__(self, reconciliation_id: str):
+        self.reconciliation_id = reconciliation_id
+        super().__init__(f"Cannot modify posted reconciliation: {reconciliation_id}")
+
+
+class CannotModifyCompletedReconciliationError(FundError):
+    """يُرفع عند محاولة تعديل تسوية مكتملة"""
+    def __init__(self, reconciliation_id: str):
+        self.reconciliation_id = reconciliation_id
+        super().__init__(f"Cannot modify completed reconciliation: {reconciliation_id}")
+
+
+class ReconciliationMismatchError(FundError):
+    """يُرفع عندما يكون هناك عدم تطابق في التسوية"""
+    def __init__(self, expected: float, actual: float):
+        self.expected = expected
+        self.actual = actual
+        super().__init__(f"Reconciliation mismatch. Expected: {expected}, Actual: {actual}")
+
+
+class BankAccountNotFoundError(FundError):
+    """يُرفع عندما لا يتم العثور على الحساب البنكي"""
+    def __init__(self, account_number: str):
+        self.account_number = account_number
+        super().__init__(f"Bank account not found: {account_number}")
+
+# =============================================================================
+# Bank Reconciliation Exceptions - استثناءات التسوية البنكية
+# =============================================================================
+
+class BankStatementError(FundError):
+    """استثناء عام لكشف الحساب البنكي"""
+    pass
+
+
+class BankStatementAlreadyPostedError(BankStatementError):
+    """كشف الحساب مُرحّل بالفعل"""
+    pass
+
+
+class BankStatementCannotBeModifiedError(BankStatementError):
+    """لا يمكن تعديل كشف الحساب"""
+    pass
+
+
+class BankStatementNotFoundError(BankStatementError):
+    """كشف الحساب غير موجود"""
+    pass
+
+
+class BankStatementInvalidBalanceError(BankStatementError):
+    """رصيد كشف الحساب غير صحيح"""
+    pass
+
+
+class BankReconciliationError(FundError):
+    """استثناء عام للتسوية البنكية"""
+    pass
+
+
+class BankReconciliationAlreadyCompletedError(BankReconciliationError):
+    """التسوية مكتملة بالفعل"""
+    pass
+
+
+class BankReconciliationCannotBeModifiedError(BankReconciliationError):
+    """لا يمكن تعديل التسوية"""
+    pass
+
+
+class BankReconciliationNotFoundError(BankReconciliationError):
+    """التسوية غير موجودة"""
+    pass
+
+
+class InvalidReconciliationMatchError(BankReconciliationError):
+    """مطابقة التسوية غير صالحة"""
+    pass
+
+
+class UnmatchedTransactionsError(BankReconciliationError):
+    """توجد حركات غير مطابقة"""
+    pass
