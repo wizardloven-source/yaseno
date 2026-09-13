@@ -1,6 +1,10 @@
 # core/application/sales/handlers.py
 """
 Sales Command Handlers - معالجات الأوامر لوحدة المبيعات
+✅ SalesQuotation Handlers
+✅ SalesOrder Handlers
+✅ Delivery Handlers
+✅ SalesReturn Handlers (NEW - PHASE 1)
 """
 
 from typing import Optional
@@ -9,18 +13,22 @@ from decimal import Decimal
 from core.domain.sales.entities import (
     SalesQuotation, QuotationItem,
     SalesOrder, OrderItem,
-    DeliveryNote, DeliveryItem
+    DeliveryNote, DeliveryItem,
+    SalesReturn, ReturnItem
 )
 from core.domain.sales.value_objects import ShippingAddress, PaymentTerms
 from core.domain.shared.value_objects import Money
-from core.domain.sales.interfaces import IQuotationRepository, IOrderRepository, IDeliveryRepository
+from core.domain.sales.interfaces import IQuotationRepository, IOrderRepository, IDeliveryRepository, IReturnRepository
 from core.application.sales.commands import (
     CreateQuotationCommand, UpdateQuotationCommand, SendQuotationCommand,
     AcceptQuotationCommand, RejectQuotationCommand, ConvertQuotationCommand,
     CreateOrderCommand, ConfirmOrderCommand, CancelOrderCommand,
-    CreateDeliveryCommand, ScheduleDeliveryCommand, CompleteDeliveryCommand
+    CreateDeliveryCommand, ScheduleDeliveryCommand, CompleteDeliveryCommand,
+    CreateSalesReturnCommand, SubmitSalesReturnCommand, ApproveSalesReturnCommand,
+    RejectSalesReturnCommand, ReceiveSalesReturnCommand, InspectSalesReturnCommand,
+    CompleteSalesReturnCommand, CancelSalesReturnCommand
 )
-from core.shared.exceptions import NotFoundException, ValidationError
+from core.shared.exceptions import ValidationError, NotFoundError
 
 
 class CreateQuotationHandler:
@@ -106,7 +114,7 @@ class UpdateQuotationHandler:
         quotation = await self.repository.get_by_id(QuotationId(command.quotation_id))
         
         if not quotation:
-            raise NotFoundException(f"Quotation not found with ID: {command.quotation_id}")
+            raise NotFoundError(f"Quotation not found with ID: {command.quotation_id}")
         
         # التحقق من الحالة
         if quotation.status.name != 'DRAFT':
@@ -170,7 +178,7 @@ class SendQuotationHandler:
         quotation = await self.repository.get_by_id(QuotationId(command.quotation_id))
         
         if not quotation:
-            raise NotFoundException(f"Quotation not found with ID: {command.quotation_id}")
+            raise NotFoundError(f"Quotation not found with ID: {command.quotation_id}")
         
         quotation.send()
         return await self.repository.save(quotation)
@@ -188,7 +196,7 @@ class AcceptQuotationHandler:
         quotation = await self.repository.get_by_id(QuotationId(command.quotation_id))
         
         if not quotation:
-            raise NotFoundException(f"Quotation not found with ID: {command.quotation_id}")
+            raise NotFoundError(f"Quotation not found with ID: {command.quotation_id}")
         
         quotation.accept()
         return await self.repository.save(quotation)
@@ -206,7 +214,7 @@ class RejectQuotationHandler:
         quotation = await self.repository.get_by_id(QuotationId(command.quotation_id))
         
         if not quotation:
-            raise NotFoundException(f"Quotation not found with ID: {command.quotation_id}")
+            raise NotFoundError(f"Quotation not found with ID: {command.quotation_id}")
         
         quotation.reject(reason=command.reason)
         return await self.repository.save(quotation)
@@ -225,7 +233,7 @@ class ConvertQuotationHandler:
         quotation = await self.quotation_repository.get_by_id(QuotationId(command.quotation_id))
         
         if not quotation:
-            raise NotFoundException(f"Quotation not found with ID: {command.quotation_id}")
+            raise NotFoundError(f"Quotation not found with ID: {command.quotation_id}")
         
         # التحويل
         order_sequence = await self.order_repository.get_next_sequence()
@@ -325,7 +333,7 @@ class ConfirmOrderHandler:
         order = await self.repository.get_by_id(OrderId(command.order_id))
         
         if not order:
-            raise NotFoundException(f"Order not found with ID: {command.order_id}")
+            raise NotFoundError(f"Order not found with ID: {command.order_id}")
         
         order.confirm()
         return await self.repository.save(order)
@@ -343,7 +351,7 @@ class CancelOrderHandler:
         order = await self.repository.get_by_id(OrderId(command.order_id))
         
         if not order:
-            raise NotFoundException(f"Order not found with ID: {command.order_id}")
+            raise NotFoundError(f"Order not found with ID: {command.order_id}")
         
         order.cancel(reason=command.reason)
         return await self.repository.save(order)
@@ -407,7 +415,7 @@ class ScheduleDeliveryHandler:
         delivery = await self.repository.get_by_id(DeliveryId(command.delivery_id))
         
         if not delivery:
-            raise NotFoundException(f"Delivery not found with ID: {command.delivery_id}")
+            raise NotFoundError(f"Delivery not found with ID: {command.delivery_id}")
         
         delivery.schedule(command.scheduled_date)
         return await self.repository.save(delivery)
@@ -425,7 +433,7 @@ class CompleteDeliveryHandler:
         delivery = await self.repository.get_by_id(DeliveryId(command.delivery_id))
         
         if not delivery:
-            raise NotFoundException(f"Delivery not found with ID: {command.delivery_id}")
+            raise NotFoundError(f"Delivery not found with ID: {command.delivery_id}")
         
         delivery.mark_delivered(received_by=command.received_by)
         return await self.repository.save(delivery)

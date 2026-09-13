@@ -1,14 +1,18 @@
 # core/domain/sales/interfaces.py
 """
 Sales Repository Interfaces - واجهات المستودعات لوحدة المبيعات
+✅ IQuotationRepository
+✅ IOrderRepository
+✅ IDeliveryRepository
+✅ IReturnRepository (NEW - PHASE 1)
 """
 
 from abc import ABC, abstractmethod
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 
-from .entities import SalesQuotation, SalesOrder, DeliveryNote
-from .value_objects import QuotationId, OrderId, DeliveryId, QuotationStatus, OrderStatus, DeliveryStatus
+from .entities import SalesQuotation, SalesOrder, DeliveryNote, SalesReturn
+from .value_objects import QuotationId, OrderId, DeliveryId, ReturnId, QuotationStatus, OrderStatus, DeliveryStatus, ReturnStatus
 
 
 class IQuotationRepository(ABC):
@@ -168,6 +172,58 @@ class IDeliveryRepository(ABC):
         customer_id: Optional[str] = None
     ) -> int:
         """عد إشعارات التسليم"""
+        pass
+    
+    @abstractmethod
+    async def get_next_sequence(self) -> int:
+        """الحصول على الرقم التسلسلي التالي"""
+        pass
+
+
+class IReturnRepository(ABC):
+    """واجهة مستودع إرجاعات المبيعات (NEW - PHASE 1)"""
+    
+    @abstractmethod
+    async def get_by_id(self, return_id: ReturnId) -> Optional[SalesReturn]:
+        """الحصول على إرجاع مبيعات بالمعرف"""
+        pass
+    
+    @abstractmethod
+    async def get_by_number(self, return_number: str) -> Optional[SalesReturn]:
+        """الحصول على إرجاع المبيعات بالرقم"""
+        pass
+    
+    @abstractmethod
+    async def get_all(
+        self,
+        status: Optional[ReturnStatus] = None,
+        customer_id: Optional[str] = None,
+        original_invoice_id: Optional[str] = None,
+        date_from: Optional[datetime] = None,
+        date_to: Optional[datetime] = None,
+        limit: int = 100,
+        offset: int = 0
+    ) -> List[SalesReturn]:
+        """الحصول على جميع إرجاعات المبيعات مع الفلترة"""
+        pass
+    
+    @abstractmethod
+    async def save(self, return_entity: SalesReturn) -> SalesReturn:
+        """حفظ إرجاع مبيعات"""
+        pass
+    
+    @abstractmethod
+    async def delete(self, return_id: ReturnId) -> bool:
+        """حذف إرجاع مبيعات"""
+        pass
+    
+    @abstractmethod
+    async def count(
+        self,
+        status: Optional[ReturnStatus] = None,
+        customer_id: Optional[str] = None
+    ) -> int:
+        """عد إرجاعات المبيعات"""
         pass
     
     @abstractmethod

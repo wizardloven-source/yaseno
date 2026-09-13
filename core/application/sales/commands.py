@@ -1,6 +1,10 @@
 # core/application/sales/commands.py
 """
 Sales Commands - أوامر CQRS لوحدة المبيعات
+✅ SalesQuotation Commands
+✅ SalesOrder Commands
+✅ Delivery Commands
+✅ SalesReturn Commands (NEW - PHASE 1)
 """
 
 from dataclasses import dataclass, field
@@ -248,3 +252,103 @@ class ReturnDeliveryCommand:
     """إرجاع إشعار التسليم"""
     delivery_id: str
     reason: str
+
+
+# ============================================================================
+# Sales Return Commands (NEW - PHASE 1)
+# ============================================================================
+
+@dataclass
+class ReturnItemCommand:
+    """عنصر في أمر إرجاع مبيعات"""
+    product_code: str
+    product_name: str
+    quantity: Decimal
+    unit_price_amount: Decimal
+    currency: str = "SAR"
+    reason: str = ""  # سبب الإرجاع
+    condition: str = "good"  # good, damaged, expired
+    discount_percent: Decimal = Decimal('0')
+    tax_rate: Decimal = Decimal('0')
+
+
+@dataclass
+class CreateSalesReturnCommand:
+    """إنشاء إرجاع مبيعات جديد"""
+    customer_id: str
+    customer_name: str
+    customer_branch_id: Optional[str] = None
+    customer_branch_name: Optional[str] = None
+    
+    original_invoice_id: Optional[str] = None
+    original_invoice_number: Optional[str] = None
+    original_delivery_id: Optional[str] = None
+    
+    currency: str = "SAR"
+    warehouse_id: str = "MAIN"
+    
+    items: List[ReturnItemCommand] = field(default_factory=list)
+    
+    document_discount_percent: Decimal = Decimal('0')
+    document_discount_amount: Decimal = Decimal('0')
+    document_tax_rate: Decimal = Decimal('0')
+    
+    notes: str = ""
+    internal_notes: str = ""
+    
+    payment_terms_days: int = 0
+    
+    sequence: Optional[int] = None
+
+
+@dataclass
+class SubmitSalesReturnCommand:
+    """تقديم إرجاع المبيعات للموافقة"""
+    return_id: str
+    submitted_by: str
+
+
+@dataclass
+class ApproveSalesReturnCommand:
+    """الموافقة على إرجاع المبيعات"""
+    return_id: str
+    approved_by: str
+
+
+@dataclass
+class RejectSalesReturnCommand:
+    """رفض إرجاع المبيعات"""
+    return_id: str
+    rejected_by: str
+    reason: str
+
+
+@dataclass
+class ReceiveSalesReturnCommand:
+    """استلام إرجاع المبيعات"""
+    return_id: str
+    received_by: str
+    actual_receive_date: Optional[datetime] = None
+
+
+@dataclass
+class InspectSalesReturnCommand:
+    """فحص إرجاع المبيعات"""
+    return_id: str
+    inspected_by: str
+
+
+@dataclass
+class CompleteSalesReturnCommand:
+    """إكمال إرجاع المبيعات وإنشاء Credit Note"""
+    return_id: str
+    completed_by: str
+    create_credit_note: bool = True
+
+
+@dataclass
+class CancelSalesReturnCommand:
+    """إلغاء إرجاع المبيعات"""
+    return_id: str
+    cancelled_by: str
+    reason: str = ""
