@@ -230,3 +230,41 @@ class IReturnRepository(ABC):
     async def get_next_sequence(self) -> int:
         """الحصول على الرقم التسلسلي التالي"""
         pass
+
+
+class ReturnFilter:
+    """كائن فلتر لإرجاعات المبيعات"""
+    
+    def __init__(
+        self,
+        status: Optional[ReturnStatus] = None,
+        customer_id: Optional[str] = None,
+        original_invoice_id: Optional[str] = None,
+        date_from: Optional[datetime] = None,
+        date_to: Optional[datetime] = None
+    ):
+        self.status = status
+        self.customer_id = customer_id
+        self.original_invoice_id = original_invoice_id
+        self.date_from = date_from
+        self.date_to = date_to
+
+
+class ReturnStatistics:
+    """كائن إحصائيات إرجاعات المبيعات"""
+    
+    def __init__(
+        self,
+        total_returns: int,
+        total_amount: float,
+        completed_returns: int,
+        cancelled_returns: int,
+        pending_returns: int,
+        average_processing_days: float
+    ):
+        self.total_returns = total_returns
+        self.total_amount = total_amount
+        self.completed_returns = completed_returns
+        self.cancelled_returns = cancelled_returns
+        self.pending_returns = pending_returns
+        self.average_processing_days = average_processing_days

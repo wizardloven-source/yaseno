@@ -23,7 +23,7 @@ from core.domain.sales.exceptions import ReturnNotFoundException, InvalidReturnS
 from core.domain.invoicing.entities import CreditNote, CreditNoteLine
 from core.domain.invoicing.value_objects import CreditNoteId as DomainCreditNoteId, CreditNoteStatus as DomainCreditNoteStatus
 from core.domain.invoicing.exceptions import CreditNoteNotFoundException
-from core.domain.sales.interfaces import IReturnRepository, IReturnStatistics, ReturnFilter
+from core.domain.sales.interfaces import IReturnRepository, ReturnStatistics, ReturnFilter
 from core.domain.shared.value_objects import Money
 from core.shared.exceptions import ConcurrentModificationError, NotFoundError, ValidationError
 
@@ -478,7 +478,7 @@ class PostgresReturnRepository(IReturnRepository):
     # الإحصائيات
     # =========================================================================
     
-    def get_statistics(self, filter: ReturnFilter) -> IReturnStatistics:
+    def get_statistics(self, filter: ReturnFilter) -> ReturnStatistics:
         """الحصول على إحصائيات عمليات الإرجاع"""
         query = select(
             func.count(SalesReturnModel.id).label("total_count"),
