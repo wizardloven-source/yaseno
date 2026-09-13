@@ -353,6 +353,8 @@ class PostingEngine:
                 
                 return result
                 
+            except (UnbalancedEntryError, AlreadyPostedError, ClosedPeriodError) as e:
+                raise  # ✅ إعادة رفع الاستثناءات المحاسبية دون التقاطها
             except Exception as e:
                 logger.error(f"Posting failed: {e}", exc_info=True)
                 return PostingResult(
@@ -368,6 +370,9 @@ class PostingEngine:
         try:
             with self._uow:
                 return self._post_internal(entry, posted_by, skip_save, commit=commit, force=force)
+        except (UnbalancedEntryError, AlreadyPostedError, ClosedPeriodError) as e:
+            self._uow.rollback()
+            raise  # ✅ إعادة رفع الاستثناءات المحاسبية
         except Exception as e:
             self._uow.rollback()
             logger.error(f"Posting with UoW failed: {e}", exc_info=True)
@@ -383,6 +388,8 @@ class PostingEngine:
         """الترحيل بدون Unit of Work"""
         try:
             return self._post_internal(entry, posted_by, skip_save, commit=commit, force=force)
+        except (UnbalancedEntryError, AlreadyPostedError, ClosedPeriodError) as e:
+            raise  # ✅ إعادة رفع الاستثناءات المحاسبية
         except Exception as e:
             logger.error(f"Posting without UoW failed: {e}", exc_info=True)
             return PostingResult(
@@ -411,23 +418,22 @@ class PostingEngine:
         
         # 2. التحقق من الترحيل المسبق
         if entry.is_posted:
-            return PostingResult(
-                success=False,
-                entry_id=str(entry.id),
-                message="Entry already posted",
-                errors=[f"Entry {entry.id} is already posted"]
-            )
+            raise AlreadyPostedError(str(entry.id))
         
         # 3. ✅ التحقق من الصحة (force يتحقق من الفترة فقط)
         check_period = not force  # ✅ force = تخطي التحقق من الفترة فقط
         is_valid, errors = self.validate(entry, check_period=check_period)
         if not is_valid:
-            return PostingResult(
-                success=False,
-                entry_id=str(entry.id),
-                message="Validation failed",
-                errors=errors
-            )
+            # ✅ رفع الاستثناء المناسب بناءً على نوع الخطأ
+            for error in errors:
+                if "closed" in error.lower() and "period" in error.lower():
+                    raise ClosedPeriodError(period_name="unknown", entry_date=entry.date.date())
+                if "unbalanced" in error.lower():
+                    debit_total = sum(line.debit.amount for line in entry.lines if line.is_debit)
+                    credit_total = sum(line.credit.amount for line in entry.lines if not line.is_debit)
+                    raise UnbalancedEntryError(debit_total, credit_total, str(entry.id))
+            # إذا لم نتمكن من تحديد نوع الخطأ، نرفع خطأ عام
+            raise ValidationError(f"Validation failed: {'; '.join(errors)}")
         
         if force:
             logger.warning(f"⚠️ Force posting entry {entry.id} - skipping period validation only")
