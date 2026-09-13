@@ -14,7 +14,11 @@ from typing import Optional, List, Dict, Any
 import uuid
 
 from ..shared.value_objects import Money, AccountCode
-from .value_objects import PurchaseOrderId, PurchaseOrderNumber, PurchaseOrderStatus, PaymentTerms
+from .value_objects import (
+    PurchaseOrderId, PurchaseOrderNumber, PurchaseOrderStatus, PaymentTerms,
+    PurchaseReturnId, PurchaseReturnNumber, PurchaseReturnStatus,
+    DebitNoteId, DebitNoteNumber, DebitNoteStatus
+)
 
 
 def utc_now() -> datetime:
@@ -510,5 +514,447 @@ class PurchaseOrder:
             'posted_by': self.posted_by,
             'received_at': self.received_at.isoformat() if self.received_at else None,
             'received_by': self.received_by,
+            'version': self.version
+        }
+
+
+# ========== ✅ Purchase Return Entities ==========
+
+@dataclass
+class PurchaseReturnItem:
+    """
+    سطر في إرجاع المشتريات
+    
+    Args:
+        product_code: رمز المنتج
+        product_name: اسم المنتج
+        quantity: الكمية المُرجعة
+        unit_price: سعر الوحدة
+        reason: سبب الإرجاع (تالف، خطأ في الطلب، منتهي الصلاحية، إلخ)
+        condition: حالة المنتج (good/damaged/expired)
+        batch_number: رقم الدفعة (إذا وجد)
+        serial_numbers: الأرقام التسلسلية (إذا وجد)
+        discount_percent: نسبة الخصم
+        discount_amount: قيمة الخصم
+        tax_rate: نسبة الضريبة
+        tax_amount: قيمة الضريبة
+    """
+    
+    product_code: str
+    product_name: str
+    quantity: Decimal
+    unit_price: Money
+    reason: str = ""
+    condition: str = "good"  # good, damaged, expired
+    batch_number: Optional[str] = None
+    serial_numbers: List[str] = field(default_factory=list)
+    discount_percent: Decimal = Decimal('0')
+    discount_amount: Money = field(default_factory=lambda: Money(Decimal('0'), "USD"))
+    tax_rate: Decimal = Decimal('0')
+    tax_amount: Money = field(default_factory=lambda: Money(Decimal('0'), "USD"))
+    line_id: str = field(default_factory=lambda: str(uuid.uuid4())[:8])
+    
+    @property
+    def subtotal(self) -> Money:
+        """المجموع الفرعي قبل الخصم والضريبة"""
+        return Money(self.quantity * self.unit_price.amount, self.unit_price.currency)
+    
+    @property
+    def total_discount(self) -> Money:
+        """إجمالي الخصم"""
+        if self.discount_percent > 0:
+            return Money(self.subtotal.amount * (self.discount_percent / Decimal('100')), self.unit_price.currency)
+        return self.discount_amount
+    
+    @property
+    def total_after_discount(self) -> Money:
+        """الإجمالي بعد الخصم"""
+        return Money(self.subtotal.amount - self.total_discount.amount, self.unit_price.currency)
+    
+    @property
+    def total_with_tax(self) -> Money:
+        """الإجمالي مع الضريبة"""
+        return Money(
+            self.total_after_discount.amount + self.tax_amount.amount,
+            self.unit_price.currency
+        )
+    
+    def to_dict(self) -> dict:
+        """تحويل السطر إلى قاموس"""
+        return {
+            'line_id': self.line_id,
+            'product_code': self.product_code,
+            'product_name': self.product_name,
+            'quantity': float(self.quantity),
+            'unit_price': float(self.unit_price.amount),
+            'reason': self.reason,
+            'condition': self.condition,
+            'batch_number': self.batch_number,
+            'serial_numbers': self.serial_numbers,
+            'discount_percent': float(self.discount_percent),
+            'discount_amount': float(self.discount_amount.amount),
+            'tax_rate': float(self.tax_rate),
+            'tax_amount': float(self.tax_amount.amount),
+            'subtotal': float(self.subtotal.amount),
+            'total_discount': float(self.total_discount.amount),
+            'total_after_discount': float(self.total_after_discount.amount),
+            'total_with_tax': float(self.total_with_tax.amount),
+            'currency': self.unit_price.currency
+        }
+
+
+@dataclass
+class PurchaseReturn:
+    """
+    AGGREGATE ROOT - إرجاع مشتريات
+    
+    دورة الحياة:
+    DRAFT → SUBMITTED → APPROVED → SHIPPED → RECEIVED_BY_SUPPLIER → COMPLETED
+                                    ↓
+                                REJECTED/CANCELLED
+    
+    Args:
+        id: المعرف الفريد
+        number: رقم الإرجاع
+        date: تاريخ الإرجاع
+        purchase_order_id: معرف أمر الشراء الأصلي
+        purchase_order_number: رقم أمر الشراء الأصلي
+        supplier_id: معرف المورد
+        supplier_name: اسم المورد
+        currency: العملة
+        lines: أسطر الإرجاع
+        status: حالة الإرجاع
+        debit_note_id: معرف مذكرة المدين المرتبطة
+        notes: ملاحظات
+        created_at: تاريخ الإنشاء
+        created_by: أنشأ بواسطة
+        submitted_at: تاريخ التقديم
+        submitted_by: قُدم بواسطة
+        approved_at: تاريخ الموافقة
+        approved_by: ووفِق بواسطة
+        shipped_at: تاريخ الشحن
+        shipped_by: شُحن بواسطة
+        received_at: تاريخ الاستلام من المورد
+        completed_at: تاريخ الإكمال
+        rejected_at: تاريخ الرفض
+        cancelled_at: تاريخ الإلغاء
+        reason: سبب الإرجاع العام
+        warehouse_id: معرف المستودع
+        shipping_method: طريقة الشحن
+        tracking_number: رقم التتبع
+    """
+    
+    id: PurchaseReturnId = field(default_factory=PurchaseReturnId.generate)
+    number: Optional[PurchaseReturnNumber] = None
+    date: datetime = field(default_factory=utc_now)
+    
+    purchase_order_id: Optional[str] = None
+    purchase_order_number: Optional[str] = None
+    supplier_id: str = ""
+    supplier_name: str = ""
+    site_id: Optional[str] = None
+    site_name: Optional[str] = None
+    
+    currency: str = "USD"
+    lines: List[PurchaseReturnItem] = field(default_factory=list)
+    
+    status: PurchaseReturnStatus = PurchaseReturnStatus.DRAFT
+    debit_note_id: Optional[str] = None
+    
+    notes: str = ""
+    reason: str = ""
+    warehouse_id: Optional[str] = None
+    shipping_method: Optional[str] = None
+    tracking_number: Optional[str] = None
+    
+    created_at: datetime = field(default_factory=utc_now)
+    created_by: str = ""
+    submitted_at: Optional[datetime] = None
+    submitted_by: Optional[str] = None
+    approved_at: Optional[datetime] = None
+    approved_by: Optional[str] = None
+    shipped_at: Optional[datetime] = None
+    shipped_by: Optional[str] = None
+    received_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    rejected_at: Optional[datetime] = None
+    cancelled_at: Optional[datetime] = None
+    
+    _events: List[Any] = field(default_factory=list, repr=False)
+    version: int = 1
+    
+    @property
+    def subtotal(self) -> Money:
+        """المجموع الفرعي للإرجاع"""
+        total = sum(line.subtotal.amount for line in self.lines)
+        return Money(total, self.currency)
+    
+    @property
+    def total_discount(self) -> Money:
+        """إجمالي الخصم"""
+        total = sum(line.total_discount.amount for line in self.lines)
+        return Money(total, self.currency)
+    
+    @property
+    def total_after_discount(self) -> Money:
+        """الإجمالي بعد الخصم"""
+        total = sum(line.total_after_discount.amount for line in self.lines)
+        return Money(total, self.currency)
+    
+    @property
+    def total_tax(self) -> Money:
+        """إجمالي الضريبة"""
+        total = sum(line.tax_amount.amount for line in self.lines)
+        return Money(total, self.currency)
+    
+    @property
+    def total_amount(self) -> Money:
+        """إجمالي مبلغ الإرجاع"""
+        total = sum(line.total_with_tax.amount for line in self.lines)
+        return Money(total, self.currency)
+    
+    @property
+    def is_completed(self) -> bool:
+        """هل اكتمل الإرجاع؟"""
+        return self.status == PurchaseReturnStatus.COMPLETED
+    
+    @property
+    def is_cancelled(self) -> bool:
+        """هل أُلغي الإرجاع؟"""
+        return self.status == PurchaseReturnStatus.CANCELLED
+    
+    @property
+    def is_rejected(self) -> bool:
+        """هل رُفض الإرجاع؟"""
+        return self.status == PurchaseReturnStatus.REJECTED
+    
+    @property
+    def can_submit(self) -> bool:
+        """هل يمكن تقديم الإرجاع؟"""
+        return self.status == PurchaseReturnStatus.DRAFT and len(self.lines) > 0
+    
+    @property
+    def can_approve(self) -> bool:
+        """هل يمكن الموافقة على الإرجاع؟"""
+        return self.status == PurchaseReturnStatus.SUBMITTED
+    
+    @property
+    def can_ship(self) -> bool:
+        """هل يمكن شحن الإرجاع؟"""
+        return self.status == PurchaseReturnStatus.APPROVED
+    
+    @property
+    def can_complete(self) -> bool:
+        """هل يمكن إكمال الإرجاع؟"""
+        return self.status == PurchaseReturnStatus.RECEIVED_BY_SUPPLIER
+    
+    def add_line(self, line: PurchaseReturnItem) -> None:
+        """إضافة سطر إرجاع"""
+        if self.status != PurchaseReturnStatus.DRAFT:
+            raise CannotModifyCompletedReturnError(str(self.id))
+        
+        if line.quantity <= 0:
+            raise ValueError("Return quantity must be greater than zero")
+        
+        self.lines.append(line)
+    
+    def remove_line(self, line_id: str) -> bool:
+        """حذف سطر إرجاع"""
+        if self.status != PurchaseReturnStatus.DRAFT:
+            raise CannotModifyCompletedReturnError(str(self.id))
+        
+        for i, line in enumerate(self.lines):
+            if line.line_id == line_id:
+                self.lines.pop(i)
+                return True
+        return False
+    
+    def submit(self, submitted_by: str) -> None:
+        """تقديم الإرجاع للموافقة"""
+        if not self.can_submit:
+            raise InvalidPurchaseReturnStatusError(
+                str(self.id), 
+                self.status.value, 
+                "submit"
+            )
+        
+        self.status = PurchaseReturnStatus.SUBMITTED
+        self.submitted_at = utc_now()
+        self.submitted_by = submitted_by
+        
+        from .events import PurchaseReturnSubmittedEvent
+        self._events.append(PurchaseReturnSubmittedEvent(
+            return_id=self.id,
+            return_number=str(self.number) if self.number else None,
+            submitted_by=submitted_by
+        ))
+    
+    def approve(self, approved_by: str) -> None:
+        """الموافقة على الإرجاع"""
+        if not self.can_approve:
+            raise InvalidPurchaseReturnStatusError(
+                str(self.id),
+                self.status.value,
+                "approve"
+            )
+        
+        self.status = PurchaseReturnStatus.APPROVED
+        self.approved_at = utc_now()
+        self.approved_by = approved_by
+        
+        from .events import PurchaseReturnApprovedEvent
+        self._events.append(PurchaseReturnApprovedEvent(
+            return_id=self.id,
+            return_number=str(self.number) if self.number else None,
+            approved_by=approved_by
+        ))
+    
+    def ship(self, shipped_by: str, tracking_number: Optional[str] = None) -> None:
+        """شحن الإرجاع للمورد"""
+        if not self.can_ship:
+            raise InvalidPurchaseReturnStatusError(
+                str(self.id),
+                self.status.value,
+                "ship"
+            )
+        
+        self.status = PurchaseReturnStatus.SHIPPED
+        self.shipped_at = utc_now()
+        self.shipped_by = shipped_by
+        if tracking_number:
+            self.tracking_number = tracking_number
+        
+        from .events import PurchaseReturnShippedEvent
+        self._events.append(PurchaseReturnShippedEvent(
+            return_id=self.id,
+            return_number=str(self.number) if self.number else None,
+            shipped_by=shipped_by,
+            tracking_number=tracking_number
+        ))
+    
+    def receive_by_supplier(self, received_at: Optional[datetime] = None) -> None:
+        """تأكيد استلام المورد للإرجاع"""
+        if self.status not in [PurchaseReturnStatus.SHIPPED, PurchaseReturnStatus.APPROVED]:
+            raise InvalidPurchaseReturnStatusError(
+                str(self.id),
+                self.status.value,
+                "receive_by_supplier"
+            )
+        
+        self.status = PurchaseReturnStatus.RECEIVED_BY_SUPPLIER
+        self.received_at = received_at or utc_now()
+        
+        from .events import PurchaseReturnReceivedBySupplierEvent
+        self._events.append(PurchaseReturnReceivedBySupplierEvent(
+            return_id=self.id,
+            return_number=str(self.number) if self.number else None,
+            received_at=self.received_at
+        ))
+    
+    def complete(self, debit_note_id: str) -> None:
+        """
+        إكمال الإرجاع وإنشاء مذكرة مدين
+        
+        Args:
+            debit_note_id: معرف مذكرة المدين المنشأة
+        """
+        if not self.can_complete:
+            raise InvalidPurchaseReturnStatusError(
+                str(self.id),
+                self.status.value,
+                "complete"
+            )
+        
+        self.status = PurchaseReturnStatus.COMPLETED
+        self.completed_at = utc_now()
+        self.debit_note_id = debit_note_id
+        
+        from .events import PurchaseReturnCompletedEvent
+        self._events.append(PurchaseReturnCompletedEvent(
+            return_id=self.id,
+            return_number=str(self.number) if self.number else None,
+            debit_note_id=debit_note_id,
+            total_amount=self.total_amount
+        ))
+    
+    def reject(self, reason: str, rejected_by: str) -> None:
+        """رفض الإرجاع"""
+        if self.status not in [PurchaseReturnStatus.SUBMITTED, PurchaseReturnStatus.APPROVED]:
+            raise InvalidPurchaseReturnStatusError(
+                str(self.id),
+                self.status.value,
+                "reject"
+            )
+        
+        self.status = PurchaseReturnStatus.REJECTED
+        self.rejected_at = utc_now()
+        self.reason = reason
+        
+        from .events import PurchaseReturnRejectedEvent
+        self._events.append(PurchaseReturnRejectedEvent(
+            return_id=self.id,
+            return_number=str(self.number) if self.number else None,
+            reason=reason,
+            rejected_by=rejected_by
+        ))
+    
+    def cancel(self, reason: str) -> None:
+        """إلغاء الإرجاع"""
+        if self.status in [PurchaseReturnStatus.COMPLETED, PurchaseReturnStatus.REJECTED]:
+            raise InvalidPurchaseReturnStatusError(
+                str(self.id),
+                self.status.value,
+                "cancel"
+            )
+        
+        self.status = PurchaseReturnStatus.CANCELLED
+        self.cancelled_at = utc_now()
+        self.reason = reason
+        
+        from .events import PurchaseReturnCancelledEvent
+        self._events.append(PurchaseReturnCancelledEvent(
+            return_id=self.id,
+            return_number=str(self.number) if self.number else None,
+            reason=reason
+        ))
+    
+    def to_dict(self) -> dict:
+        """تحويل الإرجاع إلى قاموس"""
+        return {
+            'id': str(self.id),
+            'number': str(self.number) if self.number else None,
+            'date': self.date.isoformat() if self.date else None,
+            'purchase_order_id': self.purchase_order_id,
+            'purchase_order_number': self.purchase_order_number,
+            'supplier_id': self.supplier_id,
+            'supplier_name': self.supplier_name,
+            'site_id': self.site_id,
+            'site_name': self.site_name,
+            'currency': self.currency,
+            'status': self.status.value,
+            'debit_note_id': self.debit_note_id,
+            'subtotal': float(self.subtotal.amount),
+            'total_discount': float(self.total_discount.amount),
+            'total_after_discount': float(self.total_after_discount.amount),
+            'total_tax': float(self.total_tax.amount),
+            'total_amount': float(self.total_amount.amount),
+            'notes': self.notes,
+            'reason': self.reason,
+            'warehouse_id': self.warehouse_id,
+            'shipping_method': self.shipping_method,
+            'tracking_number': self.tracking_number,
+            'lines': [line.to_dict() for line in self.lines],
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'created_by': self.created_by,
+            'submitted_at': self.submitted_at.isoformat() if self.submitted_at else None,
+            'submitted_by': self.submitted_by,
+            'approved_at': self.approved_at.isoformat() if self.approved_at else None,
+            'approved_by': self.approved_by,
+            'shipped_at': self.shipped_at.isoformat() if self.shipped_at else None,
+            'shipped_by': self.shipped_by,
+            'received_at': self.received_at.isoformat() if self.received_at else None,
+            'completed_at': self.completed_at.isoformat() if self.completed_at else None,
+            'rejected_at': self.rejected_at.isoformat() if self.rejected_at else None,
+            'cancelled_at': self.cancelled_at.isoformat() if self.cancelled_at else None,
             'version': self.version
         }
