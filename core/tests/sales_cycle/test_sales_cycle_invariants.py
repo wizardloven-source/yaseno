@@ -24,7 +24,7 @@ from core.domain.sales_cycle.entities import (
     SalesOrder, OrderItem, OrderStatus,
     DeliveryNote, DeliveryItem, DeliveryStatus,
 )
-from core.domain.sales.value_objects import Money
+from core.domain.sales_cycle.value_objects import Money
 
 
 class TestSalesQuotationInvariants:
@@ -150,7 +150,7 @@ class TestSalesQuotationInvariants:
         assert item1.total == 1035.0
         
         assert quotation.total_tax == 285.0  # 135 + 150
-        assert quotation.grand_total == 2285.0  # 2000 - 100 + 285
+        assert quotation.grand_total == 2185.0  # 2000 - 100 (discount) + 285 (tax)
 
     def test_quotation_items_modification_in_draft(self):
         """يمكن تعديل عناصر عرض السعر في حالة المسودة"""

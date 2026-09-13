@@ -478,10 +478,26 @@ class SalesOrder(BaseEntity):
         delivered_qty = sum(item.delivered_quantity for item in self.items)
         return (delivered_qty / total_qty * 100) if total_qty > 0 else 0.0
     
+    def add_item(self, item: OrderItem):
+        """إضافة عنصر لأمر البيع"""
+        if self.status == OrderStatus.CONFIRMED:
+            raise ValueError("الأمر يجب أن يكون في حالة مسودة")
+        self.items.append(item)
+        self.updated_at = datetime.now()
+    
+    def remove_item(self, product_id: str):
+        """إزالة عنصر من أمر البيع"""
+        if self.status == OrderStatus.CONFIRMED:
+            raise ValueError("الأمر يجب أن يكون في حالة مسودة")
+        self.items = [i for i in self.items if i.product_id != product_id]
+        self.updated_at = datetime.now()
+    
     def confirm(self):
         """تأكيد أمر البيع"""
         if self.status != OrderStatus.DRAFT:
             raise ValueError("يمكن تأكيد فقط الأوامر في حالة المسودة")
+        if not self.items:
+            raise ValueError("لا يمكن تأكيد أمر بدون عناصر")
         self.status = OrderStatus.CONFIRMED
         self.updated_at = datetime.now()
     
@@ -710,6 +726,16 @@ class DeliveryNote(BaseEntity):
             raise ValueError("يمكن الجدولة فقط للمسودات")
         self.scheduled_date = scheduled_date
         self.status = DeliveryStatus.SCHEDULED
+        self.updated_at = datetime.now()
+    
+    def add_item(self, item: DeliveryItem):
+        """إضافة عنصر لإشعار التسليم"""
+        # التحقق من عدم تجاوز الكمية المطلوبة
+        for existing_item in self.items:
+            if existing_item.product_id == item.product_id:
+                if existing_item.delivered_quantity + item.delivered_quantity > existing_item.ordered_quantity:
+                    raise ValueError("لا يمكن تسليم كمية أكبر من المطلوبة")
+        self.items.append(item)
         self.updated_at = datetime.now()
     
     def start_delivery(self):

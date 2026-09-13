@@ -67,7 +67,7 @@ class QuotationAcceptedEvent(DomainEvent):
 class QuotationRejectedEvent(DomainEvent):
     quotation_number: str = ""
     customer_id: str = ""
-    rejected_date: datetime
+    rejected_date: Optional[datetime] = None
     reason: Optional[str] = None
     
     def __post_init__(self):
@@ -79,7 +79,7 @@ class QuotationRejectedEvent(DomainEvent):
 class QuotationConvertedEvent(DomainEvent):
     quotation_number: str = ""
     order_number: str = ""
-    converted_date: datetime
+    converted_date: Optional[datetime] = None
     converted_by: Optional[str] = None
     
     def __post_init__(self):
@@ -106,7 +106,7 @@ class OrderCreatedEvent(DomainEvent):
 class OrderConfirmedEvent(DomainEvent):
     order_number: str = ""
     customer_id: str = ""
-    confirmed_date: datetime
+    confirmed_date: Optional[datetime] = None
     confirmed_by: Optional[str] = None
     
     def __post_init__(self):
@@ -118,8 +118,8 @@ class OrderConfirmedEvent(DomainEvent):
 class OrderShippedEvent(DomainEvent):
     order_number: str = ""
     tracking_number: str = ""
-    carrier: Optional[str]
-    shipped_date: datetime
+    carrier: Optional[str] = None
+    shipped_date: Optional[datetime] = None
     
     def __post_init__(self):
         self.aggregate_type = "SalesOrder"
@@ -130,7 +130,7 @@ class OrderShippedEvent(DomainEvent):
 class OrderDeliveredEvent(DomainEvent):
     order_number: str = ""
     customer_id: str = ""
-    delivered_date: datetime
+    delivered_date: Optional[datetime] = None
     received_by: Optional[str] = None
     
     def __post_init__(self):
@@ -142,7 +142,7 @@ class OrderDeliveredEvent(DomainEvent):
 class OrderCancelledEvent(DomainEvent):
     order_number: str = ""
     customer_id: str = ""
-    cancelled_date: datetime
+    cancelled_date: Optional[datetime] = None
     reason: Optional[str] = None
     
     def __post_init__(self):
@@ -156,7 +156,7 @@ class DeliveryNoteCreatedEvent(DomainEvent):
     delivery_number: str = ""
     order_number: str = ""
     customer_id: str = ""
-    total_items: int
+    total_items: int = 0
     created_by: Optional[str] = None
     
     def __post_init__(self):
@@ -169,7 +169,7 @@ class DeliveryCompletedEvent(DomainEvent):
     delivery_number: str = ""
     order_number: str = ""
     customer_id: str = ""
-    completed_date: datetime
+    completed_date: Optional[datetime] = None
     received_by: Optional[str] = None
     
     def __post_init__(self):
@@ -181,7 +181,7 @@ class DeliveryCompletedEvent(DomainEvent):
 class DeliveryFailedEvent(DomainEvent):
     delivery_number: str = ""
     order_number: str = ""
-    failed_date: datetime
+    failed_date: Optional[datetime] = None
     reason: str = ""
     
     def __post_init__(self):
