@@ -28,10 +28,10 @@ class DomainEvent:
 # Quotation Events
 @dataclass
 class QuotationCreatedEvent(DomainEvent):
-    quotation_number: str
-    customer_id: str
-    grand_total: float
-    currency: str
+    quotation_number: str = ""
+    customer_id: str = ""
+    grand_total: float = 0.0
+    currency: str = "USD"
     created_by: Optional[str] = None
     
     def __post_init__(self):
@@ -41,9 +41,9 @@ class QuotationCreatedEvent(DomainEvent):
 
 @dataclass
 class QuotationSentEvent(DomainEvent):
-    quotation_number: str
-    customer_id: str
-    sent_date: datetime
+    quotation_number: str = ""
+    customer_id: str = ""
+    sent_date: Optional[datetime] = None
     sent_by: Optional[str] = None
     
     def __post_init__(self):
@@ -53,10 +53,10 @@ class QuotationSentEvent(DomainEvent):
 
 @dataclass
 class QuotationAcceptedEvent(DomainEvent):
-    quotation_number: str
-    customer_id: str
-    accepted_date: datetime
-    grand_total: float
+    quotation_number: str = ""
+    customer_id: str = ""
+    accepted_date: Optional[datetime] = None
+    grand_total: float = 0.0
     
     def __post_init__(self):
         self.aggregate_type = "SalesQuotation"
@@ -65,8 +65,8 @@ class QuotationAcceptedEvent(DomainEvent):
 
 @dataclass
 class QuotationRejectedEvent(DomainEvent):
-    quotation_number: str
-    customer_id: str
+    quotation_number: str = ""
+    customer_id: str = ""
     rejected_date: datetime
     reason: Optional[str] = None
     
@@ -77,8 +77,8 @@ class QuotationRejectedEvent(DomainEvent):
 
 @dataclass
 class QuotationConvertedEvent(DomainEvent):
-    quotation_number: str
-    order_number: str
+    quotation_number: str = ""
+    order_number: str = ""
     converted_date: datetime
     converted_by: Optional[str] = None
     
@@ -90,9 +90,9 @@ class QuotationConvertedEvent(DomainEvent):
 # Order Events
 @dataclass
 class OrderCreatedEvent(DomainEvent):
-    order_number: str
-    customer_id: str
-    grand_total: float
+    order_number: str = ""
+    customer_id: str = ""
+    grand_total: float = 0.0
     source_type: Optional[str] = None
     source_id: Optional[str] = None
     created_by: Optional[str] = None
@@ -104,8 +104,8 @@ class OrderCreatedEvent(DomainEvent):
 
 @dataclass
 class OrderConfirmedEvent(DomainEvent):
-    order_number: str
-    customer_id: str
+    order_number: str = ""
+    customer_id: str = ""
     confirmed_date: datetime
     confirmed_by: Optional[str] = None
     
@@ -116,8 +116,8 @@ class OrderConfirmedEvent(DomainEvent):
 
 @dataclass
 class OrderShippedEvent(DomainEvent):
-    order_number: str
-    tracking_number: str
+    order_number: str = ""
+    tracking_number: str = ""
     carrier: Optional[str]
     shipped_date: datetime
     
@@ -128,8 +128,8 @@ class OrderShippedEvent(DomainEvent):
 
 @dataclass
 class OrderDeliveredEvent(DomainEvent):
-    order_number: str
-    customer_id: str
+    order_number: str = ""
+    customer_id: str = ""
     delivered_date: datetime
     received_by: Optional[str] = None
     
@@ -140,8 +140,8 @@ class OrderDeliveredEvent(DomainEvent):
 
 @dataclass
 class OrderCancelledEvent(DomainEvent):
-    order_number: str
-    customer_id: str
+    order_number: str = ""
+    customer_id: str = ""
     cancelled_date: datetime
     reason: Optional[str] = None
     
@@ -153,9 +153,9 @@ class OrderCancelledEvent(DomainEvent):
 # Delivery Note Events
 @dataclass
 class DeliveryNoteCreatedEvent(DomainEvent):
-    delivery_number: str
-    order_number: str
-    customer_id: str
+    delivery_number: str = ""
+    order_number: str = ""
+    customer_id: str = ""
     total_items: int
     created_by: Optional[str] = None
     
@@ -166,9 +166,9 @@ class DeliveryNoteCreatedEvent(DomainEvent):
 
 @dataclass
 class DeliveryCompletedEvent(DomainEvent):
-    delivery_number: str
-    order_number: str
-    customer_id: str
+    delivery_number: str = ""
+    order_number: str = ""
+    customer_id: str = ""
     completed_date: datetime
     received_by: Optional[str] = None
     
@@ -179,10 +179,10 @@ class DeliveryCompletedEvent(DomainEvent):
 
 @dataclass
 class DeliveryFailedEvent(DomainEvent):
-    delivery_number: str
-    order_number: str
+    delivery_number: str = ""
+    order_number: str = ""
     failed_date: datetime
-    reason: str
+    reason: str = ""
     
     def __post_init__(self):
         self.aggregate_type = "DeliveryNote"
