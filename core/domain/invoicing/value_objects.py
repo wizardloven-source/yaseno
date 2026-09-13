@@ -59,3 +59,103 @@ class InvoiceId:
     
     def __str__(self) -> str:
         return str(self.value)
+
+
+# ============================================================================
+# ✅ Credit Note Value Objects (لإرجاع المبيعات)
+# ============================================================================
+
+class CreditNoteStatus(Enum):
+    """حالات مذكرة الدائنة"""
+    DRAFT = "draft"           # مسودة
+    ISSUED = "issued"         # صادرة
+    POSTED = "posted"         # مرحلة
+    APPLIED = "applied"       # مطبقة على دفعة
+    CANCELLED = "cancelled"   # ملغاة
+
+
+@dataclass(frozen=True)
+class CreditNoteNumber:
+    """رقم مذكرة الدائنة - Value Object"""
+    value: str
+    
+    def __post_init__(self):
+        if not self.value or len(self.value.strip()) == 0:
+            raise ValueError("Credit note number cannot be empty")
+    
+    def __str__(self) -> str:
+        return self.value
+
+
+@dataclass(frozen=True)
+class CreditNoteId:
+    """معرف مذكرة الدائنة الفريد"""
+    value: UUID
+    
+    def __post_init__(self):
+        if not isinstance(self.value, UUID):
+            if isinstance(self.value, str):
+                object.__setattr__(self, 'value', UUID(self.value))
+            else:
+                raise ValueError("CreditNoteId must be UUID or UUID string")
+    
+    @classmethod
+    def generate(cls) -> "CreditNoteId":
+        return cls(uuid4())
+    
+    @classmethod
+    def from_string(cls, value: str) -> "CreditNoteId":
+        return cls(UUID(value))
+    
+    def __str__(self) -> str:
+        return str(self.value)
+
+
+# ============================================================================
+# ✅ Debit Note Value Objects (لإرجاع المشتريات)
+# ============================================================================
+
+class DebitNoteStatus(Enum):
+    """حالات مذكرة المدينة"""
+    DRAFT = "draft"           # مسودة
+    ISSUED = "issued"         # صادرة
+    POSTED = "posted"         # مرحلة
+    APPLIED = "applied"       # مطبقة على دفعة
+    CANCELLED = "cancelled"   # ملغاة
+
+
+@dataclass(frozen=True)
+class DebitNoteNumber:
+    """رقم مذكرة المدينة - Value Object"""
+    value: str
+    
+    def __post_init__(self):
+        if not self.value or len(self.value.strip()) == 0:
+            raise ValueError("Debit note number cannot be empty")
+    
+    def __str__(self) -> str:
+        return self.value
+
+
+@dataclass(frozen=True)
+class DebitNoteId:
+    """معرف مذكرة المدينة الفريد"""
+    value: UUID
+    
+    def __post_init__(self):
+        if not isinstance(self.value, UUID):
+            if isinstance(self.value, str):
+                object.__setattr__(self, 'value', UUID(self.value))
+            else:
+                raise ValueError("DebitNoteId must be UUID or UUID string")
+    
+    @classmethod
+    def generate(cls) -> "DebitNoteId":
+        return cls(uuid4())
+    
+    @classmethod
+    def from_string(cls, value: str) -> "DebitNoteId":
+        return cls(UUID(value))
+    
+    def __str__(self) -> str:
+        return str(self.value)

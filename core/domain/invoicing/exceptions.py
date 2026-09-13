@@ -357,4 +357,28 @@ __all__ = [
     "InvoiceWorkflowError",
     "InvoiceApprovalRequiredError",
     "InvoiceApprovalRejectedError",
+    
+    # ========================================================================
+    # ✅ Credit Note Exceptions (لإرجاع المبيعات)
+    # ========================================================================
+    "CreditNoteNotFoundException",
+    "CreditNoteAlreadyExistsError",
+    "CannotModifyPostedCreditNoteError",
+    "CreditNoteAlreadyPostedError",
+    "CannotCancelPostedCreditNoteError",
+    "CreditNoteAlreadyCancelledError",
+    "CreditNoteAmountMismatchError",
+    "CreditNoteInvalidStatusError",
+    
+    # ========================================================================
+    # ✅ Debit Note Exceptions (لإرجاع المشتريات)
+    # ========================================================================
+    "DebitNoteNotFoundException",
+    "DebitNoteAlreadyExistsError",
+    "CannotModifyPostedDebitNoteError",
+    "DebitNoteAlreadyPostedError",
+    "CannotCancelPostedDebitNoteError",
+    "DebitNoteAlreadyCancelledError",
+    "DebitNoteAmountMismatchError",
+    "DebitNoteInvalidStatusError",
 ]

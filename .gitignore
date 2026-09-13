@@ -1,42 +1,41 @@
 ```
-# Compiled Python files
+# Compiled and build artifacts
 *.pyc
 __pycache__/
+*.o
+*.obj
+*.class
+*.so
+*.dll
+*.exe
+*.out
 
-# Test files (if they are temporary/auxiliary)
-test_sales_return_final.py
-test_sales_return_simple.py
-
-# Logs
-*.log
-
-# Environment files
+# Dependencies
+.venv/
+venv/
 .env
 .env.local
 *.env.*
+
+# Logs and temp files
+*.log
+*.tmp
+*.swp
+*.swo
 
 # Coverage reports
 .coverage
 coverage/
 htmlcov/
 
-# IDE files
+# Editors
 .vscode/
 .idea/
-*.swp
-*.swo
 
-# Build artifacts
+# Distribution / packaging
 dist/
 build/
+*.tar.gz
+*.whl
 *.egg-info/
-
-# Dependencies
-.venv/
-venv/
-node_modules/
-
-# System files
-.DS_Store
-Thumbs.db
 ```
