@@ -4,40 +4,48 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
-.Python
-env/
-venv/
+*.py~
+
+# Dependencies
 .venv/
-.ENV
-.env
-.env.*
-.env.local
-.venv.bak
-pip-log.txt
-pip-delete-this-directory.txt
+venv/
+env/
+ENV/
+.ENV/
+requirements.txt.bak
+
+# Build/dist
+build/
+dist/
+*.egg
+*.egg-info/
+*.so
+*.whl
 
 # Testing
 .coverage
 coverage/
 htmlcov/
-.noserc
-.tox/
-.cover/
+.pytest_cache/
+.mypy_cache/
 
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*.tmp
+# Logs
+*.log
+
+# Environment
+.env
+.env.local
+.env.*
+!.env.example
 
 # OS
 .DS_Store
 Thumbs.db
 
-# Logs
-*.log
-
-# Environment specific
-.env.local
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*.tmp
 ```
