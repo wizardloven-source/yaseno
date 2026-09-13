@@ -246,9 +246,15 @@ class TestDoubleEntryInvariant:
             ]
         )
         
-        # Must reject
-        with pytest.raises(UnbalancedEntryError):
-            engine.post(unbalanced, posted_by="user1")
+        # Must reject - PostingEngine returns result with success=False for unbalanced entries
+        result = engine.post(unbalanced, posted_by="user1")
+        
+        # Verify posting failed
+        assert result.success is False
+        assert len(result.errors) > 0
+        # Check that error mentions balance issue
+        error_msg = " ".join(result.errors).lower()
+        assert "balance" in error_msg or "unbalanced" in error_msg or "debit" in error_msg
         
         # No ledger entries should be created
         mock_repositories['ledger'].add_entry.assert_not_called()
@@ -379,6 +385,8 @@ class TestPostedInvoiceDeletionProtection:
     
     def test_invoice_status_prevents_deletion_logic(self):
         """The is_posted flag should prevent deletion operations."""
+        from core.domain.invoicing.exceptions import CannotModifyPostedInvoiceError
+        
         invoice = Invoice(
             customer_id=str(uuid.uuid4()),
             customer_name="Test Customer",
@@ -404,14 +412,16 @@ class TestPostedInvoiceDeletionProtection:
         # After posting - deletion should be blocked
         assert invoice.is_posted is True
         
-        # The application layer should check this before attempting deletion
-        # This test verifies the domain model exposes the state correctly
-        if invoice.is_posted:
-            # Any deletion method should check this flag
-            # Example pseudo-code for what the application layer should do:
-            # if invoice.is_posted:
-            #     raise CannotDeletePostedInvoiceError(invoice.id)
-            pass  # Domain model correctly exposes the state
+        # Verify that attempting to delete raises an error
+        # The domain model should expose a method to check if deletion is allowed
+        # For now, we verify the state is correctly exposed
+        assert invoice.status.value == "POSTED"
+        
+        # In application layer, this would be:
+        # if invoice.is_posted:
+        #     raise CannotDeletePostedInvoiceError(invoice.id)
+        # Here we just verify the invariant state is correctly maintained
+        assert invoice.is_posted is True
 
 
 # ==============================================================================
@@ -507,10 +517,12 @@ class TestCustomerBalanceInvariant:
         total_returns = sum(returns)
         total_adjustments = sum(adjustments)
         
+        # Customer Balance = Invoices - Payments - Returns + Adjustments
         balance = total_invoices - total_payments - total_returns + total_adjustments
         
-        expected = Decimal("1000 + 500 - 800 - 100 + 50")
-        assert balance == Decimal("650")
+        expected = Decimal("650")
+        assert balance == expected
+        assert balance == Decimal("1000") + Decimal("500") - Decimal("800") - Decimal("100") + Decimal("50")
     
     def test_balance_never_negative_for_normal_customer(self):
         """Customer balance should typically not be negative (credit balance)."""
@@ -581,9 +593,18 @@ class TestFinancialPeriodEnforcement:
             ]
         )
         
-        # Must reject due to closed period
-        with pytest.raises(ClosedPeriodError):
-            engine.post(balanced_entry, posted_by="test_user")
+        # Must reject due to closed period - PostingEngine returns result with success=False
+        result = engine.post(balanced_entry, posted_by="test_user")
+        
+        # Verify posting failed
+        assert result.success is False
+        assert len(result.errors) > 0
+        # Check that error mentions period issue
+        error_msg = " ".join(result.errors).lower()
+        assert "closed" in error_msg or "period" in error_msg
+        
+        # No ledger entries should be created
+        mock_repositories['ledger'].add_entry.assert_not_called()
     
     def test_open_period_allows_posting(self, sample_account_codes, mock_repositories):
         """Open periods should allow posting."""
@@ -688,7 +709,7 @@ class TestMultiCurrencyHistoricalRates:
         )
         
         # Verify the entry balances in the transaction currency
-        assert entry.is_balanced()
+        assert entry.is_balanced is True
         
         # In full implementation, would also verify base currency totals match
     
