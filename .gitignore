@@ -1,12 +1,13 @@
+```python
 # Compiled and build artifacts
 *.pyc
 __pycache__/
 *.o
 *.obj
 *.so
-*.a
 *.dll
 *.exe
+*.class
 *.out
 
 # Dependencies
@@ -56,4 +57,14 @@ wheels/
 .pytest_cache/
 .mypy_cache/
 .tox/
-.nox/
+.coverage*
+
+# Build results
+target/
+.gradle/
+node_modules/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+```

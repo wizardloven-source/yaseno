@@ -5,6 +5,7 @@ Invoice Aggregate Root - The Heart of Invoicing Module
 ✅ محدث: دعم العملات المتعددة في الضرائب
 ✅ محدث: دعم تفصيل الضرائب (Tax Breakdown)
 ✅ محدث: دعم فروع العملاء (Customer Branches)
+✅ محدث: دعم مذكرات الدائنة والمدينة (Credit/Debit Notes)
 """
 
 from dataclasses import dataclass, field
@@ -746,3 +747,95 @@ class Invoice:
     def __repr__(self) -> str:
         branch_info = f", branch={self.customer_branch_name or self.customer_branch_id}" if self.customer_branch_id else ""
         return f"Invoice(id={self.id}, number={self.number}, customer={self.customer_name}{branch_info}, total={self.total}, tax={self.tax_amount}, status={self.status})"
+
+# =========================================================================
+# Credit Note & Debit Note Entities - مذكرة دائنة ومذكرة مدينة
+# =========================================================================
+
+@dataclass
+class CreditNoteLine:
+    product_code: str
+    product_name: str
+    quantity: Decimal
+    unit_price: Money
+    reason: str = ''
+    condition: str = 'good'
+    line_id: str = field(default_factory=lambda: str(uuid.uuid4())[:8])
+    tax_rate: Decimal = Decimal('0')
+    tax_amount: Money = field(default_factory=lambda: Money.zero())
+    discount_percent: Decimal = Decimal('0')
+    
+    @property
+    def subtotal(self) -> Money:
+        return Money(self.quantity * self.unit_price.amount, self.unit_price.currency)
+    
+    @property
+    def total_with_tax(self) -> Money:
+        return Money(self.subtotal.amount + self.tax_amount.amount, self.unit_price.currency)
+
+
+@dataclass
+class CreditNote:
+    id: str = field(default_factory=lambda: str(uuid.uuid4()))
+    number: Optional[str] = None
+    date: datetime = field(default_factory=utc_now)
+    original_invoice_id: Optional[str] = None
+    sales_return_id: Optional[str] = None
+    customer_id: str = ''
+    customer_name: str = ''
+    currency: str = 'USD'
+    lines: List[CreditNoteLine] = field(default_factory=list)
+    status: str = 'DRAFT'
+    journal_entry_id: Optional[str] = None
+    version: int = 1
+    
+    @property
+    def is_posted(self) -> bool:
+        return self.status == 'POSTED'
+    
+    def issue(self, issued_by: str) -> None:
+        if self.status != 'DRAFT':
+            raise ValueError('Can only issue draft credit note')
+        self.status = 'ISSUED'
+        self.version += 1
+    
+    def post(self, journal_entry_id: str, posted_by: str) -> None:
+        if not self.journal_entry_id:
+            self.journal_entry_id = journal_entry_id
+        self.status = 'POSTED'
+        self.posted_by = posted_by
+        self.version += 1
+
+
+@dataclass
+class DebitNote:
+    id: str = field(default_factory=lambda: str(uuid.uuid4()))
+    number: Optional[str] = None
+    date: datetime = field(default_factory=utc_now)
+    original_invoice_id: Optional[str] = None
+    purchase_return_id: Optional[str] = None
+    supplier_id: str = ''
+    supplier_name: str = ''
+    currency: str = 'USD'
+    lines: List[CreditNoteLine] = field(default_factory=list)
+    status: str = 'DRAFT'
+    journal_entry_id: Optional[str] = None
+    version: int = 1
+    
+    @property
+    def is_posted(self) -> bool:
+        return self.status == 'POSTED'
+    
+    def issue(self, issued_by: str) -> None:
+        if self.status != 'DRAFT':
+            raise ValueError('Can only issue draft debit note')
+        self.status = 'ISSUED'
+        self.version += 1
+    
+    def post(self, journal_entry_id: str, posted_by: str) -> None:
+        if not self.journal_entry_id:
+            self.journal_entry_id = journal_entry_id
+        self.status = 'POSTED'
+        self.posted_by = posted_by
+        self.version += 1
+
