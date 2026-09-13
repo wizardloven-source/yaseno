@@ -7,11 +7,24 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime, date
 from uuid import uuid4
 
-from core.domain.base_entity import BaseEntity
 from .value_objects import (
     QuotationStatus, OrderStatus, DeliveryStatus,
     Money, Address
 )
+
+
+@dataclass
+class BaseEntity:
+    """كيان أساسي مشترك"""
+    id: Optional[str] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    
+    def __post_init__(self):
+        if not self.id:
+            self.id = str(uuid4())
+        if not self.created_at:
+            self.created_at = datetime.now()
 
 
 @dataclass
@@ -75,14 +88,14 @@ class SalesQuotation(BaseEntity):
     كيان عرض السعر
     يمثل عرض سعر مقدم للعميل يمكن تحويله لأمر بيع
     """
-    quotation_number: str
-    customer_id: str
-    customer_name: str
+    quotation_number: str = ""
+    customer_id: str = ""
+    customer_name: str = ""
     currency: str = "SAR"
     
     # التواريخ
-    issue_date: date
-    expiry_date: date
+    issue_date: Optional[date] = None
+    expiry_date: Optional[date] = None
     valid_until: Optional[datetime] = None
     
     # العناوين
@@ -349,9 +362,9 @@ class SalesOrder(BaseEntity):
     كيان أمر البيع
     يمثل طلب مؤكد من العميل يتم تنفيذه عبر مراحل متعددة
     """
-    order_number: str
-    customer_id: str
-    customer_name: str
+    order_number: str = ""
+    customer_id: str = ""
+    customer_name: str = ""
     currency: str = "SAR"
     
     # مصدر الأمر
@@ -360,7 +373,7 @@ class SalesOrder(BaseEntity):
     quotation_id: Optional[str] = None
     
     # التواريخ
-    order_date: date
+    order_date: Optional[date] = None
     expected_delivery_date: Optional[date] = None
     actual_delivery_date: Optional[date] = None
     
@@ -465,10 +478,26 @@ class SalesOrder(BaseEntity):
         delivered_qty = sum(item.delivered_quantity for item in self.items)
         return (delivered_qty / total_qty * 100) if total_qty > 0 else 0.0
     
+    def add_item(self, item: OrderItem):
+        """إضافة عنصر لأمر البيع"""
+        if self.status == OrderStatus.CONFIRMED:
+            raise ValueError("الأمر يجب أن يكون في حالة مسودة")
+        self.items.append(item)
+        self.updated_at = datetime.now()
+    
+    def remove_item(self, product_id: str):
+        """إزالة عنصر من أمر البيع"""
+        if self.status == OrderStatus.CONFIRMED:
+            raise ValueError("الأمر يجب أن يكون في حالة مسودة")
+        self.items = [i for i in self.items if i.product_id != product_id]
+        self.updated_at = datetime.now()
+    
     def confirm(self):
         """تأكيد أمر البيع"""
         if self.status != OrderStatus.DRAFT:
             raise ValueError("يمكن تأكيد فقط الأوامر في حالة المسودة")
+        if not self.items:
+            raise ValueError("لا يمكن تأكيد أمر بدون عناصر")
         self.status = OrderStatus.CONFIRMED
         self.updated_at = datetime.now()
     
@@ -626,14 +655,14 @@ class DeliveryNote(BaseEntity):
     كيان إشعار التسليم
     يوثق عملية تسليم البضائع للعميل
     """
-    delivery_number: str
-    order_id: str
-    order_number: str
-    customer_id: str
-    customer_name: str
+    delivery_number: str = ""
+    order_id: str = ""
+    order_number: str = ""
+    customer_id: str = ""
+    customer_name: str = ""
     
     # التواريخ
-    delivery_date: date
+    delivery_date: Optional[date] = None
     scheduled_date: Optional[date] = None
     actual_delivery_time: Optional[datetime] = None
     
@@ -697,6 +726,16 @@ class DeliveryNote(BaseEntity):
             raise ValueError("يمكن الجدولة فقط للمسودات")
         self.scheduled_date = scheduled_date
         self.status = DeliveryStatus.SCHEDULED
+        self.updated_at = datetime.now()
+    
+    def add_item(self, item: DeliveryItem):
+        """إضافة عنصر لإشعار التسليم"""
+        # التحقق من عدم تجاوز الكمية المطلوبة
+        for existing_item in self.items:
+            if existing_item.product_id == item.product_id:
+                if existing_item.delivered_quantity + item.delivered_quantity > existing_item.ordered_quantity:
+                    raise ValueError("لا يمكن تسليم كمية أكبر من المطلوبة")
+        self.items.append(item)
         self.updated_at = datetime.now()
     
     def start_delivery(self):

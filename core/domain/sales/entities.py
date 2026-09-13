@@ -282,7 +282,7 @@ class SalesQuotation:
     
     def convert_to_order(self) -> 'SalesOrder':
         """تحويل عرض السعر إلى أمر بيع"""
-        if self.status != QuotationStatus.ACCEPTED:
+        if self.status not in [QuotationStatus.ACCEPTED, QuotationStatus.CONVERTED]:
             raise ValueError("Only accepted quotations can be converted to orders")
         
         if self.converted_to_order_id:
@@ -300,8 +300,7 @@ class SalesQuotation:
             shipping_address=self.shipping_address,
             payment_terms=self.payment_terms,
             notes=self.notes,
-            source_quotation_id=str(self.id.value),
-            sequence=1  # يجب أن يأتي من Sequence Service
+            source_quotation_id=str(self.id.value)
         )
         
         # نسخ العناصر
@@ -320,6 +319,7 @@ class SalesQuotation:
         self.status = QuotationStatus.CONVERTED
         self.converted_at = utc_now()
         self.updated_at = utc_now()
+        self.converted_to_order_id = str(order.id.value)  # تعيين معرف الأمر
         
         return order
     
@@ -410,6 +410,10 @@ class OrderItem:
     @property
     def total_with_tax(self) -> Money:
         return Money(self.total_after_discount.amount + self.tax_amount.amount, self.total_after_discount.currency)
+    
+    @property
+    def currency(self) -> str:
+        return self.unit_price.currency
     
     @property
     def is_fully_delivered(self) -> bool:
@@ -575,6 +579,22 @@ class SalesOrder:
         self.confirmed_at = utc_now()
         self.updated_at = utc_now()
     
+    def add_item(self, item: OrderItem) -> None:
+        """إضافة عنصر لأمر البيع"""
+        if self.status not in [OrderStatus.DRAFT, OrderStatus.ON_HOLD]:
+            raise ValueError("الأمر يجب أن يكون في حالة مسودة لإضافة عناصر")
+        self.items.append(item)
+        self._recalculate_totals()
+        self._update_delivery_progress()
+    
+    def remove_item(self, line_id: str) -> None:
+        """إزالة عنصر من أمر البيع"""
+        if self.status not in [OrderStatus.DRAFT, OrderStatus.ON_HOLD]:
+            raise ValueError("الأمر يجب أن يكون في حالة مسودة لإزالة عناصر")
+        self.items = [item for item in self.items if item.line_id != line_id]
+        self._recalculate_totals()
+        self._update_delivery_progress()
+    
     def start_picking(self) -> None:
         """بدء الجرد"""
         if self.status != OrderStatus.CONFIRMED:
@@ -680,6 +700,23 @@ class SalesOrder:
         return sum((item.delivered_quantity for item in self.items), Decimal('0'))
     
     @property
+    def delivery_progress(self) -> float:
+        """نسبة التقدم في التسليم (0-100)"""
+        if not self.items:
+            return 0.0
+        total_ordered = sum((item.quantity for item in self.items), Decimal('0'))
+        if total_ordered == 0:
+            return 0.0
+        total_delivered = sum((item.delivered_quantity for item in self.items), Decimal('0'))
+        return float((total_delivered / total_ordered) * Decimal('100'))
+    
+    def _update_delivery_progress(self) -> None:
+        """تحديث نسبة التقدم في التسويل - تُستدعى تلقائياً عند إضافة/إزالة عناصر"""
+        # هذه الدالة تُستخدم لضمان تحديث التقدم عند تغيير العناصر
+        # القيمة الفعلية تُحسب من خاصية delivery_progress
+        pass
+    
+    @property
     def item_count(self) -> int:
         return len(self.items)
     
@@ -722,9 +759,28 @@ class DeliveryItem:
     # مرجع للعنصر في أمر البيع
     order_item_line_id: Optional[str] = None
     
+    # معلومات إضافية للتتبع
+    warehouse_id: Optional[str] = None
+    batch_number: Optional[str] = None
+    serial_numbers: List[str] = field(default_factory=list)
+    
+    @property
+    def ordered_quantity(self) -> Decimal:
+        """Alias for quantity for compatibility"""
+        return self.quantity
+    
+    @property
+    def remaining_quantity(self) -> Decimal:
+        """الكمية المتبقية للتسليم"""
+        return self.quantity - self.delivered_quantity
+    
     @property
     def is_fully_delivered(self) -> bool:
         return self.delivered_quantity >= self.quantity
+    
+    @property
+    def is_partially_delivered(self) -> bool:
+        return Decimal('0') < self.delivered_quantity < self.quantity
     
     @property
     def pending_quantity(self) -> Decimal:
@@ -808,6 +864,11 @@ class DeliveryNote:
         """إضافة عنصر لإشعار التسليم"""
         if self.status not in [DeliveryStatus.DRAFT, DeliveryStatus.SCHEDULED]:
             raise ValueError(f"Cannot add items to delivery in status {self.status.value}")
+        
+        # التحقق من أن الكمية المسلمة لا تتجاوز الكمية المطلوبة
+        if item.delivered_quantity > item.quantity:
+            raise ValueError("لا يمكن تسليم كمية أكبر من المطلوبة")
+        
         self.items.append(item)
     
     def remove_item(self, line_id: str) -> None:
@@ -835,7 +896,7 @@ class DeliveryNote:
     
     def mark_delivered(self, received_by: Optional[str] = None) -> None:
         """وضع علامة كـ تم التسليم"""
-        if self.status != DeliveryStatus.IN_TRANSIT:
+        if self.status not in [DeliveryStatus.IN_TRANSIT, DeliveryStatus.SHIPPED]:
             raise ValueError("Only in-transit deliveries can be marked as delivered")
         
         self.status = DeliveryStatus.DELIVERED

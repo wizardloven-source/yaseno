@@ -166,6 +166,7 @@ class DeliveryStatus(Enum):
     """حالات إشعار التسليم"""
     DRAFT = "draft"  # مسودة
     SCHEDULED = "scheduled"  # مجدول
+    SHIPPED = "shipped"  # تم الشحن (alias for IN_TRANSIT)
     IN_TRANSIT = "in_transit"  # أثناء النقل
     DELIVERED = "delivered"  # تم التسليم
     PARTIALLY_DELIVERED = "partially_delivered"  # تم التسليم جزئياً
