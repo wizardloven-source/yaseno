@@ -403,6 +403,14 @@ class TestPostedInvoiceDeletionProtection:
             )
         )
         
+        # Set accounting settings before posting
+        from core.domain.shared.value_objects import AccountCode
+        invoice.set_accounting_settings(
+            cash_account=AccountCode("1100"),
+            receivables_account=AccountCode("1200"),
+            revenue_account=AccountCode("4100")
+        )
+        
         # Before posting - could potentially be deleted (business logic dependent)
         assert invoice.is_posted is False
         
@@ -415,7 +423,7 @@ class TestPostedInvoiceDeletionProtection:
         # Verify that attempting to delete raises an error
         # The domain model should expose a method to check if deletion is allowed
         # For now, we verify the state is correctly exposed
-        assert invoice.status.value == "POSTED"
+        assert invoice.status.value == "posted"
         
         # In application layer, this would be:
         # if invoice.is_posted:
@@ -568,8 +576,13 @@ class TestFinancialPeriodEnforcement:
     
     def test_posting_engine_checks_period_status(self, sample_account_codes, mock_repositories):
         """PostingEngine must check if period is closed before posting."""
+        # Create a mock period object with is_closed=True
+        mock_period = Mock()
+        mock_period.is_closed = True
+        mock_period.name = "2025-12"
+        
         # Configure mock to return closed period
-        mock_repositories['period'].is_period_closed.return_value = True
+        mock_repositories['period'].get_period_by_date.return_value = mock_period
         
         engine = PostingEngine(
             journal_repo=mock_repositories['journal'],
