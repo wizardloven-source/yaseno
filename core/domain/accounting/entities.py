@@ -67,6 +67,11 @@ class JournalLine:
             raise InvalidLineError(
                 "Accounting Rule Violation: Cannot contain both debit and credit."
             )
+        if not has_debit and not has_credit:
+            # ✅ سطر بدون مدين أو دائن (صفر)
+            raise InvalidLineError(
+                "Compliance Error: Journal line must have a debit or credit."
+            )
         if self.debit.amount < 0 or self.credit.amount < 0:
             raise InvalidLineError(
                 "Compliance Error: Negative amounts are forbidden."

@@ -1,1 +1,4 @@
-Nothing should be ignored based on the provided file changes, as only a test file was modified and no build artifacts, dependencies, or temporary files were detected.
+```
+__pycache__/
+*.pyc
+```

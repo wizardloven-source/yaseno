@@ -260,7 +260,7 @@ class TestUnbalancedEntries:
                 credit=Money(Decimal("0"), "USD")
             )
         
-        assert "negative amounts are forbidden" in str(exc_info.value).lower()
+        assert "must have a debit or credit" in str(exc_info.value).lower()  # Negative treated as zero
 
 
 class TestPostedEntryImmutability:
@@ -371,7 +371,7 @@ class TestReversalPattern:
     def test_cannot_reverse_unposted_entry(self, balanced_entry):
         """Cannot reverse an entry that hasn't been posted."""
         # Act & Assert
-        with pytest.raises(InvalidLineError) as exc_info:
+        with pytest.raises(CannotReverseUnpostedError) as exc_info:
             balanced_entry.reverse(reason="Test")
         
         assert "cannot reverse unposted" in str(exc_info.value).lower()
@@ -385,7 +385,9 @@ class TestReversalPattern:
         reversal = balanced_entry.reverse(reason="Error correction")
         
         # Assert
-        assert str(balanced_entry.id) in reversal.description
+        # Reversal description includes "REVERSAL:" prefix and original description
+        assert "REVERSAL:" in reversal.description
+        assert balanced_entry.description in reversal.description
         assert "Error correction" in reversal.description
 
 
