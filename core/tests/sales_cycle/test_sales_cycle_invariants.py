@@ -280,7 +280,7 @@ class TestSalesOrderInvariants:
             order_date=date.today(),
         )
         
-        order.items.append(OrderItem(
+        order.add_item(OrderItem(
             product_id="PROD-001",
             product_name="Product 1",
             quantity=10,
@@ -290,9 +290,9 @@ class TestSalesOrderInvariants:
         order.confirm()
         assert order.status == OrderStatus.CONFIRMED
         
-        # محاولة إضافة عنصر جديد
+        # محاولة إضافة عنصر جديد باستخدام add_item
         with pytest.raises(ValueError, match="الأمر يجب أن يكون في حالة مسودة"):
-            order.items.append(OrderItem(
+            order.add_item(OrderItem(
                 product_id="PROD-002",
                 product_name="Product 2",
                 quantity=5,
@@ -439,17 +439,14 @@ class TestDeliveryNoteInvariants:
             delivery_date=date.today(),
         )
         
-        delivery.items.append(DeliveryItem(
-            product_id="PROD-001",
-            product_name="Product 1",
-            ordered_quantity=10,
-            delivered_quantity=15,  # أكثر من المطلوب!
-        ))
-        
-        # يجب أن يفشل التحقق
-        for item in delivery.items:
-            assert item.delivered_quantity <= item.ordered_quantity, \
-                "لا يمكن تسليم كمية أكبر من المطلوبة"
+        # محاولة إضافة عنصر بكمية مسلمة أكبر من المطلوبة يجب أن تفشل
+        with pytest.raises(ValueError, match="لا يمكن تسليم كمية أكبر من المطلوبة"):
+            delivery.add_item(DeliveryItem(
+                product_id="PROD-001",
+                product_name="Product 1",
+                quantity=10,
+                delivered_quantity=15,  # أكثر من المطلوب!
+            ))
 
     def test_delivery_scheduling(self):
         """جدولة التسليم"""

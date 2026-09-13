@@ -575,6 +575,22 @@ class SalesOrder:
         self.confirmed_at = utc_now()
         self.updated_at = utc_now()
     
+    def add_item(self, item: OrderItem) -> None:
+        """إضافة عنصر لأمر البيع"""
+        if self.status not in [OrderStatus.DRAFT, OrderStatus.ON_HOLD]:
+            raise ValueError("الأمر يجب أن يكون في حالة مسودة لإضافة عناصر")
+        self.items.append(item)
+        self._recalculate_totals()
+        self._update_delivery_progress()
+    
+    def remove_item(self, line_id: str) -> None:
+        """إزالة عنصر من أمر البيع"""
+        if self.status not in [OrderStatus.DRAFT, OrderStatus.ON_HOLD]:
+            raise ValueError("الأمر يجب أن يكون في حالة مسودة لإزالة عناصر")
+        self.items = [item for item in self.items if item.line_id != line_id]
+        self._recalculate_totals()
+        self._update_delivery_progress()
+    
     def start_picking(self) -> None:
         """بدء الجرد"""
         if self.status != OrderStatus.CONFIRMED:
@@ -678,6 +694,23 @@ class SalesOrder:
     def total_delivered_quantity(self) -> Decimal:
         """إجمالي الكمية التي تم تسليمها"""
         return sum((item.delivered_quantity for item in self.items), Decimal('0'))
+    
+    @property
+    def delivery_progress(self) -> float:
+        """نسبة التقدم في التسليم (0-100)"""
+        if not self.items:
+            return 0.0
+        total_ordered = sum((item.quantity for item in self.items), Decimal('0'))
+        if total_ordered == 0:
+            return 0.0
+        total_delivered = sum((item.delivered_quantity for item in self.items), Decimal('0'))
+        return float((total_delivered / total_ordered) * Decimal('100'))
+    
+    def _update_delivery_progress(self) -> None:
+        """تحديث نسبة التقدم في التسويل - تُستدعى تلقائياً عند إضافة/إزالة عناصر"""
+        # هذه الدالة تُستخدم لضمان تحديث التقدم عند تغيير العناصر
+        # القيمة الفعلية تُحسب من خاصية delivery_progress
+        pass
     
     @property
     def item_count(self) -> int:
@@ -808,6 +841,11 @@ class DeliveryNote:
         """إضافة عنصر لإشعار التسليم"""
         if self.status not in [DeliveryStatus.DRAFT, DeliveryStatus.SCHEDULED]:
             raise ValueError(f"Cannot add items to delivery in status {self.status.value}")
+        
+        # التحقق من أن الكمية المسلمة لا تتجاوز الكمية المطلوبة
+        if item.delivered_quantity > item.quantity:
+            raise ValueError("لا يمكن تسليم كمية أكبر من المطلوبة")
+        
         self.items.append(item)
     
     def remove_item(self, line_id: str) -> None:
