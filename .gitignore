@@ -1,21 +1,4 @@
 ```
-# Python
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-
-# Testing
-.pytest_cache/
-.coverage
-coverage/
-htmlcov/
-
-# Logs
-*.log
-
-# Environment
-.env
-.env.local
-*.env.*
+# Test directories
+core/tests/**
 ```
