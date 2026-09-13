@@ -6,8 +6,9 @@ Repository Interfaces for Funds Context
 from abc import ABC, abstractmethod
 from typing import Optional, List
 from datetime import date, datetime
+import uuid
 
-from .entities import Fund, FundTransaction, FundTransfer
+from .entities import Fund, FundTransaction, FundTransfer, BankStatement, BankReconciliation, ReconciliationMatch
 from .value_objects import FundId, FundCode, FundType, TransactionType, TransferStatus
 FundMovement = FundTransaction
 
@@ -222,4 +223,43 @@ class IFundMovementRepository(ABC):
     @abstractmethod
     def delete(self, movement_id: str) -> bool:
         """حذف حركة صندوق"""
+        pass
+
+
+class IBankReconciliationRepository(ABC):
+    """واجهة مستودع التسويات البنكية"""
+    
+    @abstractmethod
+    async def add_statement(self, statement: BankStatement) -> None:
+        """إضافة كشف حساب بنكي"""
+        pass
+    
+    @abstractmethod
+    async def get_statement(self, statement_id: uuid.UUID) -> Optional[BankStatement]:
+        """الحصول على كشف حساب"""
+        pass
+    
+    @abstractmethod
+    async def get_statements_by_account(self, account_id: uuid.UUID, limit: int = 100) -> List[BankStatement]:
+        """الحصول على كشوف الحساب لعدة حسابات"""
+        pass
+    
+    @abstractmethod
+    async def add_reconciliation(self, reconciliation: BankReconciliation) -> None:
+        """إضافة تسوية بنكية"""
+        pass
+    
+    @abstractmethod
+    async def get_reconciliation(self, reconciliation_id: uuid.UUID) -> Optional[BankReconciliation]:
+        """الحصول على تسوية بنكية"""
+        pass
+    
+    @abstractmethod
+    async def update_reconciliation(self, reconciliation: BankReconciliation) -> None:
+        """تحديث تسوية بنكية"""
+        pass
+    
+    @abstractmethod
+    async def get_reconciliations_by_account(self, account_id: uuid.UUID, status: Optional[str] = None, limit: int = 100) -> List[BankReconciliation]:
+        """الحصول على التسويات البنكية لحساب معين"""
         pass
