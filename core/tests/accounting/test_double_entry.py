@@ -29,7 +29,8 @@ from core.domain.accounting.exceptions import (
     AlreadyPostedError,
     PostedEntryModificationError,
     ClosedPeriodError,
-    CannotReverseUnpostedError
+    CannotReverseUnpostedError,
+    InvalidLineError
 )
 from core.domain.accounting.services import (
     PostingEngine, LedgerEngine, ReversalService, ClosingService
@@ -181,8 +182,8 @@ class TestDoubleEntryPrinciple:
         assert credit == Decimal("1000.00")
     
     def test_is_balanced_returns_true_for_balanced_entry(self, balanced_entry):
-        """is_balanced() should return True for balanced entries."""
-        assert balanced_entry.is_balanced() is True
+        """is_balanced should return True for balanced entries."""
+        assert balanced_entry.is_balanced is True
     
     def test_balanced_entry_with_three_lines_posts_successfully(self, three_line_balanced_entry):
         """Entries with multiple lines should still balance."""
@@ -220,46 +221,46 @@ class TestUnbalancedEntries:
     
     def test_is_balanced_returns_false_for_unbalanced_entry(self, unbalanced_entry):
         """is_balanced() should return False for unbalanced entries."""
-        assert unbalanced_entry.is_balanced() is False
+        assert unbalanced_entry.is_balanced is False
     
     def test_cannot_add_line_with_both_debit_and_credit(self, sample_account_codes):
-        """A journal line cannot have both debit and credit."""
+        """A journal line cannot contain both debit and credit."""
         money = Money(Decimal("100"), "USD")
         
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(InvalidLineError) as exc_info:
             JournalLine(
                 account_code=sample_account_codes["cash"],
                 debit=money,
                 credit=money
             )
         
-        assert "cannot have both" in str(exc_info.value).lower()
+        assert "cannot contain both" in str(exc_info.value).lower()
     
     def test_cannot_add_line_with_neither_debit_nor_credit(self, sample_account_codes):
-        """A journal line must have either debit or credit."""
+        """A journal line must have a debit or credit."""
         zero = Money(Decimal("0"), "USD")
         
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(InvalidLineError) as exc_info:
             JournalLine(
                 account_code=sample_account_codes["cash"],
                 debit=zero,
                 credit=zero
             )
         
-        assert "either debit or credit" in str(exc_info.value).lower()
+        assert "a debit or credit" in str(exc_info.value).lower()
     
     def test_cannot_add_negative_amounts(self, sample_account_codes):
         """Negative amounts are not allowed."""
         negative_money = Money(Decimal("-100"), "USD")
         
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(InvalidLineError) as exc_info:
             JournalLine(
                 account_code=sample_account_codes["cash"],
                 debit=negative_money,
                 credit=Money(Decimal("0"), "USD")
             )
         
-        assert "negative" in str(exc_info.value).lower()
+        assert "negative amounts are forbidden" in str(exc_info.value).lower()
 
 
 class TestPostedEntryImmutability:
@@ -363,17 +364,17 @@ class TestReversalPattern:
         reversal = balanced_entry.reverse(reason="Test reversal")
         
         # Assert
-        assert reversal.is_balanced() is True
+        assert reversal.is_balanced is True
         debit, credit = reversal._calculate_totals()
         assert debit == credit
     
     def test_cannot_reverse_unposted_entry(self, balanced_entry):
         """Cannot reverse an entry that hasn't been posted."""
         # Act & Assert
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(InvalidLineError) as exc_info:
             balanced_entry.reverse(reason="Test")
         
-        assert "only reverse posted" in str(exc_info.value).lower()
+        assert "cannot reverse unposted" in str(exc_info.value).lower()
     
     def test_reversal_description_includes_original(self, balanced_entry):
         """Reversal description should reference the original entry."""
@@ -628,10 +629,10 @@ class TestEdgeCases:
             ]
         )
         
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(InvalidLineError) as exc_info:
             entry.post(posted_by="test_user")
         
-        assert "either debit or credit" in str(exc_info.value).lower()
+        assert "a debit or credit" in str(exc_info.value).lower()
     
     def test_very_large_amounts(self, sample_account_codes):
         """System should handle very large amounts."""
@@ -747,7 +748,7 @@ class TestIntegrationScenarios:
         # Step 3: Discover error (should have been $500, not $5000)
         # Step 4: Reverse the incorrect entry
         reversal = sale_entry.reverse(reason="Wrong amount: should be 500 not 5000")
-        assert reversal.is_balanced() is True
+        assert reversal.is_balanced is True
         
         # Step 5: Post the reversal
         reversal.post(posted_by="admin_user")
@@ -775,9 +776,9 @@ class TestIntegrationScenarios:
         assert correct_entry.is_posted is True
         
         # Verification: All entries are balanced
-        assert sale_entry.is_balanced() is True
-        assert reversal.is_balanced() is True
-        assert correct_entry.is_balanced() is True
+        assert sale_entry.is_balanced is True
+        assert reversal.is_balanced is True
+        assert correct_entry.is_balanced is True
     
     def test_transfer_between_accounts(self, sample_account_codes):
         """Test transferring money between two accounts."""
@@ -802,7 +803,7 @@ class TestIntegrationScenarios:
         
         transfer_entry.post(posted_by="accountant")
         
-        assert transfer_entry.is_balanced() is True
+        assert transfer_entry.is_balanced is True
         assert transfer_entry.get_total_debit() == Decimal("10000.00")
         assert transfer_entry.get_total_credit() == Decimal("10000.00")
     
