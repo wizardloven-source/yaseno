@@ -1,4 +1,4 @@
-﻿# test_api2.py - ط§ط®طھط¨ط§ط± ظ†ظ‚ط§ط· ط§ظ„ظ†ظ‡ط§ظٹط© ط§ظ„ط¬ط¯ظٹط¯ط© (Products, Suppliers, PO, Payments, Funds, Reports)
+# test_api2.py - ط§ط®طھط¨ط§ط± ظ†ظ‚ط§ط· ط§ظ„ظ†ظ‡ط§ظٹط© ط§ظ„ط¬ط¯ظٹط¯ط© (Products, Suppliers, PO, Payments, Funds, Reports)
 import os
 import sys
 import uuid

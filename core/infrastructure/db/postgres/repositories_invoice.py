@@ -701,7 +701,7 @@ class PostgresInvoiceRepository(IInvoiceRepository):
         """
         # البحث عن أعلى رقم موجود
         result = self._session.execute(
-            text("""
+            text(r"""
                 SELECT MAX(CAST(SUBSTRING(number FROM '\d+$') AS INTEGER))
                 FROM invoices 
                 WHERE number LIKE :prefix_pattern

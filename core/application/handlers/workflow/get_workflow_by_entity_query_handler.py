@@ -1,4 +1,4 @@
-﻿# core/application/handlers/workflow/get_workflow_by_entity_query_handler.py
+# core/application/handlers/workflow/get_workflow_by_entity_query_handler.py
 """
 Get Workflow By Entity Query Handler - ط§ط³طھط¹ظ„ط§ظ… ظ„ط¬ظ„ط¨ ط³ظٹط± ط¹ظ…ظ„ ظ„ظ†ظˆط¹ ظƒظٹط§ظ†
 """

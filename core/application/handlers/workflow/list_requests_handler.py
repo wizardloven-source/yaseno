@@ -1,4 +1,4 @@
-﻿# core/application/handlers/workflow/list_requests_handler.py
+# core/application/handlers/workflow/list_requests_handler.py
 """
 List Requests Handler - ظ…ط¹ط§ظ„ط¬ ط§ط³طھط¹ظ„ط§ظ… ظ‚ط§ط¦ظ…ط© ط·ظ„ط¨ط§طھ ط§ظ„ظ…ظˆط§ظپظ‚ط©
 """

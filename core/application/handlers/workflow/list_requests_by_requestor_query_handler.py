@@ -1,4 +1,4 @@
-﻿# core/application/handlers/workflow/list_requests_by_requestor_query_handler.py
+# core/application/handlers/workflow/list_requests_by_requestor_query_handler.py
 """
 List Requests By Requestor Query Handler - ط§ط³طھط¹ظ„ط§ظ… ظ„ط¬ظ„ط¨ ط§ظ„ط·ظ„ط¨ط§طھ ط§ظ„ظ…ظ‚ط¯ظ…ط© ظ…ظ† ظ…ظ‚ط¯ظ… ظ…ط¹ظٹظ†
 """

@@ -1,4 +1,4 @@
-﻿# core/application/handlers/workflow/list_requests_by_approver_query_handler.py
+# core/application/handlers/workflow/list_requests_by_approver_query_handler.py
 """
 List Requests By Approver Query Handler - ط§ط³طھط¹ظ„ط§ظ… ظ„ط¬ظ„ط¨ ط§ظ„ط·ظ„ط¨ط§طھ ط§ظ„ظ…ظˆظƒظ„ط© ظ„ظ…ط±ط§ط¬ط¹ ظ…ط¹ظٹظ†
 """

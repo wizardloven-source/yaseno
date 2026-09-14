@@ -1,4 +1,4 @@
-﻿# core/application/handlers/workflow/get_request_statistics_query_handler.py
+# core/application/handlers/workflow/get_request_statistics_query_handler.py
 """
 Get Request Statistics Query Handler - ط§ط³طھط¹ظ„ط§ظ… ظ„ط¥ط­طµط§ط¦ظٹط§طھ ط§ظ„ط·ظ„ط¨ط§طھ
 """
