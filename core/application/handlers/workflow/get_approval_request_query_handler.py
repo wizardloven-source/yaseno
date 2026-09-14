@@ -1,4 +1,4 @@
-﻿# core/application/handlers/workflow/get_approval_request_query_handler.py
+# core/application/handlers/workflow/get_approval_request_query_handler.py
 """
 Get Approval Request Query Handler - ط§ط³طھط¹ظ„ط§ظ… ظ„ط¬ظ„ط¨ ط·ظ„ط¨ ظ…ظˆط§ظپظ‚ط©
 """

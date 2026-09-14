@@ -1,4 +1,4 @@
-﻿# core/application/handlers/workflow/get_workflow_query_handler.py
+# core/application/handlers/workflow/get_workflow_query_handler.py
 """
 Get Workflow Query Handler - ط§ط³طھط¹ظ„ط§ظ… ظ„ط¬ظ„ط¨ ط³ظٹط± ط¹ظ…ظ„
 """

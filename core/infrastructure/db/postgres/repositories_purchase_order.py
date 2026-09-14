@@ -500,7 +500,7 @@ class PostgresPurchaseOrderRepository(IPurchaseOrderRepository):
             PurchaseOrderNumber: رقم أمر الشراء التالي
         """
         result = self._session.execute(
-            text("""
+            text(r"""
                 SELECT MAX(CAST(SUBSTRING(number FROM '\d+$') AS INTEGER))
                 FROM purchase_orders 
                 WHERE number LIKE :prefix_pattern

@@ -1,4 +1,4 @@
-﻿# core/application/handlers/inventory/stock_query_handlers.py
+# core/application/handlers/inventory/stock_query_handlers.py
 """
 Stock Query Handlers - ظ…ط¹ط§ظ„ط¬ط§طھ ط§ط³طھط¹ظ„ط§ظ…ط§طھ ط§ظ„ظ…ط®ط²ظˆظ†
 """

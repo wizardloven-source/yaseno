@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """Verify funds: create, deposit, transfer, movements, balance."""
 import sys
 import uuid

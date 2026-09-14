@@ -1,4 +1,4 @@
-﻿# core/application/handlers/workflow/list_workflows_query_handler.py
+# core/application/handlers/workflow/list_workflows_query_handler.py
 """
 List Workflows Query Handler - ط§ط³طھط¹ظ„ط§ظ… ظ„ظ‚ط§ط¦ظ…ط© ط³ظٹط± ط§ظ„ط¹ظ…ظ„
 """

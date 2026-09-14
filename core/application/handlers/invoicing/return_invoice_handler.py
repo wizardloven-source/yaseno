@@ -12,8 +12,9 @@ from core.domain.invoicing.value_objects import InvoiceId
 from core.domain.invoicing.exceptions import InvoiceNotFoundError
 from core.domain.accounting.interfaces import IUnitOfWork
 from core.domain.accounting.services import PostingEngine
-from core.domain.accounting.journal_entry import JournalEntry, JournalLine
-from core.domain.accounting.value_objects import AccountCode, JournalEntryRequest
+from core.domain.accounting import JournalEntry, JournalLine
+from core.domain.accounting.value_objects import AccountCode
+from core.application.accounting.orchestrator import JournalEntryRequest
 from core.domain.inventory.services import StockMovementService
 from core.domain.inventory.entities import StockMovementType
 

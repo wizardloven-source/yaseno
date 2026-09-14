@@ -1,6 +1,6 @@
 # core/infrastructure/db/models/idempotency_model.py
 """
-Idempotency Key Model - مفتاح\Idempotency لمنع العمليات المزدوجة
+Idempotency Key Model - مفتاح Idempotency لمنع العمليات المزدوجة
 """
 
 from datetime import datetime, timezone

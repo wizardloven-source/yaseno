@@ -1,4 +1,4 @@
-﻿# core/application/handlers/workflow/get_request_handler.py
+# core/application/handlers/workflow/get_request_handler.py
 """
 Get Request Handler - ظ…ط¹ط§ظ„ط¬ ط§ط³طھط¹ظ„ط§ظ… ط¬ظ„ط¨ ط·ظ„ط¨
 """
