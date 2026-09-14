@@ -5,6 +5,7 @@ Sales Quotations API Router
 from fastapi import APIRouter, HTTPException, Depends, Query
 from typing import List, Optional
 from datetime import date
+from decimal import Decimal
 
 from core.domain.sales_cycle.entities import SalesQuotation, QuotationItem
 from core.domain.sales_cycle.value_objects import QuotationStatus, Address
@@ -17,12 +18,29 @@ from core.application.sales_cycle.commands import (
     ConvertQuotationToOrderCommand,
 )
 from core.infrastructure.sales_cycle.models import SalesQuotationModel
+from core.infrastructure.database.db_manager import DatabaseManager
+from core.application.handlers.sales_cycle.quotation_handlers import (
+    CreateQuotationHandler,
+    UpdateQuotationHandler,
+    SendQuotationHandler,
+    AcceptQuotationHandler,
+    RejectQuotationHandler,
+    ConvertQuotationToOrderHandler,
+)
 
 router = APIRouter()
 
 
+def get_db():
+    db = DatabaseManager()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
 @router.post("", summary="إنشاء عرض سعر جديد")
-async def create_quotation(command: CreateQuotationCommand):
+async def create_quotation(command: CreateQuotationCommand, db: DatabaseManager = Depends(get_db)):
     """
     إنشاء عرض سعر جديد للعميل
     
@@ -32,12 +50,8 @@ async def create_quotation(command: CreateQuotationCommand):
     - **currency**: العملة (افتراضي SAR)
     - **expiry_date**: تاريخ انتهاء الصلاحية
     """
-    # TODO: Implement command handler
-    return {
-        "message": "عرض السعر تم إنشاؤه بنجاح",
-        "status": "draft",
-        "quotation_number": "QT-2024-0001"
-    }
+    handler = CreateQuotationHandler(db)
+    return handler.handle(command)
 
 
 @router.get("", summary="قائمة عروض الأسعار")
@@ -47,7 +61,8 @@ async def list_quotations(
     from_date: Optional[date] = Query(None),
     to_date: Optional[date] = Query(None),
     skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=1000)
+    limit: int = Query(100, ge=1, le=1000),
+    db: DatabaseManager = Depends(get_db)
 ):
     """
     الحصول على قائمة عروض الأسعار مع الفلترة
@@ -67,7 +82,7 @@ async def list_quotations(
 
 
 @router.get("/{quotation_id}", summary="تفاصيل عرض السعر")
-async def get_quotation(quotation_id: str):
+async def get_quotation(quotation_id: str, db: DatabaseManager = Depends(get_db)):
     """
     الحصول على تفاصيل عرض سعر محدد
     
@@ -82,7 +97,7 @@ async def get_quotation(quotation_id: str):
 
 
 @router.patch("/{quotation_id}", summary="تحديث عرض السعر")
-async def update_quotation(quotation_id: str, command: UpdateQuotationCommand):
+async def update_quotation(quotation_id: str, command: UpdateQuotationCommand, db: DatabaseManager = Depends(get_db)):
     """
     تحديث عرض سعر موجود
     
@@ -92,12 +107,12 @@ async def update_quotation(quotation_id: str, command: UpdateQuotationCommand):
     - الخصومات
     - الملاحظات
     """
-    # TODO: Implement command handler
-    return {"message": "تم التحديث بنجاح"}
+    handler = UpdateQuotationHandler(db)
+    return handler.handle(command)
 
 
 @router.post("/{quotation_id}/send", summary="إرسال عرض السعر")
-async def send_quotation(quotation_id: str, command: SendQuotationCommand):
+async def send_quotation(quotation_id: str, command: SendQuotationCommand, db: DatabaseManager = Depends(get_db)):
     """
     إرسال عرض السعر للعميل
     
@@ -106,44 +121,41 @@ async def send_quotation(quotation_id: str, command: SendQuotationCommand):
     - whatsapp
     - sms
     """
-    # TODO: Implement command handler
-    return {"message": "تم الإرسال بنجاح"}
+    handler = SendQuotationHandler(db)
+    return handler.handle(command)
 
 
 @router.post("/{quotation_id}/accept", summary="قبول عرض السعر")
-async def accept_quotation(quotation_id: str, command: AcceptQuotationCommand):
+async def accept_quotation(quotation_id: str, command: AcceptQuotationCommand, db: DatabaseManager = Depends(get_db)):
     """
     قبول عرض السعر من قبل العميل
     
     بعد القبول يمكن تحويله لأمر بيع
     """
-    # TODO: Implement command handler
-    return {"message": "تم القبول بنجاح"}
+    handler = AcceptQuotationHandler(db)
+    return handler.handle(command)
 
 
 @router.post("/{quotation_id}/reject", summary="رفض عرض السعر")
-async def reject_quotation(quotation_id: str, command: RejectQuotationCommand):
+async def reject_quotation(quotation_id: str, command: RejectQuotationCommand, db: DatabaseManager = Depends(get_db)):
     """
     رفض عرض السعر
     
     يجب تحديد سبب الرفض
     """
-    # TODO: Implement command handler
-    return {"message": "تم الرفض"}
+    handler = RejectQuotationHandler(db)
+    return handler.handle(command)
 
 
 @router.post("/{quotation_id}/convert", summary="تحويل لأمر بيع")
-async def convert_to_order(quotation_id: str, command: ConvertQuotationToOrderCommand):
+async def convert_to_order(quotation_id: str, command: ConvertQuotationToOrderCommand, db: DatabaseManager = Depends(get_db)):
     """
     تحويل عرض السعر المقبول لأمر بيع
     
     يتم إنشاء أمر بيع جديد مرتبط بعرض السعر
     """
-    # TODO: Implement command handler
-    return {
-        "message": "تم التحويل بنجاح",
-        "order_number": "SO-2024-0001"
-    }
+    handler = ConvertQuotationToOrderHandler(db)
+    return handler.handle(command)
 
 
 @router.get("/statistics", summary="إحصائيات عروض الأسعار")

@@ -75,14 +75,14 @@ class SalesQuotation(BaseEntity):
     كيان عرض السعر
     يمثل عرض سعر مقدم للعميل يمكن تحويله لأمر بيع
     """
-    quotation_number: str
-    customer_id: str
-    customer_name: str
+    quotation_number: str = ""
+    customer_id: str = ""
+    customer_name: str = ""
     currency: str = "SAR"
     
     # التواريخ
-    issue_date: date
-    expiry_date: date
+    issue_date: date = field(default_factory=date.today)
+    expiry_date: date = field(default_factory=lambda: date.today())
     valid_until: Optional[datetime] = None
     
     # العناوين
@@ -349,8 +349,8 @@ class SalesOrder(BaseEntity):
     كيان أمر البيع
     يمثل طلب مؤكد من العميل يتم تنفيذه عبر مراحل متعددة
     """
-    order_number: str
-    customer_id: str
+    order_number: str = ""
+    customer_id: str = ""
     customer_name: str
     currency: str = "SAR"
     
@@ -628,8 +628,8 @@ class DeliveryNote(BaseEntity):
     """
     delivery_number: str
     order_id: str
-    order_number: str
-    customer_id: str
+    order_number: str = ""
+    customer_id: str = ""
     customer_name: str
     
     # التواريخ
