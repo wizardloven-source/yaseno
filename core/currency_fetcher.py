@@ -193,8 +193,9 @@ def fetch_rates_from_website():
                             buy_rate = buy
                             sell_rate = sell
                             break
-                    except:
+                    except (ValueError, IndexError, AttributeError) as e:
                         pass
+                        logger.warning(f"Failed to parse currency rate from match: {e}")
             if buy_rate and sell_rate:
                 break
         
@@ -207,8 +208,9 @@ def fetch_rates_from_website():
                     rate = float(num.replace(',', ''))
                     if 10000 < rate < 50000:
                         valid_rates.append(rate)
-                except:
+                except (ValueError, TypeError) as e:
                     pass
+                    logger.warning(f"Failed to parse currency rate '{num}': {e}")
             
             valid_rates = list(set(valid_rates))
             valid_rates.sort()

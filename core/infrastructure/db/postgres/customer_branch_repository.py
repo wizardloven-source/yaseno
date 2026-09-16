@@ -298,7 +298,8 @@ class PostgresCustomerBranchRepository(ICustomerBranchRepository):
             if len(parts) == 2:
                 num = int(parts[1]) + 1
                 return f"{prefix}-{num:05d}"
-        except:
+        except (ValueError, IndexError, AttributeError) as e:
+            logger.warning(f"Failed to parse customer branch code '{last.code}': {e}")
             pass
         
         return f"{prefix}-00001"

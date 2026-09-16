@@ -657,7 +657,8 @@ class PostgresAccountRepository(IAccountRepository):
                 if num_str.isdigit():
                     next_num = int(num_str) + 1
                     return f"{prefix}{next_num}".zfill(length)
-        except:
+        except (ValueError, AttributeError) as e:
+            logger.warning(f"Failed to generate next account code from '{last_code}': {e}")
             pass
         
         # إذا فشل الاستخراج، استخدم رقم عشوائي

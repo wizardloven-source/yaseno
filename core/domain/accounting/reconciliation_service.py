@@ -216,7 +216,8 @@ class ReconciliationService:
         amount_str = amount_str.replace(',', '').replace(' ', '').strip()
         try:
             amount = Decimal(amount_str)
-        except:
+        except (ValueError, TypeError, InvalidOperation) as e:
+            logger.warning(f"Failed to parse amount '{amount_str}': {e}")
             return None
         
         # إنشاء السطر
@@ -241,7 +242,8 @@ class ReconciliationService:
         from dateutil import parser
         try:
             return parser.parse(date_str)
-        except:
+        except (ValueError, TypeError, parser.ParserError) as e:
+            logger.warning(f"Failed to parse date '{date_str}': {e}")
             return self._clock.now()
     
     # =========================================================================
