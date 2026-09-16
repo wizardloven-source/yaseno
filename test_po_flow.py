@@ -112,7 +112,7 @@ else:
 print("=" * 60)
 print("DB VERIFY")
 import psycopg2
-c = psycopg2.connect(host='localhost', dbname='erpya', user='postgres', password='postgres')
+c = psycopg2.connect(host='127.0.0.1', dbname='erpya', user='postgres', password='postgres')
 cur = c.cursor()
 if je_id:
     cur.execute("SELECT is_posted FROM journal_entries WHERE id = %s", (je_id,))

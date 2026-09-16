@@ -1,5 +1,6 @@
 import '../models/customer_model.dart';
 import '../../services/api_service.dart';
+import '../../utils/error_logger.dart';
 
 class CustomerRepository {
   static List<Customer> _extractCustomers(dynamic response) {
@@ -46,7 +47,7 @@ class CustomerRepository {
       );
       return _extractCustomers(response);
     } catch (e) {
-      print('Error fetching customers: $e');
+      ErrorLogger.log('CustomerRepository.getCustomers', e);
       return [];
     }
   }
@@ -57,7 +58,7 @@ class CustomerRepository {
       final response = await ApiService.staticGet('customers/$id');
       return _extractCustomer(response);
     } catch (e) {
-      print('Error fetching customer: $e');
+      ErrorLogger.log('CustomerRepository.getCustomer', e);
       return null;
     }
   }
@@ -71,7 +72,7 @@ class CustomerRepository {
       );
       return _extractCustomer(response);
     } catch (e) {
-      print('Error creating customer: $e');
+      ErrorLogger.log('CustomerRepository.createCustomer', e);
       return null;
     }
   }
@@ -85,7 +86,7 @@ class CustomerRepository {
       );
       return _extractCustomer(response);
     } catch (e) {
-      print('Error updating customer: $e');
+      ErrorLogger.log('CustomerRepository.updateCustomer', e);
       return null;
     }
   }
@@ -96,7 +97,7 @@ class CustomerRepository {
       final response = await ApiService.staticDelete('customers/$id');
       return _isSuccess(response);
     } catch (e) {
-      print('Error deleting customer: $e');
+      ErrorLogger.log('CustomerRepository.deleteCustomer', e);
       return false;
     }
   }
@@ -110,7 +111,7 @@ class CustomerRepository {
       );
       return _isSuccess(response);
     } catch (e) {
-      print('Error changing customer status: $e');
+      ErrorLogger.log('CustomerRepository.changeStatus', e);
       return false;
     }
   }

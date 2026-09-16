@@ -1,5 +1,6 @@
 import '../models/supplier_model.dart';
 import '../../services/api_service.dart';
+import '../../utils/error_logger.dart';
 
 class SupplierRepository {
   static Future<List<Supplier>> getSuppliers({
@@ -17,7 +18,7 @@ class SupplierRepository {
       }
       return [];
     } catch (e) {
-      print('Error fetching suppliers: $e');
+      ErrorLogger.log('SupplierRepository.getSuppliers', e);
       return [];
     }
   }
@@ -30,7 +31,7 @@ class SupplierRepository {
       }
       return null;
     } catch (e) {
-      print('Error fetching supplier: $e');
+      ErrorLogger.log('SupplierRepository.getSupplier', e);
       return null;
     }
   }
@@ -46,7 +47,7 @@ class SupplierRepository {
       }
       return null;
     } catch (e) {
-      print('Error creating supplier: $e');
+      ErrorLogger.log('SupplierRepository.createSupplier', e);
       return null;
     }
   }
@@ -62,7 +63,7 @@ class SupplierRepository {
       }
       return null;
     } catch (e) {
-      print('Error updating supplier: $e');
+      ErrorLogger.log('SupplierRepository.updateSupplier', e);
       return null;
     }
   }
@@ -72,7 +73,7 @@ class SupplierRepository {
       final response = await ApiService.staticDelete('suppliers/$id');
       return response['success'] == true;
     } catch (e) {
-      print('Error deleting supplier: $e');
+      ErrorLogger.log('SupplierRepository.deleteSupplier', e);
       return false;
     }
   }

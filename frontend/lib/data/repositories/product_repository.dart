@@ -1,5 +1,6 @@
 import '../models/product_model.dart';
 import '../../services/api_service.dart';
+import '../../utils/error_logger.dart';
 
 class ProductRepository {
   static List<Product> _extractProducts(dynamic response) {
@@ -46,7 +47,7 @@ class ProductRepository {
       );
       return _extractProducts(response);
     } catch (e) {
-      print('Error fetching products: $e');
+      ErrorLogger.log('ProductRepository.getProducts', e);
       return [];
     }
   }
@@ -56,7 +57,7 @@ class ProductRepository {
       final response = await ApiService.staticGet('products/$id');
       return _extractProduct(response);
     } catch (e) {
-      print('Error fetching product: $e');
+      ErrorLogger.log('ProductRepository.getProduct', e);
       return null;
     }
   }
@@ -66,7 +67,7 @@ class ProductRepository {
       final response = await ApiService.staticGet('products/low-stock?threshold=$threshold');
       return _extractProducts(response);
     } catch (e) {
-      print('Error fetching low stock products: $e');
+      ErrorLogger.log('ProductRepository.getLowStockProducts', e);
       return [];
     }
   }
@@ -79,7 +80,7 @@ class ProductRepository {
       );
       return _extractProduct(response);
     } catch (e) {
-      print('Error creating product: $e');
+      ErrorLogger.log('ProductRepository.createProduct', e);
       return null;
     }
   }
@@ -92,7 +93,7 @@ class ProductRepository {
       );
       return _extractProduct(response);
     } catch (e) {
-      print('Error updating product: $e');
+      ErrorLogger.log('ProductRepository.updateProduct', e);
       return null;
     }
   }
@@ -102,7 +103,7 @@ class ProductRepository {
       final response = await ApiService.staticDelete('products/$id');
       return _isSuccess(response);
     } catch (e) {
-      print('Error deleting product: $e');
+      ErrorLogger.log('ProductRepository.deleteProduct', e);
       return false;
     }
   }
@@ -118,7 +119,7 @@ class ProductRepository {
       );
       return _extractProduct(response);
     } catch (e) {
-      print('Error updating stock: $e');
+      ErrorLogger.log('ProductRepository.updateStock', e);
       return null;
     }
   }

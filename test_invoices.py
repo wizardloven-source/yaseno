@@ -40,7 +40,7 @@ from core.bootstrap.startup import init_bootstrap
 from core.domain.inventory.services import StockMovementService
 from core.domain.inventory.value_objects import EntityId, StockMovementType, Money as InvMoney
 from decimal import Decimal as D
-b = init_bootstrap(database_url='postgresql://postgres:postgres@localhost:5432/erpya', seed_data=False)
+b = init_bootstrap(database_url='postgresql://postgres:postgres@127.0.0.1:5432/erpya', seed_data=False)
 with b.container.scope() as scope:
     uow = scope.resolve("uow")
     with uow:

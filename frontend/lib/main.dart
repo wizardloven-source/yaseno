@@ -11,11 +11,10 @@ import 'package:ya_seen_erp_flutter/presentation/providers/invoicing_provider.da
 import 'package:ya_seen_erp_flutter/presentation/providers/purchasing_provider.dart';
 import 'package:ya_seen_erp_flutter/presentation/providers/theme_provider.dart';
 import 'package:ya_seen_erp_flutter/theme/app_theme.dart';
+import 'utils/error_logger.dart';
 
 void _handleError(Object error, StackTrace stack) {
-  debugPrint('=== UNCAUGHT ERROR ===');
-  debugPrint('$error');
-  debugPrint('$stack');
+  ErrorLogger.log('UncaughtError', error, stack);
 }
 
 Future<void> main() async {

@@ -111,7 +111,7 @@ app = FastAPI(
     redoc_url="/redoc" if ENV != "production" else None,
 )
 
-CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:8080").split(",")
+CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://127.0.0.1:3000,http://127.0.0.1:8080").split(",")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=CORS_ORIGINS,

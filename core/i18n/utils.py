@@ -50,7 +50,8 @@ def format_date(date: Any, lang_code: str = "ar", format_type: str = "default") 
     if isinstance(date, str):
         try:
             date = QDate.fromString(date, "yyyy-MM-dd")
-        except:
+        except (AttributeError, ValueError) as e:
+            logger.warning(f"Failed to parse date string '{date}': {e}")
             return date
     elif hasattr(date, 'strftime'):
         # datetime object
@@ -112,7 +113,8 @@ def format_datetime(dt: Any, lang_code: str = "ar", include_time: bool = True) -
     if isinstance(dt, str):
         try:
             dt = QDateTime.fromString(dt, "yyyy-MM-dd HH:mm:ss")
-        except:
+        except (AttributeError, ValueError) as e:
+            logger.warning(f"Failed to parse datetime string '{dt}': {e}")
             return dt
     elif hasattr(dt, 'strftime'):
         # datetime object
@@ -161,7 +163,8 @@ def format_time(time: Any, lang_code: str = "ar") -> str:
     if isinstance(time, str):
         try:
             time = QTime.fromString(time, "hh:mm:ss")
-        except:
+        except (AttributeError, ValueError) as e:
+            logger.warning(f"Failed to parse time string '{time}': {e}")
             return time
     elif hasattr(time, 'strftime'):
         time = QTime(time.hour, time.minute, time.second)
