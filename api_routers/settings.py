@@ -13,6 +13,7 @@ from fastapi import APIRouter, Depends, Query, status
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from api_routers.shared import bootstrap, logger, ApiResponse, get_current_user
+from api_routers.shared.auth_deps import require_permission
 
 router = APIRouter(prefix="", tags=["settings"])
 
@@ -1305,6 +1306,7 @@ async def list_roles(
     limit: int = Query(100, ge=1, le=500),
     offset: int = Query(0, ge=0),
     current_user: dict = Depends(get_current_user),
+    _auth: object = require_permission("settings.manage_users"),
 ):
     try:
         with bootstrap.uow() as uow:
@@ -1317,25 +1319,34 @@ async def list_roles(
             ), {"lim": limit, "off": offset}).mappings().all()
 
             items = []
-            for r in rows:
-                perms = uow.session.execute(sa_text(
-                    "SELECT p.id::text, p.code, p.name, p.category "
+            if rows:
+                perms_rows = uow.session.execute(sa_text(
+                    "SELECT rp.role_id::text AS role_id, p.id::text, p.code, p.name, p.category "
                     "FROM permissions p "
                     "JOIN role_permissions rp ON rp.permission_id = p.id "
-                    "WHERE rp.role_id = :rid"
-                ), {"rid": r["id"]}).mappings().all()
-                items.append({
-                    "id": r["id"],
-                    "name": r["name"],
-                    "display_name": r["display_name"],
-                    "description": r["description"],
-                    "is_admin": r["is_admin"],
-                    "is_active": r["is_active"],
-                    "permissions": [dict(p) for p in perms],
-                    "created_at": str(r["created_at"]) if r["created_at"] else None,
-                    "created_by": r["created_by"],
-                    "version": r["version"],
-                })
+                    "WHERE rp.role_id::text = ANY(:role_ids)"
+                ), {"role_ids": [r["id"] for r in rows]}).mappings().all()
+
+                perms_by_role: dict = {}
+                for pr in perms_rows:
+                    perms_by_role.setdefault(pr["role_id"], []).append({
+                        "id": pr["id"], "code": pr["code"],
+                        "name": pr["name"], "category": pr["category"],
+                    })
+
+                for r in rows:
+                    items.append({
+                        "id": r["id"],
+                        "name": r["name"],
+                        "display_name": r["display_name"],
+                        "description": r["description"],
+                        "is_admin": r["is_admin"],
+                        "is_active": r["is_active"],
+                        "permissions": perms_by_role.get(r["id"], []),
+                        "created_at": str(r["created_at"]) if r["created_at"] else None,
+                        "created_by": r["created_by"],
+                        "version": r["version"],
+                    })
 
             count = uow.session.execute(sa_text(
                 f"SELECT COUNT(*) FROM roles r {where}"
@@ -1351,6 +1362,7 @@ async def list_roles(
 async def create_role(
     request: CreateRoleRequest,
     current_user: dict = Depends(get_current_user),
+    _auth: object = require_permission("settings.manage_users"),
 ):
     try:
         from sqlalchemy import text as sa_text
@@ -1388,6 +1400,7 @@ async def update_role(
     role_id: str,
     request: UpdateRoleRequest,
     current_user: dict = Depends(get_current_user),
+    _auth: object = require_permission("settings.manage_users"),
 ):
     try:
         from sqlalchemy import text as sa_text
@@ -1411,9 +1424,15 @@ async def update_role(
                 sets.append("is_admin = :admin")
                 params["admin"] = request.is_admin
 
-            uow.session.execute(sa_text(
+            update_result = uow.session.execute(sa_text(
                 f"UPDATE roles SET {', '.join(sets)} WHERE id::text = :rid AND version = :ov"
             ), {**params, "ov": role["version"]})
+
+            if update_result.rowcount == 0:
+                return ApiResponse(
+                    success=False,
+                    message="تم تعديل هذا الدور بواسطة مستخدم آخر في وقت متزامن، يرجى تحديث البيانات وإعادة المحاولة",
+                )
 
             if request.permission_ids is not None:
                 uow.session.execute(sa_text(
@@ -1435,6 +1454,7 @@ async def update_role(
 async def delete_role(
     role_id: str,
     current_user: dict = Depends(get_current_user),
+    _auth: object = require_permission("settings.manage_users"),
 ):
     try:
         from sqlalchemy import text as sa_text

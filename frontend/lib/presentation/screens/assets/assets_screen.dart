@@ -337,7 +337,7 @@ class _AssetsScreenState extends State<AssetsScreen> {
         'name': name,
         'code': code,
         'asset_type': assetType,
-        'cost': cost,
+        'acquisition_cost': cost,
         'acquisition_date':
             '${acquisitionDate.year}-${acquisitionDate.month.toString().padLeft(2, '0')}-${acquisitionDate.day.toString().padLeft(2, '0')}',
         if (usefulLifeYears != null) 'useful_life_years': usefulLifeYears,
@@ -408,12 +408,12 @@ class _AssetsScreenState extends State<AssetsScreen> {
               const Divider(height: 24),
               _detailRow('الكود', '${detail['code'] ?? ''}'),
               _detailRow('النوع', _assetTypeLabels[detail['asset_type']] ?? '${detail['asset_type'] ?? ''}'),
-              _detailRow('التكلفة', '${detail['cost'] ?? 0}'),
+              _detailRow('التكلفة', '${detail['acquisition_cost'] ?? detail['cost'] ?? 0}'),
               _detailRow('تاريخ الاستحواذ', '${detail['acquisition_date'] ?? ''}'),
               _detailRow('العمر الإنتاجي', detail['useful_life_years'] != null ? '${detail['useful_life_years']} سنة' : '-'),
               _detailRow('طريقة الإطفاء', _depreciationMethodLabels[detail['depreciation_method']] ?? '${detail['depreciation_method'] ?? '-'}'),
               _detailRow('الموقع', '${detail['location'] ?? '-'}'),
-              _detailRow('القيمة الدفترية', '${detail['book_value'] ?? '-'}'),
+              _detailRow('القيمة الدفترية', '${detail['net_book_value'] ?? detail['book_value'] ?? '-'}'),
               _detailRow('الإطفاء المتراكم', '${detail['accumulated_depreciation'] ?? '-'}'),
               if (detail['notes'] != null && '${detail['notes']}'.isNotEmpty)
                 _detailRow('ملاحظات', '${detail['notes']}'),
@@ -672,10 +672,13 @@ class _AssetsScreenState extends State<AssetsScreen> {
     if (result == true) {
       try {
         await _api.post('assets/$assetId/dispose', data: {
-          'disposal_type': disposalType,
           'disposal_date':
               '${disposalDate.year}-${disposalDate.month.toString().padLeft(2, '0')}-${disposalDate.day.toString().padLeft(2, '0')}',
-          'disposal_amount': double.tryParse(amountCtrl.text) ?? 0,
+          'disposal_method': disposalType,
+          if (disposalType == 'scrap')
+            'scrap_value': double.tryParse(amountCtrl.text) ?? 0
+          else
+            'sale_amount': double.tryParse(amountCtrl.text) ?? 0,
           'reason': reasonCtrl.text,
         });
         _showSuccess('تم إخلاء الأصل بنجاح');
@@ -913,7 +916,7 @@ class _AssetsScreenState extends State<AssetsScreen> {
                 children: [
                   Text('النوع: ${_assetTypeLabels[asset['asset_type']] ?? asset['asset_type'] ?? ''}'),
                   const SizedBox(width: 12),
-                  Text('التكلفة: ${asset['cost'] ?? 0}'),
+                  Text('التكلفة: ${asset['acquisition_cost'] ?? asset['cost'] ?? 0}'),
                 ],
               ),
               if (asset['acquisition_date'] != null)

@@ -84,33 +84,6 @@ async def create_supplier(request: CreateSupplierRequest, current_user: dict = D
         return ApiResponse(success=False, message=str(e), errors=[str(e)])
 
 
-@router.get("/api/suppliers/{supplier_id}", response_model=ApiResponse)
-async def get_supplier(supplier_id: str, current_user: dict = Depends(get_current_user)):
-    try:
-        from core.domain.suppliers.value_objects import SupplierId
-        with bootstrap.uow() as uow:
-            supplier = uow.suppliers.get_by_id(SupplierId.from_string(supplier_id))
-            if not supplier:
-                return ApiResponse(success=False, message="المورد غير موجود")
-            data = {
-                'id': str(supplier.id.value),
-                'code': str(supplier.code),
-                'name': supplier.name,
-                'status': supplier.status.value if hasattr(supplier.status, 'value') else str(supplier.status),
-                'email': supplier.contact_info.email if hasattr(supplier, 'contact_info') else None,
-                'phone': supplier.contact_info.phone if hasattr(supplier, 'contact_info') else None,
-                'tax_number': supplier.tax_number,
-                'credit_limit': float(supplier.credit_limit) if hasattr(supplier, 'credit_limit') else 0,
-                'currency': supplier.currency if hasattr(supplier, 'currency') else 'USD',
-                'notes': supplier.notes,
-                'version': supplier.version,
-            }
-            return ApiResponse(success=True, message="تم جلب المورد بنجاح", data=data)
-    except Exception as e:
-        logger.error(f"Error getting supplier: {e}", exc_info=True)
-        return ApiResponse(success=False, message=str(e), errors=[str(e)])
-
-
 @router.get("/api/suppliers/aging", response_model=ApiResponse)
 async def supplier_aging_report(
     as_of_date: Optional[date] = Query(None),
@@ -180,6 +153,33 @@ async def supplier_aging_report(
                                data={'as_of': as_of.isoformat(), 'items': items})
     except Exception as e:
         logger.error(f"Error getting supplier aging report: {e}", exc_info=True)
+        return ApiResponse(success=False, message=str(e), errors=[str(e)])
+
+
+@router.get("/api/suppliers/{supplier_id}", response_model=ApiResponse)
+async def get_supplier(supplier_id: str, current_user: dict = Depends(get_current_user)):
+    try:
+        from core.domain.suppliers.value_objects import SupplierId
+        with bootstrap.uow() as uow:
+            supplier = uow.suppliers.get_by_id(SupplierId.from_string(supplier_id))
+            if not supplier:
+                return ApiResponse(success=False, message="المورد غير موجود")
+            data = {
+                'id': str(supplier.id.value),
+                'code': str(supplier.code),
+                'name': supplier.name,
+                'status': supplier.status.value if hasattr(supplier.status, 'value') else str(supplier.status),
+                'email': supplier.contact_info.email if hasattr(supplier, 'contact_info') else None,
+                'phone': supplier.contact_info.phone if hasattr(supplier, 'contact_info') else None,
+                'tax_number': supplier.tax_number,
+                'credit_limit': float(supplier.credit_limit) if hasattr(supplier, 'credit_limit') else 0,
+                'currency': supplier.currency if hasattr(supplier, 'currency') else 'USD',
+                'notes': supplier.notes,
+                'version': supplier.version,
+            }
+            return ApiResponse(success=True, message="تم جلب المورد بنجاح", data=data)
+    except Exception as e:
+        logger.error(f"Error getting supplier: {e}", exc_info=True)
         return ApiResponse(success=False, message=str(e), errors=[str(e)])
 
 

@@ -72,18 +72,28 @@ class AccountingProvider extends ChangeNotifier {
     required List<Map<String, dynamic>> lines,
     String? transactionType,
     String? notes,
+    bool post = false,
   }) async {
     _setLoading(true);
     
     try {
-      await _apiService.post('/journal-entries', data: {
+      final response = await _apiService.post('/journal-entries', data: {
         'date': date.toIso8601String().split('T')[0],
         'description': description,
         'lines': lines,
         if (transactionType != null) 'transaction_type': transactionType,
         if (notes != null) 'notes': notes,
       });
-      
+
+      if (post) {
+        final entryId = response['id']?.toString();
+        if (entryId == null || entryId.isEmpty) {
+          _error = 'تعذر الحصول على معرف القيد لترحيله';
+          return false;
+        }
+        return await postJournalEntry(entryId);
+      }
+
       await loadJournalEntries();
       return true;
     } catch (e) {
@@ -196,9 +206,9 @@ class AccountingProvider extends ChangeNotifier {
     _setLoading(true);
     
     try {
-      final response = await _apiService.post('/reports/trial-balance', data: {
+      final response = await _apiService.get('/reports/trial-balance', queryParameters: {
         'as_of_date': asOfDate.toIso8601String().split('T')[0],
-        'include_zero_balance': includeZeroBalance,
+        'include_zero_balances': includeZeroBalance,
       });
       return response;
     } catch (e) {
@@ -217,8 +227,8 @@ class AccountingProvider extends ChangeNotifier {
     
     try {
       final response = await _apiService.post('/reports/income-statement', data: {
-        'start_date': startDate.toIso8601String().split('T')[0],
-        'end_date': endDate.toIso8601String().split('T')[0],
+        'period_start': startDate.toIso8601String().split('T')[0],
+        'period_end': endDate.toIso8601String().split('T')[0],
       });
       return response;
     } catch (e) {

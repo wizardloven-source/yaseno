@@ -269,6 +269,27 @@ class SidebarWidget extends StatelessWidget {
                   route: '/purchase-orders',
                   isSelected: currentRoute.startsWith('/purchase-orders'),
                 ),
+                _buildMenuItem(
+                  context,
+                  icon: Icons.request_quote,
+                  label: 'عروض الأسعار',
+                  route: '/sales/quotes',
+                  isSelected: currentRoute.startsWith('/sales/quotes'),
+                ),
+                _buildMenuItem(
+                  context,
+                  icon: Icons.shopping_bag,
+                  label: 'أوامر البيع',
+                  route: '/sales/orders',
+                  isSelected: currentRoute.startsWith('/sales/orders'),
+                ),
+                _buildMenuItem(
+                  context,
+                  icon: Icons.delivery_dining,
+                  label: 'إشعارات التسليم',
+                  route: '/sales/deliveries',
+                  isSelected: currentRoute.startsWith('/sales/deliveries'),
+                ),
 
                 const Divider(height: 4),
 

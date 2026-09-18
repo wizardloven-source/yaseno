@@ -23,7 +23,7 @@ class _InventoryScreenState extends State<InventoryScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
   }
 
   @override
@@ -44,6 +44,7 @@ class _InventoryScreenState extends State<InventoryScreen>
             Tab(text: 'المخزون', icon: Icon(Icons.inventory_2)),
             Tab(text: 'الحركات', icon: Icon(Icons.swap_vert)),
             Tab(text: 'التحويلات', icon: Icon(Icons.swap_horiz)),
+            Tab(text: 'التقارير', icon: Icon(Icons.assessment)),
           ],
         ),
       ),
@@ -53,6 +54,7 @@ class _InventoryScreenState extends State<InventoryScreen>
           _StockTab(),
           _MovementsTab(),
           _TransfersTab(),
+          _ReportsTab(),
         ],
       ),
     );
@@ -1574,6 +1576,209 @@ class _TransfersTabState extends State<_TransfersTab> {
             },
             child: const Text('إكمال'),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+
+class _ReportsTab extends StatefulWidget {
+  const _ReportsTab({super.key});
+
+  @override
+  State<_ReportsTab> createState() => _ReportsTabState();
+}
+
+class _ReportsTabState extends State<_ReportsTab> {
+  final _api = ApiService();
+  bool _isLoading = true;
+  String? _error;
+  List<Map<String, dynamic>> _movements = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadReports();
+  }
+
+  Future<void> _loadReports() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+    try {
+      final response = await _api.get('inventory/movements',
+          queryParameters: {'limit': 500});
+      final data = response['data'] ?? response;
+      final items = (data is Map ? data['items'] : data) ?? [];
+      setState(() {
+        _movements = (items as List).cast<Map<String, dynamic>>();
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = ErrorUtils.sanitize(e);
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) return const LoadingState();
+
+    if (_error != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.error_outline,
+                  color: AppColors.danger, size: 40),
+              const SizedBox(height: 12),
+              Text(_error!, textAlign: TextAlign.center,
+                  style: const TextStyle(color: AppColors.textSecondary)),
+              const SizedBox(height: 16),
+              TextButton.icon(
+                onPressed: _loadReports,
+                icon: const Icon(Icons.refresh),
+                label: const Text('إعادة المحاولة'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (_movements.isEmpty) {
+      return const EmptyState(
+        icon: Icons.assessment,
+        title: 'لا توجد بيانات تقارير',
+        message: 'لم يتم تسجيل أي حركات مخزون بعد',
+      );
+    }
+
+    final purchaseQty = _movements
+        .where((m) => (m['movement_type'] ?? m['type']) == 'purchase')
+        .fold<num>(0, (s, m) => s + (num.tryParse('${m['quantity'] ?? 0}') ?? 0));
+    final saleQty = _movements
+        .where((m) => (m['movement_type'] ?? m['type']) == 'sale')
+        .fold<num>(0, (s, m) => s + (num.tryParse('${m['quantity'] ?? 0}') ?? 0));
+    final adjustments = _movements
+        .where((m) => (m['movement_type'] ?? m['type']) == 'adjustment')
+        .toList();
+
+    return RefreshIndicator(
+      onRefresh: _loadReports,
+      child: ListView(
+        padding: const EdgeInsets.all(12),
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: _summaryCard(
+                  Icons.add_shopping_cart,
+                  'إجمالي المشتريات',
+                  '$purchaseQty',
+                  AppColors.success,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _summaryCard(
+                  Icons.remove_shopping_cart,
+                  'إجمالي المبيعات',
+                  '$saleQty',
+                  AppColors.danger,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: _summaryCard(
+                  Icons.tune,
+                  'عدد التسويات',
+                  '${adjustments.length}',
+                  AppColors.warning,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _summaryCard(
+                  Icons.inventory_2,
+                  'إجمالي الحركات',
+                  '${_movements.length}',
+                  AppColors.secondary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          const Text('سجل التسويات', style: AppTextStyles.titleMedium),
+          const SizedBox(height: 8),
+          ...adjustments.map(
+            (m) => ListTile(
+              leading: const Icon(Icons.tune, color: AppColors.warning),
+              title: Text('${m['entity_name'] ?? m['name'] ?? 'صنف'}'),
+              subtitle: Text(ErrorUtils.sanitize(
+                  'الكمية: ${m['quantity'] ?? 0} — ${m['reason'] ?? m['note'] ?? 'تسوية'}')),
+            ),
+          ),
+          const SizedBox(height: 16),
+          const Text('آخر الحركات', style: AppTextStyles.titleMedium),
+          const SizedBox(height: 8),
+          ..._movements.take(10).map(
+            (m) => ListTile(
+              dense: true,
+              leading: Icon(
+                (m['movement_type'] ?? m['type']) == 'purchase'
+                    ? Icons.add_shopping_cart
+                    : (m['movement_type'] ?? m['type']) == 'sale'
+                        ? Icons.remove_shopping_cart
+                        : Icons.swap_vert,
+                color: (m['movement_type'] ?? m['type']) == 'purchase'
+                    ? AppColors.success
+                    : (m['movement_type'] ?? m['type']) == 'sale'
+                        ? AppColors.danger
+                        : AppColors.warning,
+              ),
+              title: Text('${m['entity_name'] ?? m['name'] ?? 'صنف'}'),
+              subtitle: Text(
+                  'الكمية: ${m['quantity'] ?? 0} — ${m['created_at'] ?? ''}'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _summaryCard(
+      IconData icon, String label, String value, Color color) {
+    return AppCard(
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: color, size: 20),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(label,
+                    style: const TextStyle(
+                        fontSize: 12, color: AppColors.textSecondary)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(value,
+              style: AppTextStyles.titleMedium
+                  .copyWith(color: color, fontWeight: FontWeight.bold)),
         ],
       ),
     );

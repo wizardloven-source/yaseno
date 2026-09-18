@@ -411,6 +411,151 @@ class ApiService {
   }
 
   // =========================================================================
+  // Sales Cycle - Quotations (عروض الأسعار)
+  // =========================================================================
+
+  Future<List<Map<String, dynamic>>> getQuotations({
+    Map<String, dynamic>? queryParameters,
+  }) async {
+    final response = await _client.dio.get('/sales/quotes', queryParameters: queryParameters);
+    final data = response.data;
+    final items = data['data']?['items'] ?? data['items'] ?? [];
+    if (items is List) return items.cast<Map<String, dynamic>>();
+    return [];
+  }
+
+  Future<Map<String, dynamic>> getQuotation(String id) async {
+    final response = await _client.dio.get('/sales/quotes/$id');
+    final data = response.data;
+    return (data['data'] is Map) ? data['data'] : data;
+  }
+
+  Future<Map<String, dynamic>> createQuotation(Map<String, dynamic> data) async {
+    final response = await _client.dio.post('/sales/quotes', data: data);
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> updateQuotation(String id, Map<String, dynamic> data) async {
+    final response = await _client.dio.patch('/sales/quotes/$id', data: data);
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> sendQuotation(String id) async {
+    final response = await _client.dio.post('/sales/quotes/$id/send');
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> acceptQuotation(String id) async {
+    final response = await _client.dio.post('/sales/quotes/$id/accept');
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> rejectQuotation(String id, String reason) async {
+    final response = await _client.dio.post('/sales/quotes/$id/reject', data: {'reason': reason});
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> convertQuotation(String id) async {
+    final response = await _client.dio.post('/sales/quotes/$id/convert');
+    return response.data;
+  }
+
+  // =========================================================================
+  // Sales Cycle - Orders (أوامر البيع)
+  // =========================================================================
+
+  Future<List<Map<String, dynamic>>> getSalesOrders({
+    Map<String, dynamic>? queryParameters,
+  }) async {
+    final response = await _client.dio.get('/sales/orders', queryParameters: queryParameters);
+    final data = response.data;
+    final items = data['data']?['items'] ?? data['items'] ?? [];
+    if (items is List) return items.cast<Map<String, dynamic>>();
+    return [];
+  }
+
+  Future<Map<String, dynamic>> getSalesOrder(String id) async {
+    final response = await _client.dio.get('/sales/orders/$id');
+    final data = response.data;
+    return (data['data'] is Map) ? data['data'] : data;
+  }
+
+  Future<Map<String, dynamic>> createSalesOrder(Map<String, dynamic> data) async {
+    final response = await _client.dio.post('/sales/orders', data: data);
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> updateSalesOrder(String id, Map<String, dynamic> data) async {
+    final response = await _client.dio.patch('/sales/orders/$id', data: data);
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> confirmSalesOrder(String id) async {
+    final response = await _client.dio.post('/sales/orders/$id/confirm');
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> shipSalesOrder(String id) async {
+    final response = await _client.dio.post('/sales/orders/$id/ship');
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> deliverSalesOrder(String id) async {
+    final response = await _client.dio.post('/sales/orders/$id/deliver');
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> cancelSalesOrder(String id, {String? reason}) async {
+    final response = await _client.dio.post('/sales/orders/$id/cancel', data: {'reason': reason});
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> createInvoiceFromOrder(String id, {Map<String, dynamic>? data}) async {
+    final response = await _client.dio.post('/sales/orders/$id/invoice', data: data ?? {});
+    return response.data;
+  }
+
+  // =========================================================================
+  // Sales Cycle - Deliveries (إشعارات التسليم)
+  // =========================================================================
+
+  Future<List<Map<String, dynamic>>> getDeliveries({
+    Map<String, dynamic>? queryParameters,
+  }) async {
+    final response = await _client.dio.get('/sales/deliveries', queryParameters: queryParameters);
+    final data = response.data;
+    final items = data['data']?['items'] ?? data['items'] ?? [];
+    if (items is List) return items.cast<Map<String, dynamic>>();
+    return [];
+  }
+
+  Future<Map<String, dynamic>> getDelivery(String id) async {
+    final response = await _client.dio.get('/sales/deliveries/$id');
+    final data = response.data;
+    return (data['data'] is Map) ? data['data'] : data;
+  }
+
+  Future<Map<String, dynamic>> createDelivery(Map<String, dynamic> data) async {
+    final response = await _client.dio.post('/sales/deliveries', data: data);
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> completeDelivery(String id, Map<String, dynamic> data) async {
+    final response = await _client.dio.post('/sales/deliveries/$id/complete', data: data);
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> failDelivery(String id, String reason) async {
+    final response = await _client.dio.post('/sales/deliveries/$id/fail', data: {'reason': reason});
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> cancelDelivery(String id) async {
+    final response = await _client.dio.post('/sales/deliveries/$id/cancel');
+    return response.data;
+  }
+
+  // =========================================================================
   // Sites
   // =========================================================================
 

@@ -16,6 +16,7 @@ class BranchesScreen extends StatefulWidget {
 class _BranchesScreenState extends State<BranchesScreen> {
   final ApiService _api = ApiService();
   List<Map<String, dynamic>> _branches = [];
+  List<Map<String, dynamic>> _customers = [];
   bool _isLoading = true;
   String? _error;
 
@@ -23,6 +24,21 @@ class _BranchesScreenState extends State<BranchesScreen> {
   void initState() {
     super.initState();
     _loadData();
+    _loadCustomers();
+  }
+
+  Future<void> _loadCustomers() async {
+    try {
+      final response = await _api.get('customers', queryParameters: {'limit': 1000});
+      final items = response['items'] ?? response['data'] ?? [];
+      if (mounted && items is List) {
+        setState(() {
+          _customers = items.cast<Map<String, dynamic>>();
+        });
+      }
+    } catch (e) {
+      // silent fail
+    }
   }
 
   Future<void> _loadData() async {
@@ -43,61 +59,80 @@ class _BranchesScreenState extends State<BranchesScreen> {
   Future<void> _createBranch() async {
     final codeCtrl = TextEditingController();
     final nameCtrl = TextEditingController();
-    final customerCtrl = TextEditingController();
     final cityCtrl = TextEditingController();
     final phoneCtrl = TextEditingController();
+    String? selectedCustomerId;
+    String customerName = '';
+    String customerCode = '';
     final result = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('إضافة فرع جديد'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(controller: codeCtrl, decoration: const InputDecoration(labelText: 'الرمز *', border: OutlineInputBorder())),
-              const SizedBox(height: 12),
-              TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'اسم الفرع *', border: OutlineInputBorder())),
-              const SizedBox(height: 12),
-              TextField(controller: customerCtrl, decoration: const InputDecoration(labelText: 'اسم العميل *', border: OutlineInputBorder())),
-              const SizedBox(height: 12),
-              TextField(controller: cityCtrl, decoration: const InputDecoration(labelText: 'المدينة', border: OutlineInputBorder())),
-              const SizedBox(height: 12),
-              TextField(controller: phoneCtrl, decoration: const InputDecoration(labelText: 'الهاتف', border: OutlineInputBorder())),
-            ],
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Text('إضافة فرع جديد'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                DropdownButtonFormField<String>(
+                  value: selectedCustomerId,
+                  decoration: const InputDecoration(labelText: 'العميل *', border: OutlineInputBorder()),
+                  hint: const Text('اختر العميل'),
+                  isExpanded: true,
+                  items: _customers.map((c) => DropdownMenuItem<String>(
+                    value: c['id']?.toString(),
+                    child: Text('${c['code'] ?? ''} - ${c['name'] ?? ''}', overflow: TextOverflow.ellipsis),
+                  )).toList(),
+                  onChanged: (v) => setDialogState(() {
+                    selectedCustomerId = v;
+                    final c = v == null ? null : _findCustomerById(v);
+                    customerName = c != null ? '${c['name'] ?? ''}' : '';
+                    customerCode = c != null ? '${c['code'] ?? ''}' : '';
+                  }),
+                ),
+                const SizedBox(height: 12),
+                TextField(controller: codeCtrl, decoration: const InputDecoration(labelText: 'الرمز *', border: OutlineInputBorder())),
+                const SizedBox(height: 12),
+                TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'اسم الفرع *', border: OutlineInputBorder())),
+                const SizedBox(height: 12),
+                TextField(controller: cityCtrl, decoration: const InputDecoration(labelText: 'المدينة', border: OutlineInputBorder())),
+                const SizedBox(height: 12),
+                TextField(controller: phoneCtrl, decoration: const InputDecoration(labelText: 'الهاتف', border: OutlineInputBorder())),
+              ],
+            ),
           ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                style: TextButton.styleFrom(foregroundColor: AppColors.buttonCancel),
+                child: const Text('إلغاء')),
+            AppButton(
+              label: 'حفظ',
+              variant: AppButtonVariant.success,
+              onPressed: () {
+                if (selectedCustomerId == null || codeCtrl.text.isEmpty || nameCtrl.text.isEmpty) {
+                  ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('يرجى ملء الحقول المطلوبة')));
+                  return;
+                }
+                Navigator.pop(ctx, true);
+              },
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              style: TextButton.styleFrom(foregroundColor: AppColors.buttonCancel),
-              child: const Text('إلغاء')),
-          AppButton(
-            label: 'حفظ',
-            variant: AppButtonVariant.success,
-            onPressed: () {
-              if (codeCtrl.text.isEmpty || nameCtrl.text.isEmpty || customerCtrl.text.isEmpty) {
-                ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('يرجى ملء الحقول المطلوبة')));
-                return;
-              }
-              Navigator.pop(ctx, true);
-            },
-          ),
-        ],
       ),
     );
     if (result != true) {
       codeCtrl.dispose();
       nameCtrl.dispose();
-      customerCtrl.dispose();
       cityCtrl.dispose();
       phoneCtrl.dispose();
       return;
     }
     try {
-      await _api.post('branches', data: {
+      await _api.post('customers/$selectedCustomerId/branches', data: {
         'code': codeCtrl.text.trim(),
         'name': nameCtrl.text.trim(),
-        'customer_name': customerCtrl.text.trim(),
+        'customer_name': customerName,
+        'customer_code': customerCode,
         'city': cityCtrl.text.trim(),
         'phone': phoneCtrl.text.trim(),
       });
@@ -112,9 +147,15 @@ class _BranchesScreenState extends State<BranchesScreen> {
     }
     codeCtrl.dispose();
     nameCtrl.dispose();
-    customerCtrl.dispose();
     cityCtrl.dispose();
     phoneCtrl.dispose();
+  }
+
+  Map<String, dynamic>? _findCustomerById(String id) {
+    for (final c in _customers) {
+      if (c['id']?.toString() == id) return c;
+    }
+    return null;
   }
 
   Future<void> _toggleBranch(String id, bool isActive) async {
@@ -185,7 +226,7 @@ class _BranchesScreenState extends State<BranchesScreen> {
               const SizedBox(height: 12),
               TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'اسم الفرع *', border: OutlineInputBorder())),
               const SizedBox(height: 12),
-              TextField(controller: customerCtrl, decoration: const InputDecoration(labelText: 'اسم العميل *', border: OutlineInputBorder())),
+              TextField(controller: customerCtrl, decoration: const InputDecoration(labelText: 'اسم العميل', border: OutlineInputBorder()), enabled: false),
               const SizedBox(height: 12),
               TextField(controller: cityCtrl, decoration: const InputDecoration(labelText: 'المدينة', border: OutlineInputBorder())),
               const SizedBox(height: 12),
@@ -215,9 +256,7 @@ class _BranchesScreenState extends State<BranchesScreen> {
     if (result != true) return;
     try {
       await _api.put('branches/${branch['id']}', data: {
-        'code': codeCtrl.text.trim(),
         'name': nameCtrl.text.trim(),
-        'customer_name': customerCtrl.text.trim(),
         'city': cityCtrl.text.trim(),
         'phone': phoneCtrl.text.trim(),
       });

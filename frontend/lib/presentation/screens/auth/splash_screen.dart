@@ -37,7 +37,7 @@ class _SplashScreenState extends State<SplashScreen>
 
   Future<void> _prepare() async {
     // عرض أدنى لشاشة البداية ليجد المستخدم رسالة "جاري تجهيز البيانات" بطبيعية.
-    await Future<void>.delayed(const Duration(seconds: 30));
+    await Future<void>.delayed(const Duration(seconds: 2));
     if (!mounted) return;
 
     final autoLogin = ApiClient().isAuthenticated;

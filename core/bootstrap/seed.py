@@ -109,6 +109,7 @@ class SeedData:
             ("settings.update_settings", "تحديث الإعدادات", "settings"),
             ("settings.manage_users", "إدارة المستخدمين", "settings"),
             ("settings.manage_roles", "إدارة الأدوار", "settings"),
+            ("system_config", "إعدادات النظام", "settings"),
             
             # Financial Statements
             ("financial_statements.view_income_statement", "عرض قائمة الدخل", "financial"),
@@ -131,6 +132,22 @@ class SeedData:
             # Reports
             ("reports.view_reports", "عرض التقارير", "reports"),
             ("reports.export_reports", "تصدير التقارير", "reports"),
+            
+            # Sales Cycle
+            ("sales.view_quotation", "عرض عرض سعر", "sales"),
+            ("sales.create_quotation", "إنشاء عرض سعر", "sales"),
+            ("sales.update_quotation", "تحديث عرض سعر", "sales"),
+            ("sales.convert_quotation", "تحويل عرض سعر لأمر بيع", "sales"),
+            ("sales.view_order", "عرض أمر بيع", "sales"),
+            ("sales.create_order", "إنشاء أمر بيع", "sales"),
+            ("sales.update_order", "تحديث أمر بيع", "sales"),
+            ("sales.confirm_order", "تأكيد أمر بيع", "sales"),
+            ("sales.cancel_order", "إلغاء أمر بيع", "sales"),
+            ("sales.create_invoice", "إصدار فاتورة من أمر بيع", "sales"),
+            ("sales.view_delivery", "عرض إشعار تسليم", "sales"),
+            ("sales.create_delivery", "إنشاء إشعار تسليم", "sales"),
+            ("sales.complete_delivery", "إكمال إشعار تسليم", "sales"),
+            ("sales.cancel_delivery", "إلغاء إشعار تسليم", "sales"),
         ]
         
         for code, name, category in default_permissions:

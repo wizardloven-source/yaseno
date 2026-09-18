@@ -61,6 +61,16 @@ import 'package:ya_seen_erp_flutter/presentation/screens/purchasing/purchase_ord
 import 'package:ya_seen_erp_flutter/presentation/screens/purchasing/purchase_order_form_screen.dart';
 
 // ============================================================
+// دورة المبيعات (Sales Cycle)
+// ============================================================
+import 'package:ya_seen_erp_flutter/presentation/screens/sales/quotation_list_screen.dart';
+import 'package:ya_seen_erp_flutter/presentation/screens/sales/quotation_form_screen.dart';
+import 'package:ya_seen_erp_flutter/presentation/screens/sales/order_list_screen.dart';
+import 'package:ya_seen_erp_flutter/presentation/screens/sales/order_form_screen.dart';
+import 'package:ya_seen_erp_flutter/presentation/screens/sales/delivery_list_screen.dart';
+import 'package:ya_seen_erp_flutter/presentation/screens/sales/delivery_detail_screen.dart';
+
+// ============================================================
 // المرتجعات (Returns)
 // ============================================================
 import 'package:ya_seen_erp_flutter/presentation/screens/returns/sales_return_screen.dart';
@@ -367,6 +377,57 @@ class AppRouter {
             builder: (context, state) {
               final id = state.pathParameters['id']!;
               return PurchaseOrderFormScreen(orderId: id, readOnly: true);
+            },
+          ),
+
+          // دورة المبيعات (Sales Cycle)
+          GoRoute(
+            path: '/sales/quotes',
+            name: 'sales_quotations',
+            builder: (context, state) => const QuotationListScreen(),
+          ),
+          GoRoute(
+            path: '/sales/quotes/create',
+            name: 'create_quotation',
+            builder: (context, state) => const QuotationFormScreen(),
+          ),
+          GoRoute(
+            path: '/sales/quotes/:id',
+            name: 'quotation_detail',
+            builder: (context, state) {
+              final id = state.pathParameters['id']!;
+              return QuotationFormScreen(quotationId: id, readOnly: true);
+            },
+          ),
+          GoRoute(
+            path: '/sales/orders',
+            name: 'sales_orders',
+            builder: (context, state) => const OrderListScreen(),
+          ),
+          GoRoute(
+            path: '/sales/orders/create',
+            name: 'create_sales_order',
+            builder: (context, state) => const OrderFormScreen(),
+          ),
+          GoRoute(
+            path: '/sales/orders/:id',
+            name: 'sales_order_detail',
+            builder: (context, state) {
+              final id = state.pathParameters['id']!;
+              return OrderFormScreen(orderId: id, readOnly: true);
+            },
+          ),
+          GoRoute(
+            path: '/sales/deliveries',
+            name: 'sales_deliveries',
+            builder: (context, state) => const DeliveryListScreen(),
+          ),
+          GoRoute(
+            path: '/sales/deliveries/:id',
+            name: 'delivery_detail',
+            builder: (context, state) {
+              final id = state.pathParameters['id']!;
+              return DeliveryDetailScreen(deliveryId: id);
             },
           ),
 

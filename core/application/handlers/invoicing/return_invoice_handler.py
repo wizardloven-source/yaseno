@@ -12,8 +12,8 @@ from core.domain.invoicing.value_objects import InvoiceId
 from core.domain.invoicing.exceptions import InvoiceNotFoundError
 from core.domain.accounting.interfaces import IUnitOfWork
 from core.domain.accounting.services import PostingEngine
-from core.domain.accounting.journal_entry import JournalEntry, JournalLine
-from core.domain.accounting.value_objects import AccountCode, JournalEntryRequest
+from core.domain.shared.value_objects import AccountCode, Money
+from core.domain.accounting.entities import JournalEntry, JournalLine
 from core.domain.inventory.services import StockMovementService
 from core.domain.inventory.entities import StockMovementType
 
@@ -110,27 +110,21 @@ class ReturnInvoiceHandler(BaseHandler[ReturnInvoiceCommand, InvoiceDTO]):
             for line in invoice.lines:
                 reverse_lines.append(JournalLine(
                     account_code=revenue_account,
-                    debit_amount=line.total,
-                    credit_amount=Decimal('0'),
-                    currency=invoice.currency,
-                    description=f"عكس بيع - {line.description or line.product_name}"
+                    debit=Money(line.total, invoice.currency),
+                    credit=Money.zero(invoice.currency)
                 ))
             
             reverse_lines.append(JournalLine(
                 account_code=receivables_account,
-                debit_amount=Decimal('0'),
-                credit_amount=sum(l.total for l in invoice.lines),
-                currency=invoice.currency,
-                description=f"عكس مستحقات - فاتورة {invoice.number}"
+                debit=Money.zero(invoice.currency),
+                credit=Money(sum(l.total for l in invoice.lines), invoice.currency)
             ))
             
             if invoice.tax_amount and invoice.tax_amount > 0:
                 reverse_lines.append(JournalLine(
                     account_code=tax_payable_account,
-                    debit_amount=invoice.tax_amount,
-                    credit_amount=Decimal('0'),
-                    currency=invoice.currency,
-                    description=f"عكس ضريبة - فاتورة {invoice.number}"
+                    debit=Money(invoice.tax_amount, invoice.currency),
+                    credit=Money.zero(invoice.currency)
                 ))
             
             # عكس تكلفة البضاعة المباعة
@@ -139,37 +133,20 @@ class ReturnInvoiceHandler(BaseHandler[ReturnInvoiceCommand, InvoiceDTO]):
                     cost_total = line.unit_cost * line.quantity
                     reverse_lines.append(JournalLine(
                         account_code=cogs_account,
-                        debit_amount=Decimal('0'),
-                        credit_amount=abs(cost_total),
-                        currency=invoice.currency,
-                        description=f"عكس تكلفة بيع - {line.product_name}"
+                        debit=Money.zero(invoice.currency),
+                        credit=Money(abs(cost_total), invoice.currency)
                     ))
                     reverse_lines.append(JournalLine(
                         account_code=inventory_account,
-                        debit_amount=abs(cost_total),
-                        credit_amount=Decimal('0'),
-                        currency=invoice.currency,
-                        description=f"إعادة مخزون - {line.product_name}"
+                        debit=Money(abs(cost_total), invoice.currency),
+                        credit=Money.zero(invoice.currency)
                     ))
-            
-            reverse_request = JournalEntryRequest(
-                entry_date=invoice.invoice_date,
-                description=f"قيد عكسي لمرتجع فاتورة {invoice.number}",
-                source_type="InvoiceReturn",
-                source_id=str(return_invoice.id) if hasattr(return_invoice, 'id') else None,
-                currency=invoice.currency,
-                lines=reverse_lines
-            )
             
             # 3. ترحيل القيد العكسي عبر PostingEngine
             if self._posting_engine:
                 journal_entry = JournalEntry(
-                    entry_date=invoice.invoice_date,
-                    description=f"قيد عكسي لمرتجع فاتورة {invoice.number}",
-                    source_type="InvoiceReturn",
-                    source_id=str(return_invoice.id) if hasattr(return_invoice, 'id') else None,
-                    currency=invoice.currency,
-                    created_by=user_context.user_id
+                    date=invoice.invoice_date,
+                    description=f"قيد عكسي لمرتجع فاتورة {invoice.number}"
                 )
                 for rl in reverse_lines:
                     journal_entry.add_line(rl)

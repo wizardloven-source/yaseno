@@ -76,6 +76,9 @@ class Bootstrap:
         # ✅ التأكد من وجود جدول الإشعارات (حل المشكلة)
         self._ensure_notification_table()
         
+        # ✅ التأكد من وجود جداول دورة المبيعات
+        self._ensure_sales_cycle_tables()
+        
         logger.info("✅ Database tables created")
         
         # 3. تسجيل الخدمات الأساسية
@@ -374,7 +377,7 @@ class Bootstrap:
                         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
                     )
                 """))
-                conn.execute(text("CREATE INDEX IF NOT EXISTS idx_erh_from_to ON exchange_rate_history (from_currency, to_currency)"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS idx_erh_from_to ON exchange_rate_history (from_currency_code, to_currency_code)"))
                 conn.execute(text("CREATE INDEX IF NOT EXISTS idx_erh_created ON exchange_rate_history (created_at)"))
                 
                 iqd_rates = '[{"from_currency":"IQD","to_currency":"USD","rate":0.00076},{"from_currency":"IQD","to_currency":"EUR","rate":0.00070}]'
@@ -502,6 +505,225 @@ class Bootstrap:
         self._container.register_instance("permission_manager", permission_manager)
         
         logger.info("   Security initialized")
+    
+    # =========================================================================
+    # ✅ التأكد من وجود جداول دورة المبيعات (عروض الأسعار/أوامر البيع/التسليم)
+    # =========================================================================
+    
+    def _ensure_sales_cycle_tables(self) -> None:
+        """
+        إنشاء جداول دورة المبيعات (sales cycle) إذا لم تكن موجودة:
+        sales_quotations, quotation_items, sales_orders, order_items,
+        delivery_notes, delivery_items
+        """
+        from sqlalchemy import text
+        
+        if not self._session_factory:
+            logger.warning("⚠️ Session factory not available")
+            return
+        
+        try:
+            with self._session_factory.engine.connect() as conn:
+                conn.execute(text("SET session_replication_role = 'replica';"))
+                
+                # -------------------------------------------------------------
+                # عروض الأسعار - Quotations
+                # -------------------------------------------------------------
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS sales_quotations (
+                        id VARCHAR(100) PRIMARY KEY,
+                        quotation_number VARCHAR(50) NOT NULL UNIQUE,
+                        customer_id VARCHAR(100) NOT NULL,
+                        customer_name VARCHAR(255) NOT NULL,
+                        currency VARCHAR(3) NOT NULL DEFAULT 'USD',
+                        issue_date DATE NOT NULL DEFAULT CURRENT_DATE,
+                        expiry_date DATE,
+                        status VARCHAR(20) NOT NULL DEFAULT 'draft',
+                        global_discount_percent NUMERIC(10,2) NOT NULL DEFAULT 0,
+                        global_discount_amount NUMERIC(18,2) NOT NULL DEFAULT 0,
+                        subtotal NUMERIC(18,2) NOT NULL DEFAULT 0,
+                        total_discount NUMERIC(18,2) NOT NULL DEFAULT 0,
+                        amount_after_discount NUMERIC(18,2) NOT NULL DEFAULT 0,
+                        total_tax NUMERIC(18,2) NOT NULL DEFAULT 0,
+                        grand_total NUMERIC(18,2) NOT NULL DEFAULT 0,
+                        billing_address JSONB,
+                        shipping_address JSONB,
+                        notes TEXT,
+                        internal_notes TEXT,
+                        sent_date TIMESTAMPTZ,
+                        viewed_date TIMESTAMPTZ,
+                        accepted_date TIMESTAMPTZ,
+                        rejected_date TIMESTAMPTZ,
+                        converted_date TIMESTAMPTZ,
+                        order_id VARCHAR(100),
+                        branch_id VARCHAR(100),
+                        created_by VARCHAR(100) NOT NULL DEFAULT 'system',
+                        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                    )
+                """))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS idx_sales_quotations_customer ON sales_quotations (customer_id)"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS idx_sales_quotations_status ON sales_quotations (status)"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS idx_sales_quotations_created ON sales_quotations (created_at)"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS idx_sales_quotations_number ON sales_quotations (quotation_number)"))
+                
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS quotation_items (
+                        id VARCHAR(100) PRIMARY KEY,
+                        quotation_id VARCHAR(100) NOT NULL,
+                        product_id VARCHAR(100) NOT NULL,
+                        product_code VARCHAR(100),
+                        product_name VARCHAR(255) NOT NULL,
+                        quantity NUMERIC(18,2) NOT NULL DEFAULT 1,
+                        unit_price NUMERIC(18,2) NOT NULL DEFAULT 0,
+                        discount_percent NUMERIC(10,2) NOT NULL DEFAULT 0,
+                        tax_percent NUMERIC(10,2) NOT NULL DEFAULT 0,
+                        unit VARCHAR(50) NOT NULL DEFAULT 'pcs',
+                        notes TEXT,
+                        subtotal NUMERIC(18,2) NOT NULL DEFAULT 0,
+                        discount_amount NUMERIC(18,2) NOT NULL DEFAULT 0,
+                        amount_after_discount NUMERIC(18,2) NOT NULL DEFAULT 0,
+                        tax_amount NUMERIC(18,2) NOT NULL DEFAULT 0,
+                        total NUMERIC(18,2) NOT NULL DEFAULT 0
+                    )
+                """))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS idx_quotation_items_quotation ON quotation_items (quotation_id)"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS idx_quotation_items_product ON quotation_items (product_id)"))
+                
+                # -------------------------------------------------------------
+                # أوامر البيع - Sales Orders
+                # -------------------------------------------------------------
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS sales_orders (
+                        id VARCHAR(100) PRIMARY KEY,
+                        order_number VARCHAR(50) NOT NULL UNIQUE,
+                        customer_id VARCHAR(100) NOT NULL,
+                        customer_name VARCHAR(255) NOT NULL,
+                        currency VARCHAR(3) NOT NULL DEFAULT 'USD',
+                        source_type VARCHAR(50),
+                        source_id VARCHAR(100),
+                        quotation_id VARCHAR(100),
+                        order_date DATE NOT NULL DEFAULT CURRENT_DATE,
+                        expected_delivery_date DATE,
+                        actual_delivery_date DATE,
+                        status VARCHAR(20) NOT NULL DEFAULT 'draft',
+                        priority VARCHAR(20) NOT NULL DEFAULT 'normal',
+                        global_discount_percent NUMERIC(10,2) NOT NULL DEFAULT 0,
+                        global_discount_amount NUMERIC(18,2) NOT NULL DEFAULT 0,
+                        subtotal NUMERIC(18,2) NOT NULL DEFAULT 0,
+                        total_discount NUMERIC(18,2) NOT NULL DEFAULT 0,
+                        amount_after_discount NUMERIC(18,2) NOT NULL DEFAULT 0,
+                        total_tax NUMERIC(18,2) NOT NULL DEFAULT 0,
+                        shipping_cost NUMERIC(18,2) NOT NULL DEFAULT 0,
+                        grand_total NUMERIC(18,2) NOT NULL DEFAULT 0,
+                        shipping_method VARCHAR(100),
+                        tracking_number VARCHAR(100),
+                        carrier VARCHAR(255),
+                        payment_status VARCHAR(20) NOT NULL DEFAULT 'pending',
+                        payment_terms VARCHAR(255),
+                        due_date DATE,
+                        invoice_id VARCHAR(100),
+                        invoice_number VARCHAR(50),
+                        invoiced_date TIMESTAMPTZ,
+                        invoiced_amount NUMERIC(18,2) NOT NULL DEFAULT 0,
+                        billing_address JSONB,
+                        shipping_address JSONB,
+                        notes TEXT,
+                        internal_notes TEXT,
+                        branch_id VARCHAR(100),
+                        created_by VARCHAR(100) NOT NULL DEFAULT 'system',
+                        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                    )
+                """))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS idx_sales_orders_customer ON sales_orders (customer_id)"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS idx_sales_orders_status ON sales_orders (status)"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS idx_sales_orders_created ON sales_orders (created_at)"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS idx_sales_orders_quotation ON sales_orders (quotation_id)"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS idx_sales_orders_number ON sales_orders (order_number)"))
+                
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS order_items (
+                        id VARCHAR(100) PRIMARY KEY,
+                        order_id VARCHAR(100) NOT NULL,
+                        product_id VARCHAR(100) NOT NULL,
+                        product_code VARCHAR(100),
+                        product_name VARCHAR(255) NOT NULL,
+                        quantity NUMERIC(18,2) NOT NULL DEFAULT 1,
+                        unit_price NUMERIC(18,2) NOT NULL DEFAULT 0,
+                        discount_percent NUMERIC(10,2) NOT NULL DEFAULT 0,
+                        tax_percent NUMERIC(10,2) NOT NULL DEFAULT 0,
+                        unit VARCHAR(50) NOT NULL DEFAULT 'pcs',
+                        delivered_quantity NUMERIC(18,2) NOT NULL DEFAULT 0,
+                        returned_quantity NUMERIC(18,2) NOT NULL DEFAULT 0,
+                        warehouse_id VARCHAR(100),
+                        notes TEXT,
+                        subtotal NUMERIC(18,2) NOT NULL DEFAULT 0,
+                        discount_amount NUMERIC(18,2) NOT NULL DEFAULT 0,
+                        amount_after_discount NUMERIC(18,2) NOT NULL DEFAULT 0,
+                        tax_amount NUMERIC(18,2) NOT NULL DEFAULT 0,
+                        total NUMERIC(18,2) NOT NULL DEFAULT 0,
+                        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                    )
+                """))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS idx_order_items_order ON order_items (order_id)"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS idx_order_items_product ON order_items (product_id)"))
+                
+                # -------------------------------------------------------------
+                # إشعارات التسليم - Delivery Notes
+                # -------------------------------------------------------------
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS delivery_notes (
+                        id VARCHAR(100) PRIMARY KEY,
+                        delivery_number VARCHAR(50) NOT NULL UNIQUE,
+                        order_id VARCHAR(100) NOT NULL,
+                        order_number VARCHAR(50) NOT NULL,
+                        customer_id VARCHAR(100) NOT NULL,
+                        customer_name VARCHAR(255) NOT NULL,
+                        delivery_date DATE NOT NULL DEFAULT CURRENT_DATE,
+                        scheduled_date DATE,
+                        actual_delivery_time TIMESTAMPTZ,
+                        status VARCHAR(20) NOT NULL DEFAULT 'draft',
+                        carrier VARCHAR(255),
+                        vehicle_number VARCHAR(50),
+                        driver_name VARCHAR(255),
+                        driver_phone VARCHAR(20),
+                        delivery_address JSONB,
+                        received_by VARCHAR(255),
+                        received_by_title VARCHAR(100),
+                        received_date TIMESTAMPTZ,
+                        failure_reason TEXT,
+                        notes TEXT,
+                        branch_id VARCHAR(100),
+                        created_by VARCHAR(100) NOT NULL DEFAULT 'system',
+                        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                    )
+                """))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS idx_delivery_notes_order ON delivery_notes (order_id)"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS idx_delivery_notes_customer ON delivery_notes (customer_id)"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS idx_delivery_notes_status ON delivery_notes (status)"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS idx_delivery_notes_waiting ON delivery_notes (status, order_id)"))
+                
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS delivery_items (
+                        id VARCHAR(100) PRIMARY KEY,
+                        delivery_id VARCHAR(100) NOT NULL,
+                        product_id VARCHAR(100) NOT NULL,
+                        product_code VARCHAR(100),
+                        product_name VARCHAR(255) NOT NULL,
+                        ordered_quantity NUMERIC(18,2) NOT NULL DEFAULT 0,
+                        delivered_quantity NUMERIC(18,2) NOT NULL DEFAULT 0,
+                        unit VARCHAR(50) NOT NULL DEFAULT 'pcs',
+                        notes TEXT
+                    )
+                """))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS idx_delivery_items_delivery ON delivery_items (delivery_id)"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS idx_delivery_items_product ON delivery_items (product_id)"))
+                
+        except Exception as e:
+            logger.error(f"Error creating sales cycle tables: {e}", exc_info=True)
     
     # =========================================================================
     # تهيئة خدمة السنة المالية

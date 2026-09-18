@@ -179,11 +179,18 @@ def _detect_token_reuse(uow, refresh_token_hash: str) -> bool:
 # =============================================================================
 
 def get_uow():
+    """FastAPI dependency providing a Unit of Work for the full request lifecycle.
+
+    Using a generator dependency keeps the ``with`` block open for the whole
+    request, so commit/rollback run *after* the endpoint finishes instead of
+    immediately before returning the UoW (which silently committed the
+    caller's transaction too early).
+    """
     try:
         with bootstrap.uow() as uow:
-            return uow
+            yield uow
     except Exception as e:
-        logger.error(f"Error getting UOW: {e}")
+        logger.error(f"Error in UOW request scope: {e}")
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 

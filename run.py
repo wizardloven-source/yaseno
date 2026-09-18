@@ -31,8 +31,8 @@ def main():
     print(f"Reload: {reload}")
     print("=" * 60)
     print(f"Project path: {Path(__file__).parent}")
-    print(f"API URL: http://localhost:8000")
-    print(f"API Docs: http://localhost:8000/docs" if reload else "API Docs: DISABLED (production)")
+    print(f"API URL: http://127.0.0.1:8000")
+    print(f"API Docs: http://127.0.0.1:8000/docs" if reload else "API Docs: DISABLED (production)")
     print("=" * 60)
     print()
 

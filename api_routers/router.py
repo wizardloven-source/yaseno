@@ -20,6 +20,9 @@ from api_routers.reports import router as reports_router
 from api_routers.settings import router as settings_router
 from api_routers.workflows import router as workflows_router
 from api_routers.reconciliation import router as reconciliation_router
+from api_routers.sales_cycle.quotations_router import router as quotations_router
+from api_routers.sales_cycle.orders_router import router as orders_router
+from api_routers.sales_cycle.deliveries_router import router as deliveries_router
 
 # Register all routers
 app.include_router(health_router)
@@ -37,3 +40,6 @@ app.include_router(reports_router)
 app.include_router(settings_router)
 app.include_router(workflows_router)
 app.include_router(reconciliation_router)
+app.include_router(quotations_router)
+app.include_router(orders_router)
+app.include_router(deliveries_router)

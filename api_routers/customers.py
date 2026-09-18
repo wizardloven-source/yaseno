@@ -177,6 +177,36 @@ async def customer_aging_report(
         return ApiResponse(success=False, message=str(e), errors=[str(e)])
 
 
+@router.get("/api/customers/{customer_id}", response_model=ApiResponse)
+async def get_customer(customer_id: str, current_user: dict = Depends(get_current_user)):
+    try:
+        with bootstrap.uow() as uow:
+            customer = uow.customers.get_by_id(customer_id)
+            if not customer:
+                return ApiResponse(success=False, message="العميل غير موجود")
+            data = {
+                'id': str(customer.id) if hasattr(customer, 'id') else customer_id,
+                'code': str(customer.code) if hasattr(customer, 'code') else '',
+                'name': customer.name,
+                'status': customer.status.value if hasattr(customer, 'status') else 'active',
+                'email': customer.contact_info.email if hasattr(customer, 'contact_info') else None,
+                'phone': customer.contact_info.phone if hasattr(customer, 'contact_info') else None,
+                'mobile': customer.contact_info.mobile if hasattr(customer, 'contact_info') else None,
+                'street': customer.address.street if hasattr(customer, 'address') else None,
+                'city': customer.address.city if hasattr(customer, 'address') else None,
+                'country': customer.address.country if hasattr(customer, 'address') else None,
+                'tax_number': getattr(customer, 'tax_number', None),
+                'credit_limit': float(customer.credit_limit) if hasattr(customer, 'credit_limit') else 0,
+                'currency': customer.currency if hasattr(customer, 'currency') else 'USD',
+                'notes': getattr(customer, 'notes', None),
+                'version': getattr(customer, 'version', None),
+            }
+            return ApiResponse(success=True, message="تم جلب العميل بنجاح", data=data)
+    except Exception as e:
+        logger.error(f"Error getting customer: {e}", exc_info=True)
+        return ApiResponse(success=False, message=str(e), errors=[str(e)])
+
+
 @router.put("/api/customers/{customer_id}", response_model=ApiResponse)
 async def update_customer(customer_id: str, request: dict, current_user: dict = Depends(get_current_user)):
     _ctx = get_current_user_context()

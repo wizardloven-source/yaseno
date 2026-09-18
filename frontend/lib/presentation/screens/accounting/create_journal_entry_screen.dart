@@ -201,6 +201,7 @@ class _CreateJournalEntryScreenState extends State<CreateJournalEntryScreen> {
         date: _selectedDate,
         description: _descriptionController.text.trim(),
         lines: lines,
+        post: post,
       );
 
       if (success && mounted) {

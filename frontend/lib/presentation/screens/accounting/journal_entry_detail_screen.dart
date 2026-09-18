@@ -81,21 +81,35 @@ class _JournalEntryDetailScreenState extends State<JournalEntryDetailScreen> {
   }
 
   Future<void> _reverseEntry() async {
+    final controller = TextEditingController();
     final reason = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('عكس القيد'),
         content: TextField(
+          controller: controller,
           autofocus: true,
           decoration: const InputDecoration(hintText: 'سبب العكس', border: OutlineInputBorder()),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
-          TextButton(onPressed: () => Navigator.pop(ctx, ' '), child: const Text('عكس')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+            child: const Text('عكس'),
+          ),
         ],
       ),
     );
+    controller.dispose();
     if (reason == null) return;
+    if (reason.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('الرجاء إدخال سبب العكس'), backgroundColor: AppColors.warning),
+        );
+      }
+      return;
+    }
     try {
       final dio = ApiClient().dio;
       await dio.post(
@@ -119,7 +133,7 @@ class _JournalEntryDetailScreenState extends State<JournalEntryDetailScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('تفاصيل القيد #${widget.entryId.substring(0, 8)}'),
+        title: Text('تفاصيل القيد #${widget.entryId.length > 8 ? widget.entryId.substring(0, 8) : widget.entryId}'),
         centerTitle: true,
         actions: [
           if (_entry != null && _entry!['is_posted'] == false) ...[

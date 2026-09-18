@@ -16,7 +16,7 @@ load_dotenv()
 class DatabaseSettings:
     """Database configuration settings."""
     
-    host: str = "localhost"
+    host: str = "127.0.0.1"
     port: int = 5432
     database: str = "erpya"
     username: str = "postgres"
@@ -31,7 +31,7 @@ class DatabaseSettings:
     def from_env(cls) -> "DatabaseSettings":
         """Create settings from environment variables."""
         return cls(
-            host=os.getenv("DB_HOST", "localhost"),
+            host=os.getenv("DB_HOST", "127.0.0.1"),
             port=int(os.getenv("DB_PORT", "5432")),
             database=os.getenv("DB_NAME", "erpya"),
             username=os.getenv("DB_USER", "postgres"),

@@ -50,7 +50,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       setState(() {
         _notifications =
             (listItems as List).cast<Map<String, dynamic>>();
-        _unreadCount = unread is int ? unread : (unread as num).toInt();
+        _unreadCount = unread is int
+            ? unread
+            : (unread is num
+                  ? (unread as num).toInt()
+                  : int.tryParse(unread?.toString() ?? '') ?? 0);
         _isLoading = false;
       });
     } catch (e) {

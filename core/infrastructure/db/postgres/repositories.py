@@ -236,10 +236,16 @@ class PostgresJournalEntryRepository(IJournalEntryRepository):
             raise EntryNotFoundError(str(entry_id))
         return entry
 
-    def list_all(self, limit: Optional[int] = None, offset: Optional[int] = None, is_posted: Optional[bool] = None) -> List[JournalEntry]:
+    def list_all(self, limit: Optional[int] = None, offset: Optional[int] = None,
+                 is_posted: Optional[bool] = None, from_date: Optional[date] = None,
+                 to_date: Optional[date] = None) -> List[JournalEntry]:
         query = select(JournalEntryModel).options(selectinload(JournalEntryModel.lines))
         if is_posted is not None:
             query = query.where(JournalEntryModel.is_posted == is_posted)
+        if from_date is not None:
+            query = query.where(JournalEntryModel.entry_date >= from_date)
+        if to_date is not None:
+            query = query.where(JournalEntryModel.entry_date <= to_date)
         query = query.order_by(JournalEntryModel.entry_date.desc())
         if offset is not None:
             query = query.offset(offset)

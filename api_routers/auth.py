@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from jose import JWTError, jwt
 from api_routers.shared import (
@@ -206,9 +207,11 @@ async def logout(request: dict = None, current_user: dict = Depends(get_current_
 
             uow.commit()
             return {"message": "تم تسجيل الخروج بنجاح"}
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Logout error: {e}")
-        return {"message": "تم تسجيل الخروج بنجاح"}
+        logger.error(f"Logout error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="فشل تسجيل الخروج، يرجى المحاولة مرة أخرى")
 
 
 @router.post("/change-password")
@@ -242,28 +245,41 @@ async def change_password(request: dict, current_user: dict = Depends(get_curren
 async def list_users(
     limit: int = Query(100, ge=1, le=1000),
     offset: int = Query(0, ge=0),
+    is_active: Optional[bool] = Query(None),
+    search: Optional[str] = Query(None),
     current_user: dict = Depends(get_current_user),
+    _auth: object = require_permission("settings.manage_users"),
 ):
-    _ctx = get_current_user_context()
-    if _ctx and not _ctx.has_permission("settings.manage_users"):
-        raise HTTPException(status_code=403, detail="ليس لديك صلاحية إدارة المستخدمين")
     try:
         with bootstrap.uow() as uow:
             from sqlalchemy import text as sa_text
+            base_where = "WHERE 1=1"
+            params: dict = {"lim": limit, "off": offset}
+            if is_active is not None:
+                base_where += " AND u.is_active = :is_active"
+                params["is_active"] = is_active
+            if search:
+                base_where += " AND (u.username ILIKE :q OR u.email ILIKE :q OR u.full_name ILIKE :q)"
+                params["q"] = f"%{search}%"
             rows = uow.session.execute(sa_text(
                 "SELECT u.id::text, u.username, u.email, u.full_name, u.is_active, "
-                "r.name AS role, r.display_name AS role_display "
+                "(SELECT COALESCE(array_agg(r.name ORDER BY r.name), '{}') FROM user_roles ur "
+                "  JOIN roles r ON r.id = ur.role_id WHERE ur.user_id = u.id) AS roles, "
+                "(SELECT COALESCE(array_agg(r.display_name ORDER BY r.name), '{}') FROM user_roles ur "
+                "  JOIN roles r ON r.id = ur.role_id WHERE ur.user_id = u.id) AS role_displays "
                 "FROM users u "
-                "LEFT JOIN LATERAL (SELECT r2.name, r2.display_name FROM user_roles ur "
-                "  JOIN roles r2 ON r2.id = ur.role_id WHERE ur.user_id = u.id ORDER BY r2.name LIMIT 1) r ON TRUE "
-                "ORDER BY u.username LIMIT :lim OFFSET :off"
-            ), {"lim": limit, "off": offset}).mappings().all()
+                f"{base_where} ORDER BY u.username LIMIT :lim OFFSET :off"
+            ), params).mappings().all()
 
-            count = uow.session.execute(sa_text("SELECT COUNT(*) FROM users")).scalar() or 0
+            count = uow.session.execute(sa_text(
+                f"SELECT COUNT(*) FROM users u {base_where}"
+            ), {k: v for k, v in params.items() if k != "lim" and k != "off"}).scalar() or 0
             result = []
             for r in rows:
                 names = (r["full_name"] or "").strip().split(" ", 1)
-                role = r["role"] or "user"
+                role_names = r["roles"] or ["user"]
+                role = role_names[0]
+                displays = r["role_displays"] or []
                 result.append({
                     'id': r["id"],
                     'username': r["username"],
@@ -271,7 +287,8 @@ async def list_users(
                     'first_name': names[0] if names else "",
                     'last_name': names[1] if len(names) > 1 else "",
                     'role': role,
-                    'role_name': r["role_display"] or _ROLE_DISPLAY.get(role, role),
+                    'roles': role_names,
+                    'role_name': displays[0] if displays else _ROLE_DISPLAY.get(role, role),
                     'is_active': r["is_active"],
                 })
             return ApiResponse(success=True, message="تم جلب المستخدمين بنجاح",
@@ -282,10 +299,7 @@ async def list_users(
 
 
 @router.post("/users", response_model=ApiResponse, status_code=status.HTTP_201_CREATED)
-async def create_user(request: dict, current_user: dict = Depends(get_current_user), rate_limit: None = Depends(rate_limiter(100, 60))):
-    _ctx = get_current_user_context()
-    if _ctx and not _ctx.has_permission("settings.manage_users"):
-        raise HTTPException(status_code=403, detail="ليس لديك صلاحية إدارة المستخدمين")
+async def create_user(request: dict, current_user: dict = Depends(get_current_user), rate_limit: None = Depends(rate_limiter(100, 60)), _auth: object = require_permission("settings.manage_users")):
     try:
         data = filter_fields(request, [
             "username", "email", "first_name", "last_name", "password", "role", "is_active",
@@ -295,12 +309,19 @@ async def create_user(request: dict, current_user: dict = Depends(get_current_us
         if not data.get("password") or len(data["password"]) < 10:
             raise HTTPException(status_code=400, detail="كلمة المرور يجب أن تكون 10 أحرف على الأقل")
 
-        # Prevent privilege escalation: non-admins cannot create admin users
-        requested_role = data.get("role", "user")
-        if requested_role == "admin" and not (_ctx and _ctx.is_super_admin):
-            raise HTTPException(status_code=403, detail="لا يمكنك إنشاء مستخدمين بأدوار إدارية")
-
         with bootstrap.uow() as uow:
+            # Prevent privilege escalation: only super admins can grant privileged roles
+            from sqlalchemy import text as sa_text
+            requested_role = data.get("role")
+            if requested_role:
+                role_row = uow.session.execute(sa_text(
+                    "SELECT id, is_admin FROM roles WHERE name = :name AND is_active = TRUE"
+                ), {"name": requested_role}).mappings().first()
+                if role_row and role_row["is_admin"]:
+                    ctx = get_current_user_context()
+                    if not (ctx and ctx.is_super_admin):
+                        raise HTTPException(status_code=403, detail="لا يمكنك إنشاء مستخدمين بأدوار إدارية")
+
             user_repo = uow.users
             from core.domain.auth.entities import User
             from core.domain.auth.value_objects import UserId
@@ -319,52 +340,49 @@ async def create_user(request: dict, current_user: dict = Depends(get_current_us
                 updated_by=current_user["username"],
             )
             user_repo.save(new_user)
-            uow.commit()
-            # تعيين الدور إذا تم إرساله
+            # تعيين الدور إذا تم إرساله (ضمن نفس المعاملة)
             role = data.get('role')
             if role:
-                try:
-                    from sqlalchemy import text as sa_text
-                    allowed_roles = ["admin", "accountant", "auditor", "financial_analyst", "user"]
-                    if role not in allowed_roles:
-                        role = "user"
-                    role_row = uow.session.execute(sa_text(
-                        "SELECT id FROM roles WHERE name = :name AND is_active = TRUE"
-                    ), {"name": role}).first()
-                    if role_row:
-                        uow.session.execute(sa_text(
-                            "INSERT INTO user_roles (user_id, role_id) VALUES (:uid, :rid) ON CONFLICT DO NOTHING"
-                        ), {"uid": str(new_user.id.value), "rid": str(role_row[0])})
-                        uow.commit()
-                except Exception as role_e:
-                    logger.error(f"Error assigning role to user {data.get('username')}: {role_e}")
+                allowed_roles = ["admin", "accountant", "auditor", "financial_analyst", "user"]
+                if role not in allowed_roles:
+                    role = "user"
+                role_row = uow.session.execute(sa_text(
+                    "SELECT id FROM roles WHERE name = :name AND is_active = TRUE"
+                ), {"name": role}).mappings().first()
+                if role_row:
+                    uow.session.execute(sa_text(
+                        "INSERT INTO user_roles (user_id, role_id) VALUES (:uid, :rid) ON CONFLICT DO NOTHING"
+                    ), {"uid": str(new_user.id.value), "rid": str(role_row["id"])})
+            uow.commit()
             return ApiResponse(success=True, message="تم إنشاء المستخدم بنجاح",
                                data={'id': str(new_user.id.value), 'username': new_user.username})
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error creating user: {e}", exc_info=True)
         return ApiResponse(success=False, message=str(e), errors=[str(e)])
 
 
 @router.get("/users/{user_id}", response_model=ApiResponse)
-async def get_user(user_id: str, current_user: dict = Depends(get_current_user)):
-    _ctx = get_current_user_context()
-    if _ctx and not _ctx.has_permission("settings.manage_users"):
-        raise HTTPException(status_code=403, detail="ليس لديك صلاحية إدارة المستخدمين")
+async def get_user(user_id: str, current_user: dict = Depends(get_current_user), _auth: object = require_permission("settings.manage_users")):
     try:
         with bootstrap.uow() as uow:
             from sqlalchemy import text as sa_text
             row = uow.session.execute(sa_text(
                 "SELECT u.id::text, u.username, u.email, u.full_name, u.is_active, "
-                "r.name AS role, r.display_name AS role_display "
+                "(SELECT COALESCE(array_agg(r.name ORDER BY r.name), '{}') FROM user_roles ur "
+                "  JOIN roles r ON r.id = ur.role_id WHERE ur.user_id = u.id) AS roles, "
+                "(SELECT COALESCE(array_agg(r.display_name ORDER BY r.name), '{}') FROM user_roles ur "
+                "  JOIN roles r ON r.id = ur.role_id WHERE ur.user_id = u.id) AS role_displays "
                 "FROM users u "
-                "LEFT JOIN LATERAL (SELECT r2.name, r2.display_name FROM user_roles ur "
-                "  JOIN roles r2 ON r2.id = ur.role_id WHERE ur.user_id = u.id ORDER BY r2.name LIMIT 1) r ON TRUE "
                 "WHERE u.id::text = :uid"
             ), {"uid": user_id}).mappings().first()
             if not row:
                 return ApiResponse(success=False, message="المستخدم غير موجود")
             names = (row["full_name"] or "").strip().split(" ", 1)
-            role = row["role"] or "user"
+            role_names = row["roles"] or ["user"]
+            role = role_names[0]
+            displays = row["role_displays"] or []
             data = {
                 'id': row["id"],
                 'username': row["username"],
@@ -372,7 +390,8 @@ async def get_user(user_id: str, current_user: dict = Depends(get_current_user))
                 'first_name': names[0] if names else "",
                 'last_name': names[1] if len(names) > 1 else "",
                 'role': role,
-                'role_name': row["role_display"] or _ROLE_DISPLAY.get(role, role),
+                'roles': role_names,
+                'role_name': displays[0] if displays else _ROLE_DISPLAY.get(role, role),
                 'is_active': row["is_active"],
             }
             return ApiResponse(success=True, message="تم جلب المستخدم بنجاح", data=data)
@@ -382,26 +401,29 @@ async def get_user(user_id: str, current_user: dict = Depends(get_current_user))
 
 
 @router.put("/users/{user_id}", response_model=ApiResponse)
-async def update_user(user_id: str, request: dict, current_user: dict = Depends(get_current_user), rate_limit: None = Depends(rate_limiter(100, 60))):
-    _ctx = get_current_user_context()
-    if _ctx and not _ctx.has_permission("settings.manage_users"):
-        raise HTTPException(status_code=403, detail="ليس لديك صلاحية إدارة المستخدمين")
+async def update_user(user_id: str, request: dict, current_user: dict = Depends(get_current_user), rate_limit: None = Depends(rate_limiter(100, 60)), _auth: object = require_permission("settings.manage_users")):
     try:
         data = filter_fields(request, [
             "username", "email", "first_name", "last_name", "password", "role", "is_active",
         ])
 
-        # Prevent privilege escalation: non-admins cannot assign admin role
-        requested_role = data.get("role")
-        if requested_role == "admin":
-            if not (_ctx and _ctx.is_super_admin):
-                raise HTTPException(status_code=403, detail="لا يمكنك تعيين دور إداري")
-
-        # Prevent self-deactivation
-        if str(user_id) == str(current_user["id"]) and data.get("is_active") == False:
-            raise HTTPException(status_code=400, detail="لا يمكنك تعطيل حسابك الخاص")
-
         with bootstrap.uow() as uow:
+            from sqlalchemy import text as sa_text
+            # Prevent privilege escalation: only super admins can assign privileged roles
+            requested_role = data.get("role")
+            if requested_role:
+                role_row = uow.session.execute(sa_text(
+                    "SELECT id, is_admin FROM roles WHERE name = :name AND is_active = TRUE"
+                ), {"name": requested_role}).mappings().first()
+                if role_row and role_row["is_admin"]:
+                    ctx = get_current_user_context()
+                    if not (ctx and ctx.is_super_admin):
+                        raise HTTPException(status_code=403, detail="لا يمكنك تعيين دور إداري")
+
+            # Prevent self-deactivation
+            if str(user_id) == str(current_user["id"]) and data.get("is_active") is False:
+                raise HTTPException(status_code=400, detail="لا يمكنك تعطيل حسابك الخاص")
+
             user_repo = uow.users
             from core.domain.auth.value_objects import UserId as _UserId
             user = user_repo.get_by_id(_UserId.from_string(user_id))
@@ -424,29 +446,27 @@ async def update_user(user_id: str, request: dict, current_user: dict = Depends(
             user_repo.save(user)
             # تحديث الدور إذا تم إرساله
             if 'role' in data and data['role']:
-                from sqlalchemy import text as sa_text
                 role_row = uow.session.execute(sa_text(
                     "SELECT id FROM roles WHERE name = :name AND is_active = TRUE"
-                ), {"name": data['role']}).first()
+                ), {"name": data['role']}).mappings().first()
                 if role_row:
                     uow.session.execute(sa_text(
                         "DELETE FROM user_roles WHERE user_id = :uid"
                     ), {"uid": uid})
                     uow.session.execute(sa_text(
                         "INSERT INTO user_roles (user_id, role_id) VALUES (:uid, :rid) ON CONFLICT DO NOTHING"
-                    ), {"uid": uid, "rid": str(role_row[0])})
+                    ), {"uid": uid, "rid": str(role_row["id"])})
             uow.commit()
             return ApiResponse(success=True, message="تم تحديث المستخدم بنجاح")
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error updating user: {e}", exc_info=True)
         return ApiResponse(success=False, message=str(e), errors=[str(e)])
 
 
 @router.delete("/users/{user_id}", response_model=ApiResponse)
-async def delete_user(user_id: str, current_user: dict = Depends(get_current_user), rate_limit: None = Depends(rate_limiter(100, 60))):
-    _ctx = get_current_user_context()
-    if _ctx and not _ctx.has_permission("settings.manage_users"):
-        raise HTTPException(status_code=403, detail="ليس لديك صلاحية إدارة المستخدمين")
+async def delete_user(user_id: str, current_user: dict = Depends(get_current_user), rate_limit: None = Depends(rate_limiter(100, 60)), _auth: object = require_permission("settings.manage_users")):
     try:
         # Prevent self-deletion
         if str(user_id) == str(current_user["id"]):

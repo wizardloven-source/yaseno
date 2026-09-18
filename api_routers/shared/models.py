@@ -134,7 +134,12 @@ class CreatePaymentRequest(BaseModel):
     currency: str = Field("USD", min_length=3, max_length=3)
     fund_id: str
     customer_id: Optional[str] = None
+    customer_name: Optional[str] = None
+    customer_branch_id: Optional[str] = None
+    customer_branch_name: Optional[str] = None
+    customer_branch_code: Optional[str] = None
     supplier_id: Optional[str] = None
+    supplier_name: Optional[str] = None
     invoice_id: Optional[str] = None
     description: Optional[str] = None
     due_date: Optional[date] = None

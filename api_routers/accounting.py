@@ -7,7 +7,7 @@ from api_routers.shared import (
     CreateJournalEntryRequest, CreateAccountRequest,
     get_current_user, filter_fields,
 )
-from core.application.security.authorization import get_current_user_context
+from api_routers.shared.auth_deps import require_permission
 
 router = APIRouter(prefix="", tags=["accounting"])
 
@@ -24,20 +24,28 @@ async def list_journal_entries(
     from_date: Optional[date] = Query(None),
     to_date: Optional[date] = Query(None),
     current_user: dict = Depends(get_current_user),
+    _auth: object = require_permission("view_journal_entry"),
 ):
     try:
         with bootstrap.uow() as uow:
             repo = uow.journal_entries
-            entries = repo.list_all(limit=limit, offset=offset)
-            
+            entries = repo.list_all(
+                limit=limit, offset=offset,
+                is_posted=is_posted,
+                from_date=from_date,
+                to_date=to_date,
+            )
+
+            from core.infrastructure.db.models.account_model import JournalEntryModel
+            from sqlalchemy import select, func
+            count_query = select(func.count()).select_from(JournalEntryModel)
             if is_posted is not None:
-                entries = [e for e in entries if e.is_posted == is_posted]
+                count_query = count_query.where(JournalEntryModel.is_posted == is_posted)
             if from_date:
-                entries = [e for e in entries if e.date >= from_date]
+                count_query = count_query.where(JournalEntryModel.entry_date >= from_date)
             if to_date:
-                entries = [e for e in entries if e.date <= to_date]
-            
-            total = len(entries)
+                count_query = count_query.where(JournalEntryModel.entry_date <= to_date)
+            total = uow.session.execute(count_query).scalar() or 0
             
             result = []
             for entry in entries:
@@ -69,7 +77,7 @@ async def list_journal_entries(
 
 
 @router.get("/api/journal-entries/{entry_id}", response_model=ApiResponse)
-async def get_journal_entry(entry_id: str, current_user: dict = Depends(get_current_user)):
+async def get_journal_entry(entry_id: str, current_user: dict = Depends(get_current_user), _auth: object = require_permission("view_journal_entry")):
     try:
         with bootstrap.uow() as uow:
             repo = uow.journal_entries
@@ -109,10 +117,7 @@ async def get_journal_entry(entry_id: str, current_user: dict = Depends(get_curr
 
 
 @router.post("/api/journal-entries", response_model=ApiResponse, status_code=status.HTTP_201_CREATED)
-async def create_journal_entry(request: CreateJournalEntryRequest, current_user: dict = Depends(get_current_user)):
-    _ctx = get_current_user_context()
-    if _ctx and not _ctx.has_permission("accounting.create_entry"):
-        raise HTTPException(status_code=403, detail="ليس لديك الصلاحية المطلوبة")
+async def create_journal_entry(request: CreateJournalEntryRequest, current_user: dict = Depends(get_current_user), _auth: object = require_permission("accounting.create_entry")):
     try:
         from core.application.accounting.commands import CreateJournalEntryCommand
         
@@ -147,10 +152,7 @@ async def create_journal_entry(request: CreateJournalEntryRequest, current_user:
 
 
 @router.post("/api/journal-entries/{entry_id}/post", response_model=ApiResponse)
-async def post_journal_entry(entry_id: str, force: bool = Query(False), current_user: dict = Depends(get_current_user)):
-    _ctx = get_current_user_context()
-    if _ctx and not _ctx.has_permission("accounting.post_entry"):
-        raise HTTPException(status_code=403, detail="ليس لديك الصلاحية المطلوبة")
+async def post_journal_entry(entry_id: str, force: bool = Query(False), current_user: dict = Depends(get_current_user), _auth: object = require_permission("accounting.post_entry")):
     try:
         from sqlalchemy import text
         from core.application.accounting.commands import PostJournalEntryCommand
@@ -196,10 +198,7 @@ async def post_journal_entry(entry_id: str, force: bool = Query(False), current_
 
 
 @router.post("/api/journal-entries/{entry_id}/reverse", response_model=ApiResponse)
-async def reverse_journal_entry(entry_id: str, reason: str = Query(...), current_user: dict = Depends(get_current_user)):
-    _ctx = get_current_user_context()
-    if _ctx and not _ctx.has_permission("accounting.reverse_entry"):
-        raise HTTPException(status_code=403, detail="ليس لديك الصلاحية المطلوبة")
+async def reverse_journal_entry(entry_id: str, reason: str = Query(...), current_user: dict = Depends(get_current_user), _auth: object = require_permission("accounting.reverse_entry")):
     try:
         from core.application.accounting.commands import ReverseJournalEntryCommand
         
@@ -227,6 +226,7 @@ async def list_accounts(
     account_type: Optional[str] = Query(None),
     include_inactive: bool = Query(False),
     current_user: dict = Depends(get_current_user),
+    _auth: object = require_permission("view_account_balance"),
 ):
     try:
         with bootstrap.uow() as uow:
@@ -252,10 +252,7 @@ async def list_accounts(
 
 
 @router.post("/api/accounts", response_model=ApiResponse, status_code=status.HTTP_201_CREATED)
-async def create_account(request: CreateAccountRequest, current_user: dict = Depends(get_current_user)):
-    _ctx = get_current_user_context()
-    if _ctx and not _ctx.has_permission("settings.manage_settings"):
-        raise HTTPException(status_code=403, detail="ليس لديك الصلاحية المطلوبة")
+async def create_account(request: CreateAccountRequest, current_user: dict = Depends(get_current_user), _auth: object = require_permission("manage_accounts")):
     try:
         from core.application.accounts.commands import CreateAccountCommand
         

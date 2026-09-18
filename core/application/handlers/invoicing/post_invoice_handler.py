@@ -320,8 +320,10 @@ class PostInvoiceHandler(BaseHandler[PostInvoiceCommand, dict]):
                 .where(CurrencyModel.is_active == True)
             ).first()
             return result is not None
-        except Exception:
-            return True
+        except Exception as e:
+            # فشل مغلق: لا نتعامل مع عملة غير مؤكدة كعملة مدعومة
+            logger.error(f"Error checking currency support for '{currency_code}': {e}", exc_info=True)
+            return False
     
     def clear_cache(self) -> None:
         """مسح التخزين المؤقت"""

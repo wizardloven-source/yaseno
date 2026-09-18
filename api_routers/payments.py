@@ -72,13 +72,48 @@ async def create_payment(request: CreatePaymentRequest, current_user: dict = Dep
         from core.domain.payments.entities import Payment
         from core.domain.payments.value_objects import PaymentType, PaymentMethod
         from core.domain.shared.value_objects import Money
+        from sqlalchemy import text as _sa_text
+
+        customer_name = request.customer_name
+        supplier_name = request.supplier_name
+        branch_name = request.customer_branch_name
+        branch_code = request.customer_branch_code
+
+        with bootstrap.uow() as uow:
+            if request.customer_id and not customer_name:
+                row = uow.session.execute(
+                    _sa_text("SELECT name FROM customers WHERE id::text = :cid"),
+                    {"cid": request.customer_id},
+                ).mappings().first()
+                customer_name = row["name"] if row else None
+
+            if request.customer_branch_id and (not branch_name or not branch_code):
+                brow = uow.session.execute(
+                    _sa_text("SELECT name, code FROM customer_branches WHERE id::text = :bid"),
+                    {"bid": request.customer_branch_id},
+                ).mappings().first()
+                if brow:
+                    branch_name = branch_name or brow["name"]
+                    branch_code = branch_code or brow["code"]
+
+            if request.supplier_id and not supplier_name:
+                srow = uow.session.execute(
+                    _sa_text("SELECT name FROM suppliers WHERE id::text = :sid"),
+                    {"sid": request.supplier_id},
+                ).mappings().first()
+                supplier_name = srow["name"] if srow else None
 
         payment = Payment.create(
             payment_type=PaymentType(request.payment_type),
             amount=Money(request.amount, request.currency),
             payment_method=PaymentMethod(request.payment_method),
             customer_id=request.customer_id,
+            customer_name=customer_name,
+            customer_branch_id=request.customer_branch_id,
+            customer_branch_name=branch_name,
+            customer_branch_code=branch_code,
             supplier_id=request.supplier_id,
+            supplier_name=supplier_name,
             fund_id=request.fund_id,
             notes=request.description or "",
             created_by=current_user["username"],

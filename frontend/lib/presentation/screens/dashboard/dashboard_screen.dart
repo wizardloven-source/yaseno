@@ -58,7 +58,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
         setState(() => _companyName = settings['company_name'] ?? 'Ya Seen ERP');
       }
       anySuccess = true;
-    } catch (e) { debugPrint('Dashboard load error: $e'); }
+    } catch (e) { 
+      if (mounted && _error == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('فشل تحميل الإعدادات: ${ErrorUtils.sanitize(e.toString())}'), duration: const Duration(seconds: 3)),
+        );
+      }
+    }
 
     // Load currency
     try {
@@ -66,7 +72,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final baseData = baseRes['data'];
       final symbol = (baseData is Map ? baseData['symbol'] : null) ?? 'د.ع';
       if (mounted) setState(() => _currencySymbol = symbol);
-    } catch (e) { debugPrint('Dashboard load error: $e'); }
+    } catch (e) { 
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('فشل تحميل العملة: ${ErrorUtils.sanitize(e.toString())}'), duration: const Duration(seconds: 2)),
+        );
+      }
+    }
 
     // Load counts (each independently)
     try {
@@ -74,44 +86,77 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final journalItems = journalData['items'] ?? [];
       if (mounted) setState(() => _journalCount = journalItems is List ? journalItems.length : 0);
       anySuccess = true;
-    } catch (e) { debugPrint('Dashboard load error: $e'); }
+    } catch (e) { 
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('فشل تحميل القيود اليومية'), duration: const Duration(seconds: 2)),
+        );
+      }
+    }
 
     try {
       final invoiceData = await _api.get('invoices');
       final invoiceItems = invoiceData['items'] ?? [];
       if (mounted) setState(() => _invoiceCount = invoiceItems is List ? invoiceItems.length : 0);
       anySuccess = true;
-    } catch (e) { debugPrint('Dashboard load error: $e'); }
+    } catch (e) { 
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('فشل تحميل الفواتير'), duration: const Duration(seconds: 2)),
+        );
+      }
+    }
 
     try {
       final paymentData = await _api.get('payments');
       final paymentItems = paymentData['items'] ?? [];
       if (mounted) setState(() => _paymentCount = paymentItems is List ? paymentItems.length : 0);
       anySuccess = true;
-    } catch (e) { debugPrint('Dashboard load error: $e'); }
+    } catch (e) { 
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('فشل تحميل المدفوعات'), duration: const Duration(seconds: 2)),
+        );
+      }
+    }
 
     try {
       final fundData = await _api.get('funds');
       final fundItems = fundData['items'] ?? [];
       if (mounted) setState(() => _fundCount = fundItems is List ? fundItems.length : 0);
       anySuccess = true;
-    } catch (e) { debugPrint('Dashboard load error: $e'); }
+    } catch (e) { 
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('فشل تحميل الصناديق'), duration: const Duration(seconds: 2)),
+        );
+      }
+    }
 
     // Load financial summary
     try {
       final trialBalance = await _api.getTrialBalanceReport(DateTime.now());
       final trialData = trialBalance['data'] ?? trialBalance;
-      final entries = trialData['entries'] ?? trialData['items'] ?? [];
-      if (entries is List) {
+      final rawEntries = trialData['entries'] ?? trialData['items'] ?? trialData['accounts'] ?? [];
+      if (rawEntries is List) {
         Decimal totalDebit = Decimal.zero;
         Decimal totalCredit = Decimal.zero;
-        for (final entry in entries) {
-          totalDebit += parseMoney(entry['debit']) ?? Decimal.zero;
-          totalCredit += parseMoney(entry['credit']) ?? Decimal.zero;
+        for (final entry in rawEntries) {
+          final debit = parseMoney(entry['debit']) ?? Decimal.zero;
+          final credit = parseMoney(entry['credit']) ?? Decimal.zero;
+          final balance = parseMoney(entry['balance']);
+          totalDebit += debit == Decimal.zero ? balance ?? Decimal.zero : debit;
+          totalCredit += credit == Decimal.zero ? Decimal.zero : credit;
         }
         if (mounted) setState(() => _totalBalance = totalDebit - totalCredit);
       }
-    } catch (e) { debugPrint('Dashboard load error: $e'); }
+    } catch (e) { 
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('فشل تحميل الميزان التجريبي'), duration: const Duration(seconds: 2)),
+        );
+      }
+    }
 
     // Load recent journals
     try {
@@ -120,7 +165,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
       if (mounted && journalItems is List) {
         setState(() => _recentJournals = journalItems.cast<Map<String, dynamic>>());
       }
-    } catch (e) { debugPrint('Dashboard load error: $e'); }
+    } catch (e) { 
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('فشل تحميل آخر القيود'), duration: const Duration(seconds: 2)),
+        );
+      }
+    }
 
     // Load recent invoices and compute revenue
     try {
@@ -137,7 +188,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
           _totalRevenue = revenue;
         });
       }
-    } catch (e) { debugPrint('Dashboard load error: $e'); }
+    } catch (e) { 
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('فشل تحميل آخر الفواتير'), duration: const Duration(seconds: 2)),
+        );
+      }
+    }
 
     // Load payments total
     try {
@@ -157,7 +214,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
           });
         }
       }
-    } catch (e) { debugPrint('Dashboard load error: $e'); }
+    } catch (e) { 
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('فشل تحميل إجمالي المدفوعات'), duration: const Duration(seconds: 2)),
+        );
+      }
+    }
 
     // Load low stock
     try {
@@ -166,7 +229,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
       if (mounted && lowItems is List) {
         setState(() => _lowStockCount = lowItems.length);
       }
-    } catch (e) { debugPrint('Dashboard load error: $e'); }
+    } catch (e) { 
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('فشل تحميل تنبيهات المخزون'), duration: const Duration(seconds: 2)),
+        );
+      }
+    }
 
     if (mounted) {
       setState(() {
@@ -239,10 +308,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final now = DateTime.now();
     final hour = now.hour;
     String greeting;
-    if (hour < 12) {
-      greeting = 'صباح الخير';
-    } else if (hour < 17) {
+    if (hour < 5) {
       greeting = 'مساء الخير';
+    } else if (hour < 12) {
+      greeting = 'صباح الخير';
     } else {
       greeting = 'مساء الخير';
     }

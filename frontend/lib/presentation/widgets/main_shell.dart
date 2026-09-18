@@ -131,12 +131,16 @@ class MainShell extends StatelessWidget {
         switch (index) {
           case 0:
             context.go('/');
+            break;
           case 1:
             context.go('/invoices');
+            break;
           case 2:
             context.go('/inventory');
+            break;
           case 3:
             Scaffold.of(context).openDrawer();
+            break;
         }
       },
       destinations: const [

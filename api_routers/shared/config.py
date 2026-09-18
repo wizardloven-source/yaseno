@@ -60,8 +60,17 @@ def _load_or_generate_secret_key() -> str:
     generated = secrets.token_urlsafe(48)
     try:
         secret_file.write_text(generated)
-    except OSError:
-        pass
+    except OSError as e:
+        logger = logging.getLogger("api.secret")
+        logger.critical(
+            "JWT_SECRET_KEY env var is not set AND the generated secret could not be "
+            "persisted to .jwt_secret (%s). Refusing to start: a fresh secret on every "
+            "restart would invalidate all issued tokens.", e
+        )
+        raise RuntimeError(
+            "JWT_SECRET_KEY must be set (or .jwt_secret must be writable) to keep "
+            "issued tokens valid across restarts."
+        ) from e
     logging.getLogger("api.secret").warning(
         "JWT_SECRET_KEY env var not set. Generated a random secret persisted to .jwt_secret. "
         "Set JWT_SECRET_KEY in production."
@@ -111,7 +120,7 @@ app = FastAPI(
     redoc_url="/redoc" if ENV != "production" else None,
 )
 
-CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:8080").split(",")
+CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://127.0.0.1:3000,http://127.0.0.1:8080").split(",")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=CORS_ORIGINS,

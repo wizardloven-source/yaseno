@@ -314,17 +314,29 @@ class TransferFundsHandler(BaseHandler[TransferBetweenFundsCommand, dict]):
     def _get_exchange_rate_from_db(self, from_currency: str, to_currency: str) -> Decimal:
         """الحصول على سعر الصرف من قاعدة البيانات"""
         try:
-            from core.infrastructure.db.postgres.settings_repository import SettingsRepository
-            repo = SettingsRepository()
+            from sqlalchemy import text
+            
+            def _get_setting(key: str, default: str) -> str:
+                """قراءة إعداد من نفس معاملة الـ UoW (بدون إنشاء اتصال منفصل)"""
+                session = getattr(self._uow, 'session', None)
+                if session is not None:
+                    value = session.execute(
+                        text("SELECT value FROM settings WHERE key = :key"),
+                        {"key": key}
+                    ).scalar()
+                    if value is not None:
+                        return str(value)
+                # Fallback: لا ننشئ SettingsRepository منفصلة داخل المعاملة
+                return default
             
             # USD → LBP
             if from_currency == "USD" and to_currency == "LBP":
-                rate_str = repo.get("usd_buy_rate", "13000")
+                rate_str = _get_setting("usd_buy_rate", "13000")
                 return Decimal(rate_str)
             
             # LBP → USD
             elif from_currency == "LBP" and to_currency == "USD":
-                rate_str = repo.get("usd_sell_rate", "13100")
+                rate_str = _get_setting("usd_sell_rate", "13100")
                 rate = Decimal(rate_str)
                 if rate <= 0:
                     raise ValueError(f"Invalid exchange rate: {rate}")
@@ -383,53 +395,61 @@ class TransferFundsHandler(BaseHandler[TransferBetweenFundsCommand, dict]):
         
         return exchange_rate, converted_amount
     
-    # =========================================================================
+# =========================================================================
     # ✅ بناء طلب القيد المحاسبي (محسّن)
     # =========================================================================
-    
+
     def _build_journal_entry_request(
         self,
         transfer: FundTransfer,
         from_fund: Any,
         to_fund: Any,
-        converted_amount: Decimal
+        converted_amount: Decimal,
+        to_currency: str
     ) -> JournalEntryRequest:
         """
         بناء طلب قيد محاسبي من التحويل
-        
-        ✅ يدعم التحويل بين عملات مختلفة
+
+        ✅ يدعم التحويل بين عملات مختلفة (الترحيل بعملة المصدر)
         ✅ يستخدم حسابات الصندوق الصحيحة
         ✅ يسجل سعر الصرف المستخدم
-        
+
+        ملاحظة: محرك الترحيل (PostingEngine/JournalEntry.post) يقبل القيود
+        بعملة واحدة فقط (يرفض العملات المتعددة). لذلك يُرحَّل التحويل بين
+        العملات بقيمة عملة الصندوق المصدر، وهي القيمة الاقتصادية الصحيحة
+        للتحويل الداخلي بين صناديق بنفس الكيان (B = A × rate تُعادل A
+        بعملة المصدر).
+
         Args:
             transfer: كائن التحويل
             from_fund: الصندوق المصدر
             to_fund: الصندوق الهدف
             converted_amount: المبلغ المحول
-        
+            to_currency: عملة الصندوق الهدف
+
         Returns:
             JournalEntryRequest: طلب القيد المحاسبي
         """
         lines = []
-        
+
         # الحصول على حسابات الصندوقين
         from_account_code = AccountCode(from_fund.account_code)
         to_account_code = AccountCode(to_fund.account_code)
-        
-        # 1. سطر المدين: حساب الصندوق المستلم
+
+        # 1. سطر المدين: حساب الصندوق المستلم (بعملة المصدر للتحويل الداخلي)
         lines.append({
             "account_code": to_account_code.code,
-            "debit": float(converted_amount),
-            "currency": transfer.to_currency
+            "debit": float(transfer.amount.amount),
+            "currency": transfer.from_currency
         })
-        
+
         # 2. سطر الدائن: حساب الصندوق المرسل
         lines.append({
             "account_code": from_account_code.code,
             "credit": float(transfer.amount.amount),
             "currency": transfer.from_currency
         })
-        
+
         # بناء الطلب
         return JournalEntryRequest(
             entity_type="fund_transfer",
@@ -454,7 +474,7 @@ class TransferFundsHandler(BaseHandler[TransferBetweenFundsCommand, dict]):
                 "amount_from": float(transfer.amount.amount),
                 "amount_to": float(converted_amount),
                 "from_currency": transfer.from_currency,
-                "to_currency": transfer.to_currency,
+                "to_currency": to_currency,
                 "exchange_rate": float(transfer.exchange_rate),
                 "reason": transfer.reason,
                 "status": transfer.status.value,
@@ -565,7 +585,8 @@ class TransferFundsHandler(BaseHandler[TransferBetweenFundsCommand, dict]):
                         transfer=transfer,
                         from_fund=from_fund,
                         to_fund=to_fund,
-                        converted_amount=converted_amount
+                        converted_amount=converted_amount,
+                        to_currency=to_currency
                     )
                     
                     orchestrator_result = self._orchestrator.create_journal_entry(

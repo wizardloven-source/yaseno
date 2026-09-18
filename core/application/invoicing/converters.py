@@ -37,7 +37,8 @@ def _safe_decimal(value: Any) -> Decimal:
     if isinstance(value, str):
         try:
             return Decimal(value)
-        except:
+        except (ValueError, TypeError, InvalidOperation) as e:
+            logger.warning(f"Failed to convert '{value}' to Decimal: {e}")
             return Decimal('0')
     if hasattr(value, 'amount'):
         return _safe_decimal(value.amount)

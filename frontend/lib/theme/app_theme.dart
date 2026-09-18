@@ -209,6 +209,7 @@ class AppTheme {
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        backgroundColor: const Color(0xFF323232),
         contentTextStyle: AppTextStyles.bodyMedium.copyWith(color: Colors.white),
       ),
 
@@ -518,6 +519,7 @@ class AppTheme {
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        backgroundColor: const Color(0xFF2A2D35),
         contentTextStyle: const TextStyle(fontFamily: 'Cairo', fontSize: 14, color: textWhite),
       ),
 

@@ -80,7 +80,8 @@ def _serial_numbers_from_db(data: Any) -> List[SerialNumber]:
         try:
             parsed = json.loads(data)
             return [SerialNumber(s) for s in parsed if s]
-        except:
+        except (json.JSONDecodeError, TypeError, ValueError) as e:
+            logger.warning(f"Failed to parse serial numbers from DB: {e}")
             return []
     return []
 

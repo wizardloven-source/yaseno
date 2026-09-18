@@ -1,6 +1,7 @@
 // lib/services/api_client.dart
 import 'package:dio/dio.dart';
 import 'package:logger/logger.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'dart:async';
 import 'dart:convert';
@@ -13,12 +14,16 @@ class ApiClient {
   final Logger _logger = Logger();
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
   
-  static const String _envBaseUrl = String.fromEnvironment(
-    'API_BASE_URL',
-    defaultValue: 'http://localhost:8000/api',
-  );
+  static const String _envBaseUrl = String.fromEnvironment('API_BASE_URL');
 
-  String _baseUrl = _envBaseUrl;
+  static String get _defaultBaseUrl {
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      return 'http://10.0.2.2:8000/api';
+    }
+    return 'http://127.0.0.1:8000/api';
+  }
+
+  String _baseUrl = _envBaseUrl.isNotEmpty ? _envBaseUrl : _defaultBaseUrl;
   String? _accessToken;
   String? _refreshToken;
   Completer<void>? _refreshMutex;

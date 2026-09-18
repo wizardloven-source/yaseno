@@ -78,9 +78,7 @@ class StatusChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = _match(status);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    final Color chipColor = isDark ? s.color : s.color;
+    final Color chipColor = s.color;
     final Color textColor = chipColor;
     final Color bg = chipColor.withValues(alpha: 0.12);
 

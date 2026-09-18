@@ -1,5 +1,6 @@
 import '../models/supplier_model.dart';
 import '../../services/api_service.dart';
+import '../../utils/error_logger.dart';
 
 class SupplierRepository {
   static Future<List<Supplier>> getSuppliers({
@@ -11,13 +12,13 @@ class SupplierRepository {
       final response = await ApiService.staticGet(
         'suppliers?limit=$limit&offset=$offset${status != null ? '&status=$status' : ''}'
       );
-      if (response['success'] == true) {
-        final data = response['data'] as List;
-        return data.map((json) => Supplier.fromJson(json)).toList();
+      final data = response['items'] ?? response;
+      if (data is List) {
+        return data.map((json) => Supplier.fromJson(json as Map<String, dynamic>)).toList();
       }
       return [];
     } catch (e) {
-      print('Error fetching suppliers: $e');
+      ErrorLogger.log('SupplierRepository.getSuppliers', e);
       return [];
     }
   }
@@ -25,12 +26,9 @@ class SupplierRepository {
   static Future<Supplier?> getSupplier(String id) async {
     try {
       final response = await ApiService.staticGet('suppliers/$id');
-      if (response['success'] == true) {
-        return Supplier.fromJson(response['data']);
-      }
-      return null;
+      return Supplier.fromJson(response);
     } catch (e) {
-      print('Error fetching supplier: $e');
+      ErrorLogger.log('SupplierRepository.getSupplier', e);
       return null;
     }
   }
@@ -41,12 +39,9 @@ class SupplierRepository {
         'suppliers',
         data: supplier.toJson(),
       );
-      if (response['success'] == true) {
-        return Supplier.fromJson(response['data']);
-      }
-      return null;
+      return Supplier.fromJson(response);
     } catch (e) {
-      print('Error creating supplier: $e');
+      ErrorLogger.log('SupplierRepository.createSupplier', e);
       return null;
     }
   }
@@ -57,22 +52,19 @@ class SupplierRepository {
         'suppliers/${supplier.id}',
         data: supplier.toJson(),
       );
-      if (response['success'] == true) {
-        return Supplier.fromJson(response['data']);
-      }
-      return null;
+      return Supplier.fromJson(response);
     } catch (e) {
-      print('Error updating supplier: $e');
+      ErrorLogger.log('SupplierRepository.updateSupplier', e);
       return null;
     }
   }
 
   static Future<bool> deleteSupplier(String id) async {
     try {
-      final response = await ApiService.staticDelete('suppliers/$id');
-      return response['success'] == true;
+      await ApiService.staticDelete('suppliers/$id');
+      return true;
     } catch (e) {
-      print('Error deleting supplier: $e');
+      ErrorLogger.log('SupplierRepository.deleteSupplier', e);
       return false;
     }
   }
