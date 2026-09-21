@@ -235,7 +235,7 @@ class PostgresWorkflowRepository(IWorkflowRepository):
                 update(WorkflowModel)
                 .where(
                     WorkflowModel.id == UUID(str(workflow.id)),
-                    WorkflowModel.version == workflow.version
+                    WorkflowModel.version == existing.version
                 )
                 .values(
                     name=workflow.name,

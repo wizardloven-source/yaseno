@@ -397,6 +397,7 @@ class _PaymentFormScreenState extends State<PaymentFormScreen> {
     _amountController.dispose();
     _descriptionController.dispose();
     _allocationController.dispose();
+    _exchangeRateController.dispose();
     super.dispose();
   }
 
@@ -520,20 +521,6 @@ class _PaymentFormScreenState extends State<PaymentFormScreen> {
                       )).toList(),
                       onChanged: widget.readOnly ? null : (v) => setState(() => _currency = v!),
                     ),
-                    if (_currencies.isNotEmpty &&
-                        (_currency != CurrencyHelper.baseCurrency)) ...[
-                      const SizedBox(height: 16),
-                      TextFormField(
-                        controller: _exchangeRateController,
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        decoration: InputDecoration(
-                          labelText: 'سعر الصرف (الدفع لعملة غير الدولار)',
-                          helperText: 'سعر صرف الدولار مقابل $_currency — ليُحسب مبلغ الدولار الأساسي',
-                          border: const OutlineInputBorder(),
-                          prefixIcon: const Icon(Icons.currency_exchange, size: 20),
-                        ),
-                      ),
-                    ],
                     if (_currencies.isNotEmpty && _currency != CurrencyHelper.baseCurrency) ...[
                       const SizedBox(height: 16),
                       TextFormField(

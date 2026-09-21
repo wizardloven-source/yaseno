@@ -240,14 +240,14 @@ class CreateApprovalRequestRequest(BaseModel):
 
 
 class ApproveRequestRequest(BaseModel):
-    approver_id: str
-    approver_name: str = ""
+    approver_id: Optional[str] = None
+    approver_name: Optional[str] = None
     comment: Optional[str] = None
 
 
 class RejectRequestRequest(BaseModel):
-    approver_id: str
-    approver_name: str = ""
+    approver_id: Optional[str] = None
+    approver_name: Optional[str] = None
     reason: str = ""
 
 

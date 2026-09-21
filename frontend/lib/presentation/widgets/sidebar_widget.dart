@@ -8,6 +8,16 @@ import '../../theme/app_dimensions.dart';
 import '../../theme/app_text_styles.dart';
 import '../providers/auth_provider.dart';
 
+/// عنصر قائمة جانبية داخل قسم ضعيف (collapsible section).
+class _SidebarItem {
+  final IconData icon;
+  final String label;
+  final String route;
+  final List<String>? permission;
+
+  const _SidebarItem(this.icon, this.label, this.route, [this.permission]);
+}
+
 class SidebarWidget extends StatelessWidget {
   final String currentRoute;
 
@@ -155,13 +165,12 @@ class SidebarWidget extends StatelessWidget {
           const Divider(height: 4),
 
           // ============================================================
-          // قائمة العناصر الرئيسية
+          // قائمة العناصر الرئيسية (أقسام قابلة للطي)
           // ============================================================
           Expanded(
             child: ListView(
               padding: const EdgeInsets.symmetric(vertical: 4),
               children: [
-                // ---- Dashboard ----
                 _buildMenuItem(
                   context,
                   icon: Icons.dashboard,
@@ -170,358 +179,158 @@ class SidebarWidget extends StatelessWidget {
                   isSelected: currentRoute == '/',
                 ),
 
-                const Divider(height: 4),
-
                 // ---- المحاسبة ----
-                if (_canShow(context, ['post_entry', 'manage_accounts']))
-                  _buildSectionHeader('المحاسبة', context),
-                if (_canShow(context, ['post_entry', 'create_entry']))
-                  _buildMenuItem(
-                    context,
-                    icon: Icons.receipt_long,
-                    label: 'قيود اليومية',
-                    route: '/journal-entries',
-                    isSelected: currentRoute.startsWith('/journal-entries'),
-                  ),
-                if (_canShow(context, ['post_entry', 'manage_accounts']))
-                  _buildMenuItem(
-                    context,
-                    icon: Icons.account_tree,
-                    label: 'دفتر الأستاذ',
-                    route: '/general-ledger',
-                    isSelected: currentRoute == '/general-ledger',
-                  ),
-                if (_canShow(context, ['post_entry', 'manage_accounts']))
-                  _buildMenuItem(
-                    context,
-                    icon: Icons.list_alt,
-                    label: 'دليل الحسابات',
-                    route: '/chart-of-accounts',
-                    isSelected: currentRoute == '/chart-of-accounts',
-                  ),
-                if (_canShow(context, ['post_entry', 'open_period', 'close_period']))
-                  _buildMenuItem(
-                    context,
-                    icon: Icons.calendar_month,
-                    label: 'الفترات المالية',
-                    route: '/fiscal-periods',
-                    isSelected: currentRoute == '/fiscal-periods',
-                  ),
-                if (_canShow(context, ['post_entry', 'manage_accounts']))
-                  _buildMenuItem(
-                    context,
-                    icon: Icons.menu_book,
-                    label: 'الأرصدة الافتتاحية',
-                    route: '/opening-balances',
-                    isSelected: currentRoute == '/opening-balances',
-                  ),
-
-                const Divider(height: 4),
+                _buildCollapsibleSection(
+                  context,
+                  title: 'المحاسبة',
+                  icon: Icons.receipt_long,
+                  items: [
+                    if (_canShow(context, ['post_entry', 'create_entry']))
+                      const _SidebarItem(
+                          Icons.receipt_long, 'قيود اليومية', '/journal-entries'),
+                    if (_canShow(context, ['post_entry', 'manage_accounts']))
+                      const _SidebarItem(
+                          Icons.account_tree, 'دفتر الأستاذ', '/general-ledger'),
+                    if (_canShow(context, ['post_entry', 'manage_accounts']))
+                      const _SidebarItem(
+                          Icons.list_alt, 'دليل الحسابات', '/chart-of-accounts'),
+                    if (_canShow(context, ['post_entry', 'open_period', 'close_period']))
+                      const _SidebarItem(
+                          Icons.calendar_month, 'الفترات المالية', '/fiscal-periods'),
+                    if (_canShow(context, ['post_entry', 'manage_accounts']))
+                      const _SidebarItem(
+                          Icons.menu_book, 'الأرصدة الافتتاحية', '/opening-balances'),
+                  ],
+                ),
 
                 // ---- المبيعات والمشتريات ----
-                _buildSectionHeader('المبيعات والمشتريات', context),
-                _buildMenuItem(
+                _buildCollapsibleSection(
                   context,
-                  icon: Icons.people,
-                  label: 'العملاء',
-                  route: '/customers',
-                  isSelected: currentRoute.startsWith('/customers'),
+                  title: 'المبيعات والمشتريات',
+                  icon: Icons.storefront,
+                  items: const [
+                    _SidebarItem(Icons.people, 'العملاء', '/customers'),
+                    _SidebarItem(Icons.business, 'الموردين', '/suppliers'),
+                    _SidebarItem(Icons.inventory_2, 'المنتجات', '/products'),
+                    _SidebarItem(Icons.receipt, 'الفواتير', '/invoices'),
+                    _SidebarItem(
+                        Icons.replay, 'مرتجع المبيعات', '/returns/sales'),
+                    _SidebarItem(
+                        Icons.replay_circle_filled, 'مرتجع المشتريات', '/returns/purchases'),
+                    _SidebarItem(Icons.shopping_cart, 'المشتريات', '/purchase-orders'),
+                    _SidebarItem(Icons.request_quote, 'عروض الأسعار', '/sales/quotes'),
+                    _SidebarItem(Icons.shopping_bag, 'أوامر البيع', '/sales/orders'),
+                    _SidebarItem(Icons.delivery_dining, 'إشعارات التسليم', '/sales/deliveries'),
+                    _SidebarItem(Icons.inventory_2, 'قوائم الانتقاء', '/sales/picking'),
+                    _SidebarItem(Icons.local_shipping, 'لوحة الشحن', '/sales/shipping'),
+                  ],
                 ),
-                _buildMenuItem(
-                  context,
-                  icon: Icons.business,
-                  label: 'الموردين',
-                  route: '/suppliers',
-                  isSelected: currentRoute.startsWith('/suppliers'),
-                ),
-                _buildMenuItem(
-                  context,
-                  icon: Icons.inventory_2,
-                  label: 'المنتجات',
-                  route: '/products',
-                  isSelected: currentRoute.startsWith('/products'),
-                ),
-                _buildMenuItem(
-                  context,
-                  icon: Icons.receipt,
-                  label: 'الفواتير',
-                  route: '/invoices',
-                  isSelected: currentRoute.startsWith('/invoices'),
-                ),
-                _buildMenuItem(
-                  context,
-                  icon: Icons.replay,
-                  label: 'مرتجع المبيعات',
-                  route: '/returns/sales',
-                  isSelected: currentRoute.startsWith('/returns/sales'),
-                ),
-                _buildMenuItem(
-                  context,
-                  icon: Icons.replay_circle_filled,
-                  label: 'مرتجع المشتريات',
-                  route: '/returns/purchases',
-                  isSelected: currentRoute.startsWith('/returns/purchases'),
-                ),
-                _buildMenuItem(
-                  context,
-                  icon: Icons.shopping_cart,
-                  label: 'المشتريات',
-                  route: '/purchase-orders',
-                  isSelected: currentRoute.startsWith('/purchase-orders'),
-                ),
-                _buildMenuItem(
-                  context,
-                  icon: Icons.request_quote,
-                  label: 'عروض الأسعار',
-                  route: '/sales/quotes',
-                  isSelected: currentRoute.startsWith('/sales/quotes'),
-                ),
-                _buildMenuItem(
-                  context,
-                  icon: Icons.shopping_bag,
-                  label: 'أوامر البيع',
-                  route: '/sales/orders',
-                  isSelected: currentRoute.startsWith('/sales/orders'),
-                ),
-                _buildMenuItem(
-                  context,
-                  icon: Icons.delivery_dining,
-                  label: 'إشعارات التسليم',
-                  route: '/sales/deliveries',
-                  isSelected: currentRoute.startsWith('/sales/deliveries'),
-                ),
-                _buildMenuItem(
-                  context,
-                  icon: Icons.inventory_2,
-                  label: 'قوائم الانتقاء',
-                  route: '/sales/picking',
-                  isSelected: currentRoute.startsWith('/sales/picking'),
-                ),
-                _buildMenuItem(
-                  context,
-                  icon: Icons.local_shipping,
-                  label: 'لوحة الشحن',
-                  route: '/sales/shipping',
-                  isSelected: currentRoute.startsWith('/sales/shipping'),
-                ),
-
-                const Divider(height: 4),
 
                 // ---- نقطة البيع (قسم مؤطَّر) ----
                 _buildPosSection(context),
 
-                const Divider(height: 4),
-
                 // ---- الصناديق والدفعات ----
-                _buildSectionHeader('الصناديق والدفعات', context),
-                _buildMenuItem(
+                _buildCollapsibleSection(
                   context,
+                  title: 'الصناديق والدفعات',
                   icon: Icons.account_balance_wallet,
-                  label: 'الصناديق',
-                  route: '/funds',
-                  isSelected: currentRoute.startsWith('/funds'),
+                  items: const [
+                    _SidebarItem(Icons.account_balance_wallet, 'الصناديق', '/funds'),
+                    _SidebarItem(Icons.payments, 'الدفعات', '/payments'),
+                  ],
                 ),
-                _buildMenuItem(
-                  context,
-                  icon: Icons.payments,
-                  label: 'الدفعات',
-                  route: '/payments',
-                  isSelected: currentRoute.startsWith('/payments'),
-                ),
-
-                const Divider(height: 4),
 
                 // ---- المخزون والأصول ----
-                _buildSectionHeader('المخزون والأصول', context),
-                _buildMenuItem(
+                _buildCollapsibleSection(
                   context,
+                  title: 'المخزون والأصول',
                   icon: Icons.warehouse,
-                  label: 'إدارة المخزون',
-                  route: '/inventory',
-                  isSelected: currentRoute == '/inventory',
+                  items: [
+                    const _SidebarItem(Icons.warehouse, 'إدارة المخزون', '/inventory'),
+                    if (_canShow(context, ['system_config', 'post_entry']))
+                      const _SidebarItem(Icons.apartment, 'الأصول الثابتة', '/assets'),
+                  ],
                 ),
-                if (_canShow(context, ['system_config', 'post_entry']))
-                  _buildMenuItem(
-                    context,
-                    icon: Icons.apartment,
-                    label: 'الأصول الثابتة',
-                    route: '/assets',
-                    isSelected: currentRoute == '/assets',
-                  ),
-
-                const Divider(height: 4),
 
                 // ---- الإعدادات ----
-                if (_canShow(context, ['system_config']))
-                  _buildSectionHeader('الإعدادات', context),
-                if (_canShow(context, ['system_config']))
-                  _buildMenuItem(
-                    context,
-                    icon: Icons.currency_exchange,
-                    label: 'العملات',
-                    route: '/currencies',
-                    isSelected: currentRoute == '/currencies',
-                  ),
-                if (_canShow(context, ['system_config']))
-                  _buildMenuItem(
-                    context,
-                    icon: Icons.location_on,
-                    label: 'المواقع',
-                    route: '/sites',
-                    isSelected: currentRoute == '/sites',
-                  ),
-                if (_canShow(context, ['system_config']))
-                  _buildMenuItem(
-                    context,
-                    icon: Icons.account_balance,
-                    label: 'مراكز التكلفة',
-                    route: '/centers',
-                    isSelected: currentRoute == '/centers',
-                  ),
-                if (_canShow(context, ['system_config']))
-                  _buildMenuItem(
-                    context,
-                    icon: Icons.store,
-                    label: 'فروع العملاء',
-                    route: '/branches',
-                    isSelected: currentRoute == '/branches',
-                  ),
-
-                const Divider(height: 4),
+                _buildCollapsibleSection(
+                  context,
+                  title: 'الإعدادات',
+                  icon: Icons.settings,
+                  items: [
+                    if (_canShow(context, ['system_config']))
+                      const _SidebarItem(Icons.currency_exchange, 'العملات', '/currencies'),
+                    if (_canShow(context, ['system_config']))
+                      const _SidebarItem(Icons.location_on, 'المواقع', '/sites'),
+                    if (_canShow(context, ['system_config']))
+                      const _SidebarItem(Icons.account_balance, 'مراكز التكلفة', '/centers'),
+                    if (_canShow(context, ['system_config']))
+                      const _SidebarItem(Icons.store, 'فروع العملاء', '/branches'),
+                  ],
+                ),
 
                 // ---- سير العمل والإشعارات ----
-                if (_canShow(context, ['create_draft', 'system_config']))
-                  _buildSectionHeader('سير العمل والإشعارات', context),
-                if (_canShow(context, ['create_draft', 'system_config']))
-                  _buildMenuItem(
-                    context,
-                    icon: Icons.account_tree,
-                    label: 'تعريف سير العمل',
-                    route: '/workflows',
-                    isSelected: currentRoute.startsWith('/workflows'),
-                  ),
-                if (_canShow(context, ['create_draft']))
-                  _buildMenuItem(
-                    context,
-                    icon: Icons.approval,
-                    label: 'الاعتمادات',
-                    route: '/approvals',
-                    isSelected: currentRoute.startsWith('/approvals'),
-                  ),
-                _buildMenuItem(
+                _buildCollapsibleSection(
                   context,
-                  icon: Icons.notifications,
-                  label: 'الإشعارات',
-                  route: '/notifications',
-                  isSelected: currentRoute.startsWith('/notifications'),
+                  title: 'سير العمل والإشعارات',
+                  icon: Icons.approval,
+                  items: [
+                    if (_canShow(context, ['create_draft', 'system_config']))
+                      const _SidebarItem(
+                          Icons.account_tree, 'تعريف سير العمل', '/workflows'),
+                    if (_canShow(context, ['create_draft']))
+                      const _SidebarItem(Icons.approval, 'الاعتمادات', '/approvals'),
+                    const _SidebarItem(Icons.notifications, 'الإشعارات', '/notifications'),
+                  ],
                 ),
-
-                const Divider(height: 4),
 
                 // ---- التقارير ----
-                if (_canShow(context, ['post_entry', 'manage_accounts']))
-                  _buildSectionHeader('التقارير', context),
-                if (_canShow(context, ['post_entry', 'manage_accounts']))
-                  _buildMenuItem(
-                    context,
-                    icon: Icons.account_balance,
-                    label: 'ميزان المراجعة',
-                    route: '/reports/trial-balance',
-                    isSelected: currentRoute.startsWith('/reports/trial-balance'),
-                  ),
-                if (_canShow(context, ['post_entry', 'manage_accounts']))
-                  _buildMenuItem(
-                    context,
-                    icon: Icons.trending_up,
-                    label: 'قائمة الدخل',
-                    route: '/reports/income-statement',
-                    isSelected: currentRoute.startsWith('/reports/income-statement'),
-                  ),
-                if (_canShow(context, ['post_entry', 'manage_accounts']))
-                  _buildMenuItem(
-                    context,
-                    icon: Icons.pie_chart,
-                    label: 'الميزانية العمومية',
-                    route: '/reports/balance-sheet',
-                    isSelected: currentRoute.startsWith('/reports/balance-sheet'),
-                  ),
-                if (_canShow(context, ['post_entry', 'manage_accounts']))
-                  _buildMenuItem(
-                    context,
-                    icon: Icons.payments,
-                    label: 'التدفقات النقدية',
-                    route: '/reports/cash-flow',
-                    isSelected: currentRoute.startsWith('/reports/cash-flow'),
-                  ),
-                if (_canShow(context, ['post_entry', 'manage_accounts']))
-                  _buildMenuItem(
-                    context,
-                    icon: Icons.hourglass_empty,
-                    label: 'تقادم الذمم',
-                    route: '/reports/aging',
-                    isSelected: currentRoute.startsWith('/reports/aging'),
-                  ),
-                if (_canShow(context, ['post_entry', 'manage_accounts']))
-                  _buildMenuItem(
-                    context,
-                    icon: Icons.compare_arrows,
-                    label: 'المطابقة البنكية',
-                    route: '/reports/reconciliation',
-                    isSelected: currentRoute.startsWith('/reports/reconciliation'),
-                  ),
-                if (_canShow(context, ['post_entry', 'manage_accounts']))
-                  _buildMenuItem(
-                    context,
-                    icon: Icons.donut_large,
-                    label: 'الموازنات',
-                    route: '/reports/budgets',
-                    isSelected: currentRoute.startsWith('/reports/budgets'),
-                  ),
-
-                const Divider(height: 4),
+                _buildCollapsibleSection(
+                  context,
+                  title: 'التقارير',
+                  icon: Icons.pie_chart,
+                  items: [
+                    if (_canShow(context, ['post_entry', 'manage_accounts']))
+                      const _SidebarItem(
+                          Icons.account_balance, 'ميزان المراجعة', '/reports/trial-balance'),
+                    if (_canShow(context, ['post_entry', 'manage_accounts']))
+                      const _SidebarItem(
+                          Icons.trending_up, 'قائمة الدخل', '/reports/income-statement'),
+                    if (_canShow(context, ['post_entry', 'manage_accounts']))
+                      const _SidebarItem(
+                          Icons.pie_chart, 'الميزانية العمومية', '/reports/balance-sheet'),
+                    if (_canShow(context, ['post_entry', 'manage_accounts']))
+                      const _SidebarItem(
+                          Icons.payments, 'التدفقات النقدية', '/reports/cash-flow'),
+                    if (_canShow(context, ['post_entry', 'manage_accounts']))
+                      const _SidebarItem(
+                          Icons.hourglass_empty, 'تقادم الذمم', '/reports/aging'),
+                    if (_canShow(context, ['post_entry', 'manage_accounts']))
+                      const _SidebarItem(
+                          Icons.compare_arrows, 'المطابقة البنكية', '/reports/reconciliation'),
+                    if (_canShow(context, ['post_entry', 'manage_accounts']))
+                      const _SidebarItem(
+                          Icons.donut_large, 'الموازنات', '/reports/budgets'),
+                  ],
+                ),
 
                 // ---- النظام ----
-                if (_canShow(context, ['manage_users']))
-                  _buildSectionHeader('النظام', context),
-                if (_canShow(context, ['manage_users']))
-                  _buildMenuItem(
-                    context,
-                    icon: Icons.group,
-                    label: 'المستخدمين',
-                    route: '/users',
-                    isSelected: currentRoute.startsWith('/users'),
-                  ),
-                if (_canShow(context, ['manage_users']))
-                  _buildMenuItem(
-                    context,
-                    icon: Icons.security,
-                    label: 'الأدوار والصلاحيات',
-                    route: '/roles',
-                    isSelected: currentRoute.startsWith('/roles'),
-                  ),
-                if (_canShow(context, ['manage_users']))
-                  _buildMenuItem(
-                    context,
-                    icon: Icons.history,
-                    label: 'سجل التدقيق',
-                    route: '/audit',
-                    isSelected: currentRoute.startsWith('/audit'),
-                  ),
-                _buildMenuItem(
+                _buildCollapsibleSection(
                   context,
-                  icon: Icons.person,
-                  label: 'الملف الشخصي',
-                  route: '/profile',
-                  isSelected: currentRoute == '/profile',
+                  title: 'النظام',
+                  icon: Icons.admin_panel_settings,
+                  items: [
+                    if (_canShow(context, ['manage_users']))
+                      const _SidebarItem(Icons.group, 'المستخدمين', '/users'),
+                    if (_canShow(context, ['manage_users']))
+                      const _SidebarItem(Icons.security, 'الأدوار والصلاحيات', '/roles'),
+                    if (_canShow(context, ['manage_users']))
+                      const _SidebarItem(Icons.history, 'سجل التدقيق', '/audit'),
+                    const _SidebarItem(Icons.person, 'الملف الشخصي', '/profile'),
+                    if (_canShow(context, ['system_config']))
+                      const _SidebarItem(Icons.settings, 'الإعدادات', '/settings'),
+                  ],
                 ),
-                if (_canShow(context, ['system_config']))
-                  _buildMenuItem(
-                    context,
-                    icon: Icons.settings,
-                    label: 'الإعدادات',
-                    route: '/settings',
-                    isSelected: currentRoute.startsWith('/settings'),
-                  ),
               ],
             ),
           ),
@@ -594,16 +403,68 @@ class SidebarWidget extends StatelessWidget {
     return auth.hasAnyPermission(required);
   }
 
-  Widget _buildSectionHeader(String title, BuildContext context) {
+  /// قسم قابل للطي: يفتح تلقائياً عند التنقّل داخل إحدى روابطه.
+  Widget _buildCollapsibleSection(
+    BuildContext context, {
+    required String title,
+    required IconData icon,
+    required List<_SidebarItem> items,
+  }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Text(
-        title,
-        style: AppTextStyles.sectionHeader.copyWith(
-          color: isDark ? DarkText.hint : AppColors.sidebarSectionHeader,
+    final anyVisible = items.isNotEmpty;
+    if (!anyVisible) return const SizedBox.shrink();
+
+    final selectedItem = items
+        .where((it) =>
+            currentRoute == it.route ||
+            (it.route != '/' && currentRoute.startsWith(it.route)))
+        .toList();
+    final isOpen = selectedItem.isNotEmpty;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Divider(height: 4),
+        Theme(
+          data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+          child: ExpansionTile(
+            tilePadding: const EdgeInsets.symmetric(horizontal: 16),
+            childrenPadding: const EdgeInsets.only(bottom: 4),
+            initiallyExpanded: isOpen,
+            leading: Icon(
+              icon,
+              size: 22,
+              color: isOpen
+                  ? AppColors.sidebarIconSelected
+                  : (isDark ? Colors.white54 : AppColors.sidebarIcon),
+            ),
+            title: Text(
+              title,
+              style: AppTextStyles.sectionHeader.copyWith(
+                color: isOpen
+                    ? (isDark ? Colors.white : AppColors.primary)
+                    : (isDark ? DarkText.hint : AppColors.sidebarSectionHeader),
+              ),
+            ),
+            iconColor: isDark ? Colors.white54 : AppColors.sidebarIcon,
+            collapsedIconColor: isDark ? Colors.white54 : AppColors.sidebarIcon,
+            shape: const Border(),
+            collapsedShape: const Border(),
+            children: [
+              for (final item in items)
+                _buildMenuItem(
+                  context,
+                  icon: item.icon,
+                  label: item.label,
+                  route: item.route,
+                  isSelected: currentRoute == item.route ||
+                      (item.route != '/' &&
+                          currentRoute.startsWith(item.route)),
+                ),
+            ],
+          ),
         ),
-      ),
+      ],
     );
   }
 
@@ -612,6 +473,7 @@ class SidebarWidget extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final isMain = currentRoute == '/pos';
     final isReceipts = currentRoute.startsWith('/pos/receipts');
+    final isOpen = isMain || isReceipts;
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
@@ -630,43 +492,50 @@ class SidebarWidget extends StatelessWidget {
           end: Alignment.bottomCenter,
         ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 2),
-            child: Row(
-              children: [
-                const Icon(
-                  Icons.point_of_sale,
-                  size: 18,
-                  color: AppColors.sidebarIconSelected,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'نقطة البيع',
-                  style: AppTextStyles.sectionHeader.copyWith(
-                    color: isDark ? DarkText.hint : AppColors.sidebarSectionHeader,
-                  ),
-                ),
-              ],
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+          childrenPadding: const EdgeInsets.only(bottom: 4),
+          initiallyExpanded: isOpen,
+          leading: Icon(
+            Icons.point_of_sale,
+            size: 22,
+            color: isOpen
+                ? AppColors.sidebarIconSelected
+                : isDark
+                    ? Colors.white54
+                    : AppColors.sidebarIcon,
+          ),
+          title: Text(
+            'نقطة البيع',
+            style: AppTextStyles.sectionHeader.copyWith(
+              color: isOpen
+                  ? (isDark ? Colors.white : AppColors.primary)
+                  : (isDark ? DarkText.hint : AppColors.sidebarSectionHeader),
             ),
           ),
-          _buildMenuItem(
-            context,
-            icon: Icons.shopping_cart,
-            label: 'الشاشة الرئيسية',
-            route: '/pos',
-            isSelected: isMain,
-          ),
-          _buildMenuItem(
-            context,
-            icon: Icons.receipt_long,
-            label: 'إيصالات نقطة البيع',
-            route: '/pos/receipts',
-            isSelected: isReceipts,
-          ),
-        ],
+          iconColor: isDark ? Colors.white54 : AppColors.sidebarIcon,
+          collapsedIconColor: isDark ? Colors.white54 : AppColors.sidebarIcon,
+          shape: const Border(),
+          collapsedShape: const Border(),
+          children: [
+            _buildMenuItem(
+              context,
+              icon: Icons.shopping_cart,
+              label: 'الشاشة الرئيسية',
+              route: '/pos',
+              isSelected: isMain,
+            ),
+            _buildMenuItem(
+              context,
+              icon: Icons.receipt_long,
+              label: 'إيصالات نقطة البيع',
+              route: '/pos/receipts',
+              isSelected: isReceipts,
+            ),
+          ],
+        ),
       ),
     );
   }

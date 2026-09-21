@@ -66,7 +66,7 @@ class ErrorUtils {
     return cleaned;
   }
 
-  /// يستخرج رسالة الخطأ التفصيلية التي أرسلها الخادم (detail) من DioException.
+  /// يستخرج رسالة الخطأ التفصيلية التي أرسلها الخادم (detail/message) من DioException.
   static String? _serverDetailFromDio(dynamic error) {
     if (error is! DioException) return null;
     final data = error.response?.data;
@@ -79,6 +79,8 @@ class ErrorUtils {
           return (first['msg'] as String).trim();
         }
       }
+      final message = data['message'];
+      if (message is String && message.trim().isNotEmpty) return message.trim();
     }
     return null;
   }

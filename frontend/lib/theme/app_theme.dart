@@ -562,6 +562,8 @@ class AppTheme {
 
       bannerTheme: const MaterialBannerThemeData(
         backgroundColor: Color(0xFF422006),
+        // نص داكن لأن شاشات النظام تفرض خلفية warningContainer الفاتحة.
+        contentTextStyle: TextStyle(color: Color(0xFF422006)),
         padding: EdgeInsets.all(16),
       ),
 

@@ -20,11 +20,28 @@ from pathlib import Path
 
 import ctypes  # لإخفاء نافذة الأوامر عند الاطلاع (Console Window)
 
+# منع أي نافذة أوامر وامضة من العمليات الفرعية (Windows)
+NO_WINDOW = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
+
 HEALTH_URL = "http://127.0.0.1:8000/api/health"
 TIMEOUT_SECONDS = 60
 POLL_SECONDS = 0.5
 
 RELATIVE_APP_EXE = Path(r"frontend\build\windows\x64\runner\Release\ya_seen_erp_flutter.exe")
+
+_TRACE_FILE: Path | None = None
+
+
+def trace(msg: str) -> None:
+    global _TRACE_FILE
+    if _TRACE_FILE is None:
+        base = base_dir()
+        _TRACE_FILE = base / "launcher.log"
+    try:
+        with _TRACE_FILE.open("a", encoding="utf-8") as f:
+            f.write(f"[{time.strftime('%H:%M:%S')}] {msg}\n")
+    except Exception:
+        pass
 
 
 def base_dir() -> Path:
@@ -62,26 +79,44 @@ def server_already_running() -> bool:
 
 
 def find_python() -> Path | None:
-    """بايثون موثوق: عند التجميد نستخدم المفسِّر الأصلي للمنظومة."""
-    candidates = []
-    if getattr(sys, "frozen", False):
-        base = getattr(sys, "_base_executable", None)
-        if base:
-            candidates.append(Path(base))
-    candidates.append(Path(sys.executable))
+    """بحث محدد عن بايثون مثبّت به uvicorn (لا نلمس sys.executable إطلاقاً)."""
+    import shutil
+    candidates: list[Path] = []
+    seen = set()
+    fixed = [
+        r"C:\Users\MTC\AppData\Local\Programs\Python\Python310\python.exe",
+        r"C:\Users\MTC\AppData\Local\Programs\Python\Python311\python.exe",
+        r"C:\Program Files\Python310\python.exe",
+        r"C:\Python310\python.exe",
+    ]
+    for p in fixed:
+        q = Path(p).resolve()
+        if q.exists() and q not in seen:
+            seen.add(q)
+            candidates.append(q)
+    for name in ("py", "python"):
+        which = shutil.which(name)
+        if which:
+            q = Path(which).resolve()
+            if q not in seen:
+                seen.add(q)
+                candidates.append(q)
+    trace(f"python candidates: {[str(c) for c in candidates]}")
     for py in candidates:
-        if py.exists():
-            # تحقق من توفر uvicorn
-            try:
-                r = subprocess.run(
-                    [str(py), "-m", "uvicorn", "--version"],
-                    capture_output=True,
-                    timeout=15,
-                )
-                if r.returncode == 0:
-                    return py
-            except Exception:
-                continue
+        try:
+            r = subprocess.run(
+                [str(py), "-m", "uvicorn", "--version"],
+                capture_output=True,
+                timeout=20,
+                creationflags=NO_WINDOW,
+            )
+            if r.returncode == 0:
+                trace(f"selected python: {py}")
+                return py
+        except Exception as e:
+            trace(f"python check failed for {py}: {e}")
+            continue
+    trace("no usable python found")
     return None
 
 
@@ -90,9 +125,7 @@ def start_server(python: Path, root: Path) -> subprocess.Popen | None:
     env["ENV"] = "production"  # تعطيل reload حتى يمكن قتل العملية مباشرةً
     env.setdefault("PYTHONUTF8", "1")
     env.setdefault("PYTHONIOENCODING", "utf-8")
-    flags = 0
-    if os.name == "nt":
-        flags = subprocess.CREATE_NO_WINDOW  # إخفاء نافذة أوامر
+    flags = NO_WINDOW
     try:
         return subprocess.Popen(
             [str(python), "run.py"],
@@ -129,6 +162,7 @@ def stop_server(pid: int) -> None:
                 ["taskkill", "/F", "/T", "/PID", str(pid)],
                 capture_output=True,
                 timeout=10,
+                creationflags=NO_WINDOW,
             )
         except Exception:
             pass
@@ -152,6 +186,7 @@ def wait_app_closed(app_exe: Path) -> None:
                     capture_output=True,
                     text=True,
                     timeout=10,
+                    creationflags=NO_WINDOW,
                 ).stdout
                 running = image.lower() in out.lower() and "no tasks" not in out.lower()
             else:
@@ -185,6 +220,9 @@ def launch_app(app_exe: Path) -> None:
 
 
 def main() -> int:
+    # إذا استُدعي الـ exe كأمر داخلي (-m / -c ...) فاغلق فوراً دون أي إجراء.
+    if len(sys.argv) > 1 and (sys.argv[1] == "-m" or sys.argv[1] == "-c" or sys.argv[1].startswith("-")):
+        return 0
     root = base_dir()
     app_exe = root / RELATIVE_APP_EXE
     if not app_exe.exists():
@@ -192,8 +230,10 @@ def main() -> int:
         alt = root.parent / RELATIVE_APP_EXE
         if alt.exists():
             app_exe = alt
+    trace(f"root={root}  app_exe exists={app_exe.exists()} ({app_exe})")
 
     already_up = server_already_running()
+    trace(f"server already running: {already_up}")
     server = None
 
     if not already_up:
@@ -211,15 +251,19 @@ def main() -> int:
         if not run_py.exists():
             show_error("لم يُعثر على run.py بجوار الـ launcher.")
             return 1
+        trace(f"starting server with {python}, run.py={run_py}")
         server = start_server(python, root)
+        trace(f"server pid={server.pid if server else None}")
 
     if not wait_healthy(server, already_up):
         stop_server(server.pid if server else 0)
+        trace("server not healthy; aborting")
         show_error(
             "لم يستجب الخادم خلال 60 ثانية.\n"
             "تحقق من قاعدة البيانات/الإعدادات ثم أعد المحاولة."
         )
         return 1
+    trace("server healthy")
 
     if not app_exe.exists():
         if already_up:
@@ -232,8 +276,10 @@ def main() -> int:
         stop_server(server.pid if server else 0)
         return 1
 
+    trace(f"launching app: {app_exe}")
     launch_app(app_exe)
     wait_app_closed(app_exe)
+    trace("app closed; stopping server")
     stop_server(server.pid if server else 0)
     return 0
 

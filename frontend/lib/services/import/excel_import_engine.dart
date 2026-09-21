@@ -246,24 +246,40 @@ class ExcelImportEngine {
     Map<String, String> values,
     Map<String, ImportValidator> validators,
   ) async {
-    final code = values['code'];
-    if (code == null || code.trim().isEmpty) {
-      values['code'] = _generateCustomerCode(values['name'] ?? '');
-      _usedCodes.add(_normalizeCode(values['code']!));
+    var code = _normalizeCode(values['code'] ?? '');
+    // إصلاح ديناميكي: الكود الناقص/القصير/الطويل يتولّد تلقائياً ليطابق
+    // قاعدة الخادم (3-20 حرفاً) بدل رفض الصف.
+    if (code.isEmpty || code.length < 3 || code.length > 20) {
+      code = _generateCustomerCode(values['name'] ?? '');
+      values['code'] = code;
+      _usedCodes.add(code);
+      // الاسم الناقص يُولّد تلقائياً (حرفان على الأقل) بدل رفض الصف.
+      final name = _cleanOpt(values['name']);
+      if (name == null || name.length < 2) {
+        values['name'] = 'عميل $code';
+      }
       return false;
     }
-    final existing = _customersByCode![_normalizeCode(code)];
+    values['code'] = code;
+    final existing = _customersByCode![code];
     if (existing == null) {
-      _usedCodes.add(_normalizeCode(code));
+      _usedCodes.add(code);
+      final name = _cleanOpt(values['name']);
+      if (name == null || name.length < 2) {
+        values['name'] = 'عميل $code';
+      }
       return false;
     }
 
     // الكود موجود مسبقاً → تحديث بيانات العميل بدل رفض الصف.
-    final upd = _validatedSubset(
-      const {'name', 'phone', 'mobile', 'email'},
-      values,
-      validators,
+    // في التحديث لا تُرسَل قيمة فارغة (اسم/بريد/هاتف) تجنباً لرفض الخادم.
+    final upd = Map<String, dynamic>.from(
+      _validatedSubset(const {'phone', 'mobile', 'email'}, values, validators),
     );
+    final updName = _cleanOpt(values['name']);
+    if (updName != null && updName.length >= 2) {
+      upd.addAll(_validatedSubset(const {'name'}, values, validators));
+    }
     if (upd.isNotEmpty) {
       final res = await _api.put('customers/${existing['id']}', data: upd);
       if (res['success'] == false) {
@@ -289,27 +305,43 @@ class ExcelImportEngine {
     Map<String, String> values,
     Map<String, ImportValidator> validators,
   ) async {
-    final code = values['code']?.trim();
-    if (code == null || code.isEmpty) {
-      throw ImportValidationException('الكود مطلوب');
-    }
+    var code = _normalizeCode(values['code'] ?? '');
     final incomingName = values['name']?.trim() ?? '';
-    final existing = _productsByCode![_normalizeCode(code)];
-
-    if (existing == null) {
+    // إصلاح ديناميكي: الكود الناقص يتولّد تلقائياً بدل رفض الصف.
+    if (code.isEmpty) {
+      code = _generateUniqueProductCode('PRD');
+      values['code'] = code;
+      if (incomingName.length < 2) {
+        values['name'] = 'منتج $code';
+      }
       _usedCodes.add(_normalizeCode(code));
       return false;
     }
+    values['code'] = code;
+    final existing = _productsByCode![code];
 
-    final sameName = _normalizeName(existing['name']?.toString() ?? '') ==
-        _normalizeName(incomingName);
+    if (existing == null) {
+      _usedCodes.add(code);
+      if (incomingName.length < 2) {
+        values['name'] = 'منتج $code';
+      }
+      return false;
+    }
+
+    final sameName = incomingName.isEmpty ||
+        _normalizeName(existing['name']?.toString() ?? '') ==
+            _normalizeName(incomingName);
     if (sameName) {
-      // تحديث المنتج الموجود (السعر/المخزون/الضريبة...).
+      // تحديث المنتج الموجود (السعر/المخزون/الضريبة...). لا تُرسَل بيانات
+      // جزئية فارغة قد تُفشل الخادم (مثل اسم فارغ).
       final upd = _validatedSubset(
-        const {'name', 'unit_price', 'tax_rate', 'stock_quantity', 'description', 'category'},
+        const {'unit_price', 'tax_rate', 'stock_quantity', 'description', 'category'},
         values,
         validators,
       );
+      if (incomingName.isNotEmpty) {
+        upd.addAll(_validatedSubset(const {'name'}, values, validators));
+      }
       if (upd.isNotEmpty) {
         final res = await _api.put('products/${existing['id']}', data: upd);
         if (res['success'] == false) {
@@ -396,10 +428,10 @@ class ExcelImportEngine {
 
   /// إنشاء عميل تلقائياً مع كود فريد (إعادة المحاولة بكود آخر عند التعارض).
   Future<Map<String, dynamic>> _createCustomerAuto(String name, String? code) async {
-    final cleanName = name.trim().isEmpty ? 'عميل مستورد' : name.trim();
-    var candidate = (code != null && code.trim().isNotEmpty)
+    final cleanName = name.trim();
+    var candidate = (code != null && code.trim().length >= 3 && code.trim().length <= 20)
         ? code.trim()
-        : _generateCustomerCode(cleanName);
+        : _generateCustomerCode(cleanName.isEmpty ? 'مستورد' : cleanName);
     for (var attempt = 0; attempt < 5; attempt++) {
       final res = await _api.post('customers', data: {
         'code': candidate,
@@ -623,7 +655,7 @@ class ExcelImportEngine {
       final branchName = names[i];
       final code = customerCode.isEmpty
           ? 'BR${i + 1}'
-          : '${customerCode}-BR${i + 1}';
+          : '$customerCode-BR${i + 1}';
       try {
         await _api.post(
           'customers/$customerId/branches',

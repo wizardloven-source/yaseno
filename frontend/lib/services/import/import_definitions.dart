@@ -349,29 +349,26 @@ Map<String, ImportValidator> buildValidators(ImportEntityType type) {
     case ImportEntityType.customers:
       return {
         'code': ImportValidator(
-          validate: (r, _) {
-            if (r == null || r.trim().isEmpty) return null; // Will auto-generate
-            if (r.trim().length < 3) return 'الكود يجب 3 أحرف على الأقل';
-            return null;
-          },
+          // إصلاح ديناميكي: الكود القصير/الملوّث يُعاد توليده تلقائياً في المحرك
+          // بدل رفض الصف (قاعدة الخادم: 3-20 حرفاً).
+          validate: (r, _) => null,
           convert: (r, _) => r == null || r.trim().isEmpty ? '' : r.trim(),
         ),
         'name': ImportValidator(
-          validate: (r, _) =>
-              (r == null || r.trim().length < 2) ? 'الاسم مطلوب (حرفان على الأقل)' : null,
-          convert: (r, _) => r!.trim(),
+          // إصلاح ديناميكي: الاسم الناقص يُولّد تلقائياً في المحرك بدل الرفض.
+          validate: (r, _) => null,
+          convert: (r, _) => r == null || r.trim().isEmpty ? '' : r.trim(),
         ),
         'phone': ImportValidator(convert: (r, _) => _cleanOpt(r)),
         'mobile': ImportValidator(convert: (r, _) => _cleanOpt(r)),
         'email': ImportValidator(
-          validate: (r, _) {
+          validate: (r, _) => null, // البريد غير الصالح يُتجاهل بدل رفض الصف.
+          convert: (r, _) {
             final v = _cleanOpt(r);
-            if (v != null && !RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(v)) {
-              return 'بريد إلكتروني غير صالح';
-            }
-            return null;
+            if (v == null) return null;
+            if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(v)) return null;
+            return v;
           },
-          convert: (r, _) => _cleanOpt(r),
         ),
         'street': ImportValidator(convert: (r, _) => _cleanOpt(r)),
         'city': ImportValidator(convert: (r, _) => _cleanOpt(r)),
@@ -381,24 +378,22 @@ Map<String, ImportValidator> buildValidators(ImportEntityType type) {
         }),
         'tax_number': ImportValidator(convert: (r, _) => _cleanOpt(r)),
         'credit_limit': ImportValidator(
-          validate: (r, _) {
-            final n = r == null ? null : parseNumber(r);
-            if (r != null && r.trim().isNotEmpty && (n == null || n < 0)) {
-              return 'قيمة رقمية غير صالحة';
-            }
-            return null;
+          validate: (r, _) => null,
+          convert: (r, _) {
+            if (r == null || r.trim().isEmpty) return '0';
+            final n = parseNumber(r);
+            return (n == null || n < 0) ? '0' : n.toString();
           },
-          convert: (r, _) => r == null || r.trim().isEmpty
-              ? '0'
-              : parseNumber(r).toString(),
         ),
         'currency': ImportValidator(
-          validate: (r, _) {
+          validate: (r, _) => null,
+          convert: (r, _) {
             final v = _cleanOpt(r);
-            if (v != null && v.length != 3) return 'رمز العملة 3 أحرف';
-            return null;
+            if (v == null || v.length != 3) {
+              return CurrencyHelper.baseCurrency.toUpperCase();
+            }
+            return v.toUpperCase();
           },
-          convert: (r, _) => (_cleanOpt(r) ?? CurrencyHelper.baseCurrency).toUpperCase(),
         ),
         'branches': ImportValidator(
           validate: (r, _) {
@@ -426,103 +421,80 @@ Map<String, ImportValidator> buildValidators(ImportEntityType type) {
           convert: (r, _) => r!.trim(),
         ),
         'unit_price': ImportValidator(
-          validate: (r, _) {
-            final n = r == null ? null : parseNumber(r);
-            if (r != null && r.trim().isNotEmpty && (n == null || n < 0)) {
-              return 'قيمة رقمية غير صالحة';
-            }
-            return null;
+          validate: (r, _) => null,
+          convert: (r, _) {
+            final n = parseNumber(r);
+            return (n == null || n < 0) ? '0' : n.toString();
           },
-          convert: (r, _) => r == null || r.trim().isEmpty ? '0' : parseNumber(r).toString(),
         ),
         'tax_rate': ImportValidator(
-          validate: (r, _) {
-            final n = r == null ? null : parseNumber(r);
-            if (r != null && r.trim().isNotEmpty && (n == null || n < 0)) {
-              return 'قيمة رقمية غير صالحة';
-            }
-            return null;
+          validate: (r, _) => null,
+          convert: (r, _) {
+            final n = parseNumber(r);
+            return (n == null || n < 0) ? '0' : n.toString();
           },
-          convert: (r, _) => r == null || r.trim().isEmpty ? '0' : parseNumber(r).toString(),
         ),
         'description': ImportValidator(convert: (r, _) => _cleanOpt(r)),
         'category': ImportValidator(convert: (r, _) => _cleanOpt(r)),
         'stock_quantity': ImportValidator(
-          validate: (r, _) {
-            final n = r == null ? null : parseNumber(r);
-            if (r != null && r.trim().isNotEmpty && (n == null || n < 0)) {
-              return 'قيمة رقمية غير صالحة';
-            }
-            return null;
-          },
+          validate: (r, _) => null,
           convert: (r, _) {
             final n = parseNumber(r);
-            return (n == null ? 0 : n.toInt()).toString();
+            return (n == null || n < 0) ? '0' : n.toInt().toString();
           },
         ),
         'low_stock_threshold': ImportValidator(
-          validate: (r, _) {
-            final n = r == null ? null : parseNumber(r);
-            if (r != null && r.trim().isNotEmpty && (n == null || n < 0)) {
-              return 'قيمة رقمية غير صالحة';
-            }
-            return null;
-          },
+          validate: (r, _) => null,
           convert: (r, _) {
             final n = parseNumber(r);
-            return (n == null ? 10 : n.toInt()).toString();
+            return (n == null || n < 0) ? '10' : n.toInt().toString();
           },
         ),
         'currency': ImportValidator(
-          validate: (r, _) {
+          validate: (r, _) => null,
+          convert: (r, _) {
             final v = _cleanOpt(r);
-            if (v != null && v.length != 3) return 'رمز العملة 3 أحرف';
-            return null;
+            if (v == null || v.length != 3) {
+              return CurrencyHelper.baseCurrency.toUpperCase();
+            }
+            return v.toUpperCase();
           },
-          convert: (r, _) => (_cleanOpt(r) ?? CurrencyHelper.baseCurrency).toUpperCase(),
         ),
       };
     case ImportEntityType.invoices:
       return {
         'customer_name': ImportValidator(
-          validate: (r, _) =>
-              (r == null || r.trim().length < 2) ? 'اسم العميل مطلوب' : null,
-          convert: (r, _) => r!.trim(),
+          validate: (r, _) => null, // يُملأ تلقائياً من المحرك (حلّ العميل/إنشاؤه).
+          convert: (r, _) => _cleanOpt(r) ?? '',
         ),
         'customer_id': ImportValidator(convert: (r, _) => _cleanOpt(r)),
         'site_name': ImportValidator(
-          validate: (r, _) {
-            if (r == null || r.trim().isEmpty) return null;
-            if (r.trim().length < 2) return 'اسم الفرع يجب حرفين على الأقل';
-            return null;
-          },
+          validate: (r, _) => null, // غير المكتمل يُتجاهل بدل رفض الفاتورة.
           convert: (r, _) => _cleanOpt(r),
         ),
         'currency': ImportValidator(
-          validate: (r, _) {
+          validate: (r, _) => null,
+          convert: (r, _) {
             final v = _cleanOpt(r);
-            if (v != null && v.length != 3) return 'رمز العملة 3 أحرف';
-            return null;
+            if (v == null || v.length != 3) {
+              return CurrencyHelper.baseCurrency.toUpperCase();
+            }
+            return v.toUpperCase();
           },
-          convert: (r, _) => (_cleanOpt(r) ?? CurrencyHelper.baseCurrency).toUpperCase(),
         ),
         'payment_type': ImportValidator(
-          validate: (r, _) {
+          validate: (r, _) => null, // غير الصالح يتحول إلى cash بدل الرفض.
+          convert: (r, _) {
             final v = _cleanOpt(r);
             if (v != null &&
-                !['cash', 'credit', 'check', 'card'].contains(v.toLowerCase())) {
-              return 'نوع دفع غير صالح (cash/credit/check/card)';
+                ['cash', 'credit', 'check', 'card'].contains(v.toLowerCase())) {
+              return v.toLowerCase();
             }
-            return null;
+            return 'cash';
           },
-          convert: (r, _) => (_cleanOpt(r) ?? 'cash').toLowerCase(),
         ),
         'date': ImportValidator(
-          validate: (r, _) {
-            final v = _cleanOpt(r);
-            if (v != null && _parseDate(v) == null) return 'تاريخ غير صالح';
-            return null;
-          },
+          validate: (r, _) => null, // غير الصالح يتجاهل التاريخ (خادم يستخدم الافتراضي).
           convert: (r, _) {
             final v = _cleanOpt(r);
             if (v == null) return null;
@@ -530,27 +502,38 @@ Map<String, ImportValidator> buildValidators(ImportEntityType type) {
             return d == null ? null : '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
           },
         ),
-        'product_code': ImportValidator(convert: (r, _) => _cleanOpt(r)),
+        'product_code': ImportValidator(
+          validate: (r, _) => null,
+          convert: (r, row) {
+            final v = _cleanOpt(r);
+            if (v != null) return v;
+            // بدون كود → يولّد من اسم المنتج كبديل ديناميكي.
+            final n = _cleanOpt(row['product_name']);
+            return n != null && n.length <= 50 ? n : 'NOCODE';
+          },
+        ),
         'product_name': ImportValidator(
-          validate: (r, _) =>
-              (r == null || r.trim().isEmpty) ? 'اسم المنتج مطلوب' : null,
-          convert: (r, _) => r!.trim(),
+          validate: (r, _) => null, // الناقص يُولّد من الكود بدل الرفض.
+          convert: (r, row) {
+            final v = _cleanOpt(r);
+            if (v != null) return v;
+            final c = _cleanOpt(row['product_code']);
+            return c == null ? 'منتج' : 'منتج $c';
+          },
         ),
         'quantity': ImportValidator(
-          validate: (r, _) {
-            final n = r == null ? null : parseNumber(r);
-            if (n == null || n <= 0) return 'الكمية مطلوبة وأكبر من صفر';
-            return null;
+          validate: (r, _) => null, // الناقص/الخاطئ → 1 افتراضياً بدل الرفض.
+          convert: (r, _) {
+            final n = parseNumber(r);
+            return (n == null || n <= 0) ? '1' : n.toString();
           },
-          convert: (r, _) => parseNumber(r).toString(),
         ),
         'unit_price': ImportValidator(
-          validate: (r, _) {
-            final n = r == null ? null : parseNumber(r);
-            if (n == null || n < 0) return 'سعر الوحدة مطلوب';
-            return null;
+          validate: (r, _) => null, // الناقص → 0 افتراضياً بدل الرفض.
+          convert: (r, _) {
+            final n = parseNumber(r);
+            return (n == null || n < 0) ? '0' : n.toString();
           },
-          convert: (r, _) => parseNumber(r).toString(),
         ),
         'notes': ImportValidator(convert: (r, _) => _cleanOpt(r)),
       };

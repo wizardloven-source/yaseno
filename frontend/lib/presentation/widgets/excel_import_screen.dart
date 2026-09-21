@@ -289,16 +289,21 @@ class _ExcelImportScreenState extends State<ExcelImportScreen> {
             const SizedBox(height: 24),
             if (_fatalError != null) ...[
               Card(
-                color: Colors.red.shade50,
+                color: Theme.of(context).colorScheme.errorContainer,
                 child: Padding(
                   padding: const EdgeInsets.all(12),
                   child: Row(
                     children: [
-                      const Icon(Icons.error_outline, color: Colors.red),
+                      Icon(Icons.error_outline,
+                          color: Theme.of(context).colorScheme.onErrorContainer),
                       const SizedBox(width: 8),
                       Expanded(
                           child: Text(_fatalError!,
-                              style: const TextStyle(fontSize: 12))),
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onErrorContainer))),
                     ],
                   ),
                 ),
@@ -348,17 +353,20 @@ class _ExcelImportScreenState extends State<ExcelImportScreen> {
     return Column(
       children: [
         Card(
-          color: Colors.amber.shade50,
+          color: Theme.of(context).colorScheme.surfaceContainerHigh,
           child: Padding(
             padding: const EdgeInsets.all(12),
             child: Row(
               children: [
-                const Icon(Icons.info_outline, color: Colors.amber),
+                Icon(Icons.info_outline,
+                    color: Theme.of(context).colorScheme.tertiary),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     'تم اكتشاف ${analysis.headers.length} عموداً و ${analysis.rows.length} صفاً. تأكد من تطابق الحقول المطلوبة ثم ابدأ الاستيراد.',
-                    style: const TextStyle(fontSize: 13),
+                    style: TextStyle(
+                        fontSize: 13,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant),
                   ),
                 ),
               ],
@@ -680,15 +688,17 @@ class _ExcelImportScreenState extends State<ExcelImportScreen> {
         .toList()
       ..sort((a, b) => a.rowNumber.compareTo(b.rowNumber));
     return Card(
-      color: Colors.red.shade50,
+      color: Theme.of(context).colorScheme.errorContainer,
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'تفاصيل الأخطاء',
-              style: TextStyle(fontWeight: FontWeight.bold),
+              style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).colorScheme.onErrorContainer),
             ),
             const SizedBox(height: 8),
             ConstrainedBox(
@@ -707,16 +717,27 @@ class _ExcelImportScreenState extends State<ExcelImportScreen> {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 8, vertical: 2),
                           decoration: BoxDecoration(
-                            color: Colors.red.shade100,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .error
+                                .withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Text('صف ${r.rowNumber}',
-                              style: const TextStyle(fontSize: 11)),
+                              style: TextStyle(
+                                  fontSize: 11,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onErrorContainer)),
                         ),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(r.error ?? '',
-                              style: const TextStyle(fontSize: 12)),
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onErrorContainer)),
                         ),
                       ],
                     ),
@@ -734,9 +755,9 @@ class _ExcelImportScreenState extends State<ExcelImportScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Column(
         children: [
@@ -806,7 +827,7 @@ class _ProgressPainter extends CustomPainter {
     final track = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = stroke
-      ..color = color.withOpacity(0.15);
+      ..color = color.withValues(alpha: 0.15);
     canvas.drawArc(rect, 0, math.pi * 2, false, track);
 
     final arc = Paint()

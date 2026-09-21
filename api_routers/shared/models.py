@@ -200,7 +200,7 @@ class PurchaseOrderLineRequest(BaseModel):
 
 
 class CreatePurchaseOrderRequest(BaseModel):
-    supplier_id: str = Field(..., min_length=1)
+    supplier_id: str = Field(default="", max_length=50)
     supplier_name: Optional[str] = None
     currency: str = Field("USD", min_length=3, max_length=3)
     expected_delivery_date: Optional[date] = None
