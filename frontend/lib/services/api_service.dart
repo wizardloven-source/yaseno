@@ -556,6 +556,172 @@ class ApiService {
   }
 
   // =========================================================================
+  // Sales Cycle - Picking Lists (قوائم الانتقاء) - M3.1
+  // =========================================================================
+
+  Future<List<Map<String, dynamic>>> getPickingLists({
+    Map<String, dynamic>? queryParameters,
+  }) async {
+    final response =
+        await _client.dio.get('/sales/picking-lists', queryParameters: queryParameters);
+    final data = response.data;
+    final items = data['data']?['items'] ?? data['items'] ?? [];
+    if (items is List) return items.cast<Map<String, dynamic>>();
+    return [];
+  }
+
+  Future<Map<String, dynamic>> getPickingList(String id) async {
+    final response = await _client.dio.get('/sales/picking-lists/$id');
+    final data = response.data;
+    return (data['data'] is Map) ? data['data'] : data;
+  }
+
+  Future<Map<String, dynamic>> pickPickingList(
+    String id, {
+    required List<Map<String, dynamic>> items,
+    String? warehouseId,
+  }) async {
+    final response = await _client.dio.post('/sales/picking-lists/$id/pick', data: {
+      'items': items,
+      if (warehouseId != null) 'warehouse_id': warehouseId,
+    });
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> packPickingList(String id) async {
+    final response = await _client.dio.post('/sales/picking-lists/$id/pack');
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> cancelPickingList(String id, {String? reason}) async {
+    final response = await _client.dio
+        .post('/sales/picking-lists/$id/cancel', data: {'reason': reason});
+    return response.data;
+  }
+
+  // =========================================================================
+  // Sales Cycle - Shipping (الشحنات) - M3.1
+  // =========================================================================
+
+  Future<List<Map<String, dynamic>>> getShippings({
+    Map<String, dynamic>? queryParameters,
+  }) async {
+    final response =
+        await _client.dio.get('/sales/shippings', queryParameters: queryParameters);
+    final data = response.data;
+    final items = data['data']?['items'] ?? data['items'] ?? [];
+    if (items is List) return items.cast<Map<String, dynamic>>();
+    return [];
+  }
+
+  Future<Map<String, dynamic>> getShipping(String id) async {
+    final response = await _client.dio.get('/sales/shippings/$id');
+    final data = response.data;
+    return (data['data'] is Map) ? data['data'] : data;
+  }
+
+  Future<Map<String, dynamic>> createShippingFromPicking(
+    String pickingId, {
+    Map<String, dynamic>? data,
+  }) async {
+    final response =
+        await _client.dio.post('/sales/picking-lists/$pickingId/ship', data: data ?? {});
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> confirmShipping(String id) async {
+    final response = await _client.dio.post('/sales/shippings/$id/confirm');
+    return response.data;
+  }
+
+  // =========================================================================
+  // POS - Sessions (جلسات نقطة البيع) - M3.2
+  // =========================================================================
+
+  Future<List<Map<String, dynamic>>> getPosSessions({
+    Map<String, dynamic>? queryParameters,
+  }) async {
+    final response =
+        await _client.dio.get('pos/sessions', queryParameters: queryParameters);
+    final data = response.data;
+    final items = data['data']?['items'] ?? data['items'] ?? [];
+    if (items is List) return items.cast<Map<String, dynamic>>();
+    return [];
+  }
+
+  Future<Map<String, dynamic>> getPosSession(String id) async {
+    final response = await _client.dio.get('/api/pos/sessions/$id');
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> openPosSession(Map<String, dynamic> data) async {
+    final response = await _client.dio.post('pos/sessions', data: data);
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> closePosSession(String id,
+      {Map<String, dynamic>? data}) async {
+    final response =
+        await _client.dio.post('/api/pos/sessions/$id/close', data: data ?? {});
+    return response.data;
+  }
+
+  Future<List<Map<String, dynamic>>> getPosTerminals(
+      {Map<String, dynamic>? queryParameters}) async {
+    final response = await _client.dio
+        .get('pos/terminals', queryParameters: queryParameters);
+    final data = response.data;
+    final items = data['data']?['items'] ?? data['items'] ?? [];
+    if (items is List) return items.cast<Map<String, dynamic>>();
+    return [];
+  }
+
+  Future<Map<String, dynamic>> registerPosTerminal(
+      Map<String, dynamic> data) async {
+    final response = await _client.dio.post('pos/terminals', data: data);
+    return response.data;
+  }
+
+  // =========================================================================
+  // POS - Receipts (إيصالات نقطة البيع) - M3.2
+  // =========================================================================
+
+  Future<List<Map<String, dynamic>>> getPosReceipts({
+    Map<String, dynamic>? queryParameters,
+  }) async {
+    final response = await _client.dio
+        .get('pos/receipts', queryParameters: queryParameters);
+    final data = response.data;
+    final items = data['data']?['items'] ?? data['items'] ?? [];
+    if (items is List) return items.cast<Map<String, dynamic>>();
+    return [];
+  }
+
+  Future<Map<String, dynamic>> getPosReceipt(String id) async {
+    final response = await _client.dio.get('pos/receipts/$id');
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> createPosReceipt(Map<String, dynamic> data) async {
+    final response = await _client.dio.post('pos/receipts', data: data);
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> returnPosReceipt(String id,
+      {Map<String, dynamic>? data}) async {
+    final response = await _client.dio
+        .post('pos/receipts/$id/return', data: data ?? {});
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> voidPosReceipt(String id,
+      {Map<String, dynamic>? data}) async {
+    final response = await _client.dio
+        .post('pos/receipts/$id/void', data: data ?? {});
+    return response.data;
+  }
+
+  // =========================================================================
   // Sites
   // =========================================================================
 

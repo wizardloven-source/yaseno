@@ -183,8 +183,8 @@ async def create_quotation(request: CreateQuotationRequest,
                         :id, :quotation_number, :customer_id, :customer_name, :currency,
                         :issue_date, :expiry_date, 'draft',
                         :gdp, :gda, :subtotal, :total_discount, :amount_after_discount,
-                        :total_tax, :grand_total, :billing_address::jsonb,
-                        :shipping_address::jsonb, :notes, :internal_notes, :branch_id,
+                        :total_tax, :grand_total, CAST(:billing_address AS jsonb),
+                        CAST(:shipping_address AS jsonb), :notes, :internal_notes, :branch_id,
                         :created_by
                     )
                 """),
@@ -392,11 +392,11 @@ async def update_quotation(quotation_id: str, request: UpdateQuotationRequest,
                 sets.append("internal_notes = :internal_notes")
                 params["internal_notes"] = request.internal_notes
             if request.billing_address is not None:
-                sets.append("billing_address = :billing_address::jsonb")
+                sets.append("billing_address = CAST(:billing_address AS jsonb)")
                 params["billing_address"] = json.dumps(request.billing_address,
                                                        ensure_ascii=False)
             if request.shipping_address is not None:
-                sets.append("shipping_address = :shipping_address::jsonb")
+                sets.append("shipping_address = CAST(:shipping_address AS jsonb)")
                 params["shipping_address"] = json.dumps(request.shipping_address,
                                                         ensure_ascii=False)
 

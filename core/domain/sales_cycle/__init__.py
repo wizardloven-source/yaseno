@@ -15,8 +15,13 @@ from .events import (
     OrderConfirmedEvent,
     OrderShippedEvent,
     OrderDeliveredEvent,
+    OrderCancelledEvent,
+    OrderCompletedEvent,
+    StockReservationCreated,
+    ShippingItemShipped,
     DeliveryNoteCreatedEvent,
     DeliveryCompletedEvent,
+    DeliveryFailedEvent,
 )
 
 __all__ = [
@@ -41,6 +46,11 @@ __all__ = [
     "OrderConfirmedEvent",
     "OrderShippedEvent",
     "OrderDeliveredEvent",
+    "OrderCancelledEvent",
+    "OrderCompletedEvent",
+    "StockReservationCreated",
+    "ShippingItemShipped",
     "DeliveryNoteCreatedEvent",
     "DeliveryCompletedEvent",
+    "DeliveryFailedEvent",
 ]

@@ -69,6 +69,11 @@ import 'package:ya_seen_erp_flutter/presentation/screens/sales/order_list_screen
 import 'package:ya_seen_erp_flutter/presentation/screens/sales/order_form_screen.dart';
 import 'package:ya_seen_erp_flutter/presentation/screens/sales/delivery_list_screen.dart';
 import 'package:ya_seen_erp_flutter/presentation/screens/sales/delivery_detail_screen.dart';
+import 'package:ya_seen_erp_flutter/presentation/screens/sales/picking_list_screen.dart';
+import 'package:ya_seen_erp_flutter/presentation/screens/sales/picking_grid_screen.dart';
+import 'package:ya_seen_erp_flutter/presentation/screens/sales/shipping_board_screen.dart';
+import 'package:ya_seen_erp_flutter/presentation/screens/pos/pos_cart_screen.dart';
+import 'package:ya_seen_erp_flutter/presentation/screens/pos/pos_receipts_list_screen.dart';
 
 // ============================================================
 // المرتجعات (Returns)
@@ -429,6 +434,36 @@ class AppRouter {
               final id = state.pathParameters['id']!;
               return DeliveryDetailScreen(deliveryId: id);
             },
+          ),
+          GoRoute(
+            path: '/sales/picking',
+            name: 'sales_picking',
+            builder: (context, state) => const PickingListScreen(),
+          ),
+          GoRoute(
+            path: '/sales/picking/:id',
+            name: 'picking_grid',
+            builder: (context, state) {
+              final id = state.pathParameters['id']!;
+              return PickingGridScreen(pickingId: id);
+            },
+          ),
+          GoRoute(
+            path: '/sales/shipping',
+            name: 'sales_shipping',
+            builder: (context, state) => const ShippingBoardScreen(),
+          ),
+
+          // نقطة البيع (POS)
+          GoRoute(
+            path: '/pos',
+            name: 'pos_screen',
+            builder: (context, state) => const PosCartScreen(),
+          ),
+          GoRoute(
+            path: '/pos/receipts',
+            name: 'pos_receipts',
+            builder: (context, state) => const PosReceiptsListScreen(),
           ),
 
           // المرتجعات (Returns)

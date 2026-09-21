@@ -1,0 +1,28 @@
+﻿60: _loadProducts();
+63: Future<void> _loadProducts() async {
+66: final products = await ProductRepository.getProducts(
+90: ).then((_) => _loadProducts()),
+99: onPressed: () { setState(() { _includeInactive = !_includeInactive; _loadProducts(); }); },
+107: child: TextField(
+132: TextButton(onPressed: _loadProducts, child: const Text('إعادة المحاولة')),
+160: onRetry: _loadProducts,
+399: context.push('/products/create').then((r) { if (r == true) _loadProducts(); });
+403: context.push('/products/${product.id}').then((r) { if (r == true) _loadProducts(); });
+415: _loadProducts();
+436: _loadProducts();
+456: TextField(controller: qtyCtrl, keyboardType: TextInputType.number,
+459: TextField(controller: reasonCtrl,
+483: _loadProducts();
+export 'sales/order_form_screen.dart';
+export 'sales/delivery_list_screen.dart';
+export 'sales/delivery_detail_screen.dart';
+export 'sales/picking_list_screen.dart';
+export 'sales/picking_grid_screen.dart';
+export 'sales/shipping_board_screen.dart';
+72: import 'package:ya_seen_erp_flutter/presentation/screens/sales/picking_list_screen.dart';
+74: import 'package:ya_seen_erp_flutter/presentation/screens/sales/shipping_board_screen.dart';
+437: path: '/sales/picking',
+439: builder: (context, state) => const PickingListScreen(),
+442: path: '/sales/picking/:id',
+450: path: '/sales/shipping',
+452: builder: (context, state) => const ShippingBoardScreen(),

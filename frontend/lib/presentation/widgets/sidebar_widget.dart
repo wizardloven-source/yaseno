@@ -290,6 +290,27 @@ class SidebarWidget extends StatelessWidget {
                   route: '/sales/deliveries',
                   isSelected: currentRoute.startsWith('/sales/deliveries'),
                 ),
+                _buildMenuItem(
+                  context,
+                  icon: Icons.inventory_2,
+                  label: 'قوائم الانتقاء',
+                  route: '/sales/picking',
+                  isSelected: currentRoute.startsWith('/sales/picking'),
+                ),
+                _buildMenuItem(
+                  context,
+                  icon: Icons.local_shipping,
+                  label: 'لوحة الشحن',
+                  route: '/sales/shipping',
+                  isSelected: currentRoute.startsWith('/sales/shipping'),
+                ),
+                _buildMenuItem(
+                  context,
+                  icon: Icons.point_of_sale,
+                  label: 'نقطة البيع',
+                  route: '/pos',
+                  isSelected: currentRoute.startsWith('/pos'),
+                ),
 
                 const Divider(height: 4),
 

@@ -103,6 +103,35 @@ class OrderCreatedEvent(DomainEvent):
 
 
 @dataclass
+class StockReservationCreated(DomainEvent):
+    """تم حجز المخزون بعد تأكيد أمر البيع"""
+    order_number: str
+    order_id: str
+    customer_id: str
+    reserved_total: float
+    reserved_lines: int
+    reservation_status: str = "reserved"
+
+    def __post_init__(self):
+        self.aggregate_type = "SalesOrder"
+        self.aggregate_id = self.order_number
+
+
+@dataclass
+class OrderCompletedEvent(DomainEvent):
+    """اكتمل الأمر: تمت الفاتورة بالكامل من كميات مسلّمة"""
+    order_number: str
+    order_id: str
+    customer_id: str
+    completed_date: datetime
+    total_invoiced: float = 0.0
+
+    def __post_init__(self):
+        self.aggregate_type = "SalesOrder"
+        self.aggregate_id = self.order_number
+
+
+@dataclass
 class OrderConfirmedEvent(DomainEvent):
     order_number: str
     customer_id: str
@@ -124,6 +153,23 @@ class OrderShippedEvent(DomainEvent):
     def __post_init__(self):
         self.aggregate_type = "SalesOrder"
         self.aggregate_id = self.order_number
+
+
+@dataclass
+class ShippingItemShipped(DomainEvent):
+    """تم شحن بند من بند الشحنة - يقلل الحجز ويحدّث كميات الشحنة"""
+    shipping_id: str
+    shipping_number: str
+    order_id: str
+    order_number: str
+    product_id: str
+    product_code: str
+    shipped_quantity: float
+    shipped_date: datetime
+
+    def __post_init__(self):
+        self.aggregate_type = "SalesShipping"
+        self.aggregate_id = self.shipping_number
 
 
 @dataclass

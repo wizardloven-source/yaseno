@@ -56,6 +56,36 @@ async def list_customers(
         return ApiResponse(success=False, message=str(e), errors=[str(e)])
 
 
+@router.get("/api/customers/search", response_model=ApiResponse)
+async def search_customers(
+    q: str = Query(..., min_length=1),
+    limit: int = Query(50, ge=1, le=200),
+    current_user: dict = Depends(get_current_user),
+):
+    """بحث سريع عن العملاء بالكود / الاسم / الهاتف / البريد (يُستخدم من الاستيراد وشاشات المبيعات)."""
+    try:
+        with bootstrap.uow() as uow:
+            customers = uow.customers.search(search_text=q, limit=limit)
+            result = []
+            for customer in customers:
+                result.append({
+                    'id': str(customer.id) if hasattr(customer, 'id') else None,
+                    'code': str(customer.code) if hasattr(customer, 'code') else '',
+                    'name': customer.name if hasattr(customer, 'name') else '',
+                    'status': customer.status.value if hasattr(customer, 'status') else 'active',
+                    'email': customer.contact_info.email if hasattr(customer, 'contact_info') else None,
+                    'phone': customer.contact_info.phone if hasattr(customer, 'contact_info') else None,
+                })
+            return ApiResponse(
+                success=True,
+                message="تم جلب نتائج البحث بنجاح",
+                data={'items': result, 'total': len(result)}
+            )
+    except Exception as e:
+        logger.error(f"Error searching customers: {e}", exc_info=True)
+        return ApiResponse(success=False, message=str(e), errors=[str(e)])
+
+
 @router.post("/api/customers", response_model=ApiResponse, status_code=status.HTTP_201_CREATED)
 async def create_customer(request: CreateCustomerRequest, current_user: dict = Depends(get_current_user)):
     _ctx = get_current_user_context()

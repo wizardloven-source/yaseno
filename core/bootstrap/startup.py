@@ -79,6 +79,9 @@ class Bootstrap:
         # ✅ التأكد من وجود جداول دورة المبيعات
         self._ensure_sales_cycle_tables()
         
+        # ✅ التأكد من وجود جداول نقطة البيع (POS)
+        self._ensure_pos_tables()
+        
         logger.info("✅ Database tables created")
         
         # 3. تسجيل الخدمات الأساسية
@@ -641,6 +644,24 @@ class Bootstrap:
                 conn.execute(text("CREATE INDEX IF NOT EXISTS idx_sales_orders_created ON sales_orders (created_at)"))
                 conn.execute(text("CREATE INDEX IF NOT EXISTS idx_sales_orders_quotation ON sales_orders (quotation_id)"))
                 conn.execute(text("CREATE INDEX IF NOT EXISTS idx_sales_orders_number ON sales_orders (order_number)"))
+
+                # M3.1: أعمدة إضافية على أمر البيع (حالة الحجز + روابط الفواتير)
+                conn.execute(text("""
+                    ALTER TABLE sales_orders
+                        ADD COLUMN IF NOT EXISTS reservation_status VARCHAR(30) NOT NULL DEFAULT 'none'
+                """))
+                conn.execute(text("""
+                    ALTER TABLE sales_orders
+                        ADD COLUMN IF NOT EXISTS invoice_ids JSONB
+                """))
+                conn.execute(text("""
+                    ALTER TABLE sales_orders
+                        ADD COLUMN IF NOT EXISTS fully_delivered BOOLEAN NOT NULL DEFAULT FALSE
+                """))
+                conn.execute(text("""
+                    CREATE INDEX IF NOT EXISTS idx_sales_orders_reservation
+                        ON sales_orders (reservation_status)
+                """))
                 
                 conn.execute(text("""
                     CREATE TABLE IF NOT EXISTS order_items (
@@ -656,6 +677,7 @@ class Bootstrap:
                         unit VARCHAR(50) NOT NULL DEFAULT 'pcs',
                         delivered_quantity NUMERIC(18,2) NOT NULL DEFAULT 0,
                         returned_quantity NUMERIC(18,2) NOT NULL DEFAULT 0,
+                        reserved_quantity NUMERIC(18,2) NOT NULL DEFAULT 0,
                         warehouse_id VARCHAR(100),
                         notes TEXT,
                         subtotal NUMERIC(18,2) NOT NULL DEFAULT 0,
@@ -721,9 +743,277 @@ class Bootstrap:
                 """))
                 conn.execute(text("CREATE INDEX IF NOT EXISTS idx_delivery_items_delivery ON delivery_items (delivery_id)"))
                 conn.execute(text("CREATE INDEX IF NOT EXISTS idx_delivery_items_product ON delivery_items (product_id)"))
-                
+
+                # -------------------------------------------------------------
+                # M3.1: حجز المخزون + الانتقاء والشحن (Picking & Shipping)
+                # -------------------------------------------------------------
+
+                # عمود الحجز على بنود الأمر (متوافق مع قواعد البيانات القائمة)
+                conn.execute(text("""
+                    ALTER TABLE order_items
+                        ADD COLUMN IF NOT EXISTS reserved_quantity NUMERIC(18,2) NOT NULL DEFAULT 0
+                """))
+                conn.execute(text("""
+                    ALTER TABLE order_items
+                        ADD COLUMN IF NOT EXISTS picked_qty NUMERIC(18,2) NOT NULL DEFAULT 0
+                """))
+                conn.execute(text("""
+                    ALTER TABLE order_items
+                        ADD COLUMN IF NOT EXISTS invoiced_qty NUMERIC(18,2) NOT NULL DEFAULT 0
+                """))
+                conn.execute(text("""
+                    CREATE INDEX IF NOT EXISTS idx_order_items_reserved
+                        ON order_items (product_id) WHERE reserved_quantity > 0
+                """))
+
+                # قوائم الانتقاء - Picking Lists
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS sales_picking_lists (
+                        id VARCHAR(100) PRIMARY KEY,
+                        picking_number VARCHAR(50) NOT NULL UNIQUE,
+                        order_id VARCHAR(100) NOT NULL,
+                        order_number VARCHAR(50) NOT NULL,
+                        customer_id VARCHAR(100) NOT NULL,
+                        customer_name VARCHAR(255) NOT NULL,
+                        status VARCHAR(20) NOT NULL DEFAULT 'pending',
+                        warehouse_id VARCHAR(100),
+                        picker_id VARCHAR(100),
+                        cancellation_reason TEXT,
+                        created_by VARCHAR(100) NOT NULL DEFAULT 'system',
+                        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                    )
+                """))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS idx_picking_lists_order ON sales_picking_lists (order_id)"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS idx_picking_lists_status ON sales_picking_lists (status)"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS idx_picking_lists_created ON sales_picking_lists (created_at)"))
+
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS sales_picking_items (
+                        id VARCHAR(100) PRIMARY KEY,
+                        picking_list_id VARCHAR(100) NOT NULL,
+                        order_item_id VARCHAR(100) NOT NULL,
+                        product_id VARCHAR(100) NOT NULL,
+                        product_code VARCHAR(100),
+                        product_name VARCHAR(255) NOT NULL,
+                        requested_quantity NUMERIC(18,2) NOT NULL DEFAULT 0,
+                        picked_quantity NUMERIC(18,2) NOT NULL DEFAULT 0,
+                        unit VARCHAR(50) NOT NULL DEFAULT 'pcs',
+                        warehouse_id VARCHAR(100),
+                        notes TEXT
+                    )
+                """))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS idx_picking_items_list ON sales_picking_items (picking_list_id)"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS idx_picking_items_order_item ON sales_picking_items (order_item_id)"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS idx_picking_items_product ON sales_picking_items (product_id)"))
+
+                # الشحنات - Shippings
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS sales_shipping (
+                        id VARCHAR(100) PRIMARY KEY,
+                        shipping_number VARCHAR(50) NOT NULL UNIQUE,
+                        order_id VARCHAR(100) NOT NULL,
+                        order_number VARCHAR(50) NOT NULL,
+                        picking_list_id VARCHAR(100),
+                        customer_id VARCHAR(100) NOT NULL,
+                        customer_name VARCHAR(255) NOT NULL,
+                        status VARCHAR(20) NOT NULL DEFAULT 'created',
+                        carrier VARCHAR(255),
+                        tracking_number VARCHAR(100),
+                        shipping_method VARCHAR(100),
+                        shipping_cost NUMERIC(18,2) NOT NULL DEFAULT 0,
+                        destination_address JSONB,
+                        estimated_arrival DATE,
+                        shipped_at TIMESTAMPTZ,
+                        delivered_at TIMESTAMPTZ,
+                        notes TEXT,
+                        created_by VARCHAR(100) NOT NULL DEFAULT 'system',
+                        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                    )
+                """))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS idx_shipping_order ON sales_shipping (order_id)"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS idx_shipping_picking ON sales_shipping (picking_list_id)"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS idx_shipping_status ON sales_shipping (status)"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS idx_shipping_created ON sales_shipping (created_at)"))
+
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS sales_shipping_items (
+                        id VARCHAR(100) PRIMARY KEY,
+                        shipping_id VARCHAR(100) NOT NULL,
+                        picking_item_id VARCHAR(100),
+                        product_id VARCHAR(100) NOT NULL,
+                        product_code VARCHAR(100),
+                        product_name VARCHAR(255) NOT NULL,
+                        packed_quantity NUMERIC(18,2) NOT NULL DEFAULT 0,
+                        shipped_quantity NUMERIC(18,2) NOT NULL DEFAULT 0,
+                        unit VARCHAR(50) NOT NULL DEFAULT 'pcs'
+                    )
+                """))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS idx_shipping_items_shipping ON sales_shipping_items (shipping_id)"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS idx_shipping_items_product ON sales_shipping_items (product_id)"))
+
+                # ربط الفواتير بإشعارات التسليم - Invoice Deliveries
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS invoice_deliveries (
+                        id VARCHAR(100) PRIMARY KEY,
+                        invoice_id VARCHAR(100) NOT NULL,
+                        delivery_id VARCHAR(100) NOT NULL,
+                        order_id VARCHAR(100),
+                        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                        created_by VARCHAR(100) NOT NULL DEFAULT 'system'
+                    )
+                """))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS idx_invoice_deliveries_invoice ON invoice_deliveries (invoice_id)"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS idx_invoice_deliveries_delivery ON invoice_deliveries (delivery_id)"))
+
+                # ✅ حفظ التغييرات - بدون commit تُرجع PostgreSQL كل DDL عند إغلاق الاتصال
+                conn.execute(text("SET session_replication_role = 'origin';"))
+                conn.commit()
+
         except Exception as e:
             logger.error(f"Error creating sales cycle tables: {e}", exc_info=True)
+    
+    def _ensure_pos_tables(self) -> None:
+        """إنشاء جداول نقطة البيع (POS) - idempotent"""
+        from sqlalchemy import text
+        try:
+            with self._session_factory.engine.connect() as conn:
+                conn.execute(text("SET session_replication_role = 'replica';"))
+
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS pos_terminals (
+                        id VARCHAR(100) PRIMARY KEY,
+                        device_id VARCHAR(100) NOT NULL UNIQUE,
+                        terminal_name VARCHAR(200) NOT NULL,
+                        default_warehouse_id VARCHAR(100),
+                        branch_id VARCHAR(100),
+                        status VARCHAR(20) NOT NULL DEFAULT 'active',
+                        last_seen_at TIMESTAMPTZ,
+                        company_id VARCHAR(36) NOT NULL DEFAULT 'default',
+                        created_by VARCHAR(100) NOT NULL DEFAULT 'system',
+                        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                    )
+                """))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS idx_pos_terminals_branch ON pos_terminals (branch_id)"))
+
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS pos_sessions (
+                        id VARCHAR(100) PRIMARY KEY,
+                        session_number VARCHAR(50) NOT NULL,
+                        terminal_id VARCHAR(100),
+                        user_id VARCHAR(100) NOT NULL,
+                        branch_id VARCHAR(100),
+                        warehouse_id VARCHAR(100),
+                        opening_cash NUMERIC(18,2) NOT NULL DEFAULT 0,
+                        expected_cash NUMERIC(18,2) NOT NULL DEFAULT 0,
+                        declared_cash NUMERIC(18,2) NOT NULL DEFAULT 0,
+                        closing_cash NUMERIC(18,2) NOT NULL DEFAULT 0,
+                        cash_shortage NUMERIC(18,2) NOT NULL DEFAULT 0,
+                        tolerance NUMERIC(18,2) NOT NULL DEFAULT 0,
+                        status VARCHAR(20) NOT NULL DEFAULT 'open',
+                        notes TEXT,
+                        company_id VARCHAR(36) NOT NULL DEFAULT 'default',
+                        created_by VARCHAR(100) NOT NULL DEFAULT 'system',
+                        opened_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                        closed_at TIMESTAMPTZ,
+                        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                    )
+                """))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS idx_pos_sessions_status ON pos_sessions (status)"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS idx_pos_sessions_terminal ON pos_sessions (terminal_id)"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS idx_pos_sessions_user ON pos_sessions (user_id)"))
+                conn.execute(text("ALTER TABLE pos_sessions ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()"))
+
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS pos_receipts (
+                        id VARCHAR(100) PRIMARY KEY,
+                        receipt_number VARCHAR(50) NOT NULL,
+                        session_id VARCHAR(100),
+                        terminal_id VARCHAR(100),
+                        device_id VARCHAR(100),
+                        customer_id VARCHAR(100),
+                        customer_name VARCHAR(255),
+                        invoice_id VARCHAR(100),
+                        journal_entry_id VARCHAR(100),
+                        fund_id VARCHAR(100),
+                        tender_type VARCHAR(20) NOT NULL,
+                        currency VARCHAR(3) NOT NULL DEFAULT 'USD',
+                        subtotal NUMERIC(18,2) NOT NULL DEFAULT 0,
+                        discount_amount NUMERIC(18,2) NOT NULL DEFAULT 0,
+                        tax_amount NUMERIC(18,2) NOT NULL DEFAULT 0,
+                        total_amount NUMERIC(18,2) NOT NULL DEFAULT 0,
+                        line_items JSONB NOT NULL DEFAULT '[]',
+                        tenders JSONB NOT NULL DEFAULT '{}',
+                        totals JSONB NOT NULL DEFAULT '{}',
+                        status VARCHAR(20) NOT NULL DEFAULT 'draft',
+                        idempotency_key VARCHAR(200),
+                        client_reference VARCHAR(200),
+                        synced_at TIMESTAMPTZ,
+                        notes TEXT,
+                        company_id VARCHAR(36) NOT NULL DEFAULT 'default',
+                        created_by VARCHAR(100) NOT NULL DEFAULT 'system',
+                        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                    )
+                """))
+                conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS idx_pos_receipts_idem ON pos_receipts (idempotency_key) WHERE idempotency_key IS NOT NULL"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS idx_pos_receipts_session ON pos_receipts (session_id)"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS idx_pos_receipts_customer ON pos_receipts (customer_id)"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS idx_pos_receipts_invoice ON pos_receipts (invoice_id)"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS idx_pos_receipts_status ON pos_receipts (status)"))
+
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS pos_returns (
+                        id VARCHAR(100) PRIMARY KEY,
+                        return_number VARCHAR(50) NOT NULL,
+                        receipt_id VARCHAR(100) NOT NULL,
+                        customer_id VARCHAR(100),
+                        return_lines JSONB NOT NULL DEFAULT '[]',
+                        reason TEXT,
+                        refund_tender VARCHAR(20) NOT NULL DEFAULT 'cash',
+                        refund_amount NUMERIC(18,2) NOT NULL DEFAULT 0,
+                        refund_currency VARCHAR(3) NOT NULL DEFAULT 'USD',
+                        reversal_journal_entry_id VARCHAR(100),
+                        status VARCHAR(20) NOT NULL DEFAULT 'draft',
+                        company_id VARCHAR(36) NOT NULL DEFAULT 'default',
+                        created_by VARCHAR(100) NOT NULL DEFAULT 'system',
+                        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                    )
+                """))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS idx_pos_returns_receipt ON pos_returns (receipt_id)"))
+
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS sync_operations (
+                        id VARCHAR(100) PRIMARY KEY,
+                        device_id VARCHAR(100) NOT NULL,
+                        entity VARCHAR(50) NOT NULL,
+                        entity_id VARCHAR(100),
+                        operation VARCHAR(50) NOT NULL,
+                        payload JSONB NOT NULL DEFAULT '{}',
+                        status VARCHAR(20) NOT NULL DEFAULT 'pending',
+                        conflict_code VARCHAR(50),
+                        retry_count INT NOT NULL DEFAULT 0,
+                        last_error TEXT,
+                        client_reference VARCHAR(200),
+                        idempotency_key VARCHAR(200),
+                        company_id VARCHAR(36) NOT NULL DEFAULT 'default',
+                        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                        server_processed_at TIMESTAMPTZ
+                    )
+                """))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS idx_sync_ops_device_status ON sync_operations (device_id, status)"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS idx_sync_ops_status ON sync_operations (status)"))
+                conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS idx_sync_ops_idem ON sync_operations (idempotency_key) WHERE idempotency_key IS NOT NULL"))
+
+                conn.execute(text("SET session_replication_role = 'origin';"))
+                conn.commit()
+
+        except Exception as e:
+            logger.error(f"Error creating POS tables: {e}", exc_info=True)
     
     # =========================================================================
     # تهيئة خدمة السنة المالية

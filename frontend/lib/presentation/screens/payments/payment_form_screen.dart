@@ -26,6 +26,8 @@ class _PaymentFormScreenState extends State<PaymentFormScreen> {
   final _formKey = GlobalKey<FormState>();
   final _amountController = TextEditingController();
   final _descriptionController = TextEditingController();
+  final _exchangeRateController = TextEditingController();
+  final _exchangeRateController = TextEditingController();
   String _paymentType = 'receive';
   String _paymentMethod = 'cash';
   String _currency = 'USD';
@@ -225,6 +227,9 @@ class _PaymentFormScreenState extends State<PaymentFormScreen> {
         'currency': _currency,
         'fund_id': _selectedFundId ?? 'default',
         'description': _descriptionController.text.trim().isNotEmpty ? _descriptionController.text.trim() : null,
+        'exchange_rate': (parseMoney(_exchangeRateController.text) ?? Decimal.zero) > Decimal.zero
+            ? (parseMoney(_exchangeRateController.text) ?? Decimal.zero).toDouble()
+            : null,
       };
       if (_selectedInvoiceId != null) {
         data['invoice_id'] = _selectedInvoiceId;
@@ -506,7 +511,9 @@ class _PaymentFormScreenState extends State<PaymentFormScreen> {
                     ),
                     const SizedBox(height: 16),
                     DropdownButtonFormField<String>(
-                      value: _currency,
+                      value: _currencies.any((c) => (c['code'] ?? '').toString() == _currency)
+                          ? _currency
+                          : CurrencyHelper.baseCurrency,
                       decoration: const InputDecoration(labelText: 'العملة', border: OutlineInputBorder()),
                       items: _currencies.map((c) => DropdownMenuItem<String>(
                         value: (c['code'] ?? c['id']?.toString() ?? '').toString(),
@@ -514,6 +521,40 @@ class _PaymentFormScreenState extends State<PaymentFormScreen> {
                       )).toList(),
                       onChanged: widget.readOnly ? null : (v) => setState(() => _currency = v!),
                     ),
+                    if (_currencies.isNotEmpty &&
+                        (_currency != CurrencyHelper.baseCurrency)) ...[
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _exchangeRateController,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        decoration: InputDecoration(
+                          labelText: 'سعر الصرف (الدفع لعملة غير الدولار)',
+                          helperText: 'سعر صرف الدولار مقابل $_currency — ليُحسب مبلغ الدولار الأساسي',
+                          border: const OutlineInputBorder(),
+                          prefixIcon: const Icon(Icons.currency_exchange, size: 20),
+                        ),
+                      ),
+                    ],
+                    if (_currencies.isNotEmpty && _currency != CurrencyHelper.baseCurrency) ...[
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _exchangeRateController,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        decoration: InputDecoration(
+                          labelText: 'سعر صرف الدولار مقابل $_currency',
+                          helperText: 'أدخل سعر الدولار الواحد مقابل $_currency ليُحسب المبلغ بالعملة الأساسية',
+                          border: const OutlineInputBorder(),
+                          prefixIcon: const Icon(Icons.currency_exchange, size: 20),
+                        ),
+                        validator: (v) => widget.readOnly
+                            ? null
+                            : (v == null || v.trim().isEmpty)
+                                ? 'أدخل سعر الصرف'
+                                : (parseMoney(v) == null || parseMoney(v)! <= Decimal.zero)
+                                    ? 'أدخل سعر صرف صحيحاً أكبر من صفر'
+                                    : null,
+                      ),
+                    ],
                     const SizedBox(height: 16),
                     DropdownButtonFormField<String>(
                       value: _selectedInvoiceId,

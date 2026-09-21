@@ -48,8 +48,24 @@ class ImportSummary {
   });
 }
 
+/// عميل مُحلّ (معرّف حقيقي + اسم) يُستخدم عند استيراد الفواتير.
+class _ResolvedCustomer {
+  final String id;
+  final String name;
+
+  _ResolvedCustomer(this.id, this.name);
+}
+
 class ExcelImportEngine {
   final ApiService _api = ApiService();
+
+  // فهارس تُحمّل مرة واحدة خلال الجلسة لتمكين البحث بالكود/الاسم ومنع التكرار.
+  Map<String, Map<String, dynamic>>? _customersByCode;
+  final List<Map<String, dynamic>> _customerList = [];
+  final Set<String> _customerIds = {};
+  Map<String, Map<String, dynamic>>? _productsByCode;
+  Set<String> _usedCodes = {};
+  int _autoCodeCounter = 1;
 
   /// يقرأ ملف الإكسل ويحلّل أول ورقة إلى صفوف.
   Future<ExcelAnalysis> analyzeFile(Uint8List bytes, List<ImportField> fields,
@@ -106,12 +122,19 @@ class ExcelImportEngine {
   }
 
   /// مطابقة تلقائية: يحدد عمود كل حقل بناءً على عناوين الأعمدة.
+  /// تقارن الرؤوس بعد التطبيع (الحالة/المسافات/الرموز) فتتطابق حتى مع
+  /// تسميات مثل "CustomerCode" أو "رقم-العميل" (تعالج مشكلة مطابقة الأكواد/الأسماء).
   Map<String, int> autoMapColumns(List<String> headers, List<ImportField> fields) {
     final mapping = <String, int>{};
+    final normalized = <String, List<String>>{
+      for (final f in fields) f.key: f.aliases.map(_normalizeHeader).toList(),
+    };
     for (final field in fields) {
+      final aliases = normalized[field.key]!;
       for (var h = 0; h < headers.length; h++) {
-        final header = headers[h].trim().toLowerCase();
-        if (field.aliases.any((a) => a.toLowerCase() == header)) {
+        final header = _normalizeHeader(headers[h]);
+        if (header.isEmpty) continue;
+        if (aliases.any((a) => a == header)) {
           mapping[field.key] = h;
           break;
         }
@@ -121,6 +144,10 @@ class ExcelImportEngine {
   }
 
   /// يستورد الصفوف فعلياً إلى الخادم مع التقدم والنتائج.
+  /// يطبّق ديناميكيات الأكواد/الأسماء حسب نوع الكيان:
+  /// - العملاء: توليد كود فريد أو تحديث العميل بنفس الكود.
+  /// - المنتجات: كود+اسم متطابقان → تحديث؛ كود بكيان مختلف → كود جديد؛ كود جديد → إضافة.
+  /// - الفواتير: حلّ العميل (بحث بالكود/الاسم في الخلفية) أو إنشاؤه تلقائياً.
   Future<ImportSummary> importRows({
     required ImportEntityType type,
     required List<ImportField> fields,
@@ -134,65 +161,60 @@ class ExcelImportEngine {
     final results = <RowResult>[];
     var success = 0;
 
-    // Auto-generate customer codes if needed
-    int? autoCodeCounter;
-    if (type == ImportEntityType.customers) {
-      autoCodeCounter = await _getNextCustomerCodeCounter();
+    // تحميل الفهارس حسب نوع الكيان (مرة واحدة لكل استيراد).
+    if (type == ImportEntityType.customers || type == ImportEntityType.invoices) {
+      await _ensureCustomerIndex();
+    }
+    if (type == ImportEntityType.products || type == ImportEntityType.invoices) {
+      await _ensureProductIndex();
     }
 
     for (var i = 0; i < rows.length; i++) {
       final row = rows[i];
-      final rowNumber = i + 2 + (0); // +1 لصف الرأس
+      final rowNumber = i + 2; // +1 لصف الرأس
       final values = _buildRowValues(row, fields, columnMapping);
 
-      // Auto-generate customer code if empty
-      if (type == ImportEntityType.customers) {
-        final code = values['code'];
-        if (code == null || code.trim().isEmpty) {
-          final name = values['name'] ?? '';
-          final prefix = name.isNotEmpty
-              ? name.substring(0, name.length < 3 ? name.length : 3).toUpperCase()
-              : 'CUS';
-          values['code'] = '$prefix${autoCodeCounter.toString().padLeft(4, '0')}';
-          autoCodeCounter = (autoCodeCounter ?? 1) + 1;
-        }
-      }
-
       String? error;
-      Map<String, dynamic>? payload;
       try {
-        payload = _buildPayload(type, fields, values, validators,
-            baseCurrency: baseCurrency);
+        var skipPost = false;
+
+        if (type == ImportEntityType.customers) {
+          skipPost = await _handleCustomerRow(values, validators);
+        } else if (type == ImportEntityType.products) {
+          skipPost = await _handleProductRow(values, validators);
+        } else if (type == ImportEntityType.invoices) {
+          final resolved = await _resolveInvoiceCustomer(values);
+          values['customer_id'] = resolved.id;
+          values['customer_name'] = resolved.name;
+        }
+
+        if (skipPost) {
+          success++;
+        } else {
+          final payload = _buildPayload(type, fields, values, validators,
+              baseCurrency: baseCurrency);
+          final response = await _api.post(type.apiEndpoint, data: payload);
+
+          if (type == ImportEntityType.customers) {
+            _indexCustomer(_createdRecord(response, values['code'] ?? '', values['name'] ?? ''));
+            final branchError = await _createCustomerBranches(
+              response,
+              values,
+              validators,
+            );
+            if (branchError != null) {
+              throw ImportValidationException(branchError);
+            }
+          } else if (type == ImportEntityType.products) {
+            _indexProduct(_createdRecord(response, values['code'] ?? '', values['name'] ?? ''));
+          }
+
+          success++;
+        }
+        results.add(RowResult.success(rowNumber));
       } on ImportValidationException catch (e) {
         error = e.message;
-      } catch (_) {
-        error = 'خطأ غير متوقع في تحويل البيانات';
-      }
-
-      if (error != null) {
         results.add(RowResult.failure(rowNumber, error));
-        onProgress?.call(i + 1, rows.length);
-        continue;
-      }
-
-      try {
-        final response = await _api.post(type.apiEndpoint, data: payload);
-        if (type == ImportEntityType.customers) {
-          final branchError = await _createCustomerBranches(
-            response,
-            values,
-            validators,
-          );
-          if (branchError != null) {
-            error = branchError;
-          }
-        }
-        if (error != null) {
-          results.add(RowResult.failure(rowNumber, error));
-        } else {
-          success++;
-          results.add(RowResult.success(rowNumber));
-        }
       } catch (e) {
         results.add(RowResult.failure(rowNumber, _cleanBackendError(e)));
       }
@@ -212,6 +234,317 @@ class ExcelImportEngine {
       results: results,
       durationMs: DateTime.now().difference(start).inMilliseconds,
     );
+  }
+
+  // ===========================================================================
+  // معالجات ديناميكيات الأكواد/الأسماء
+  // ===========================================================================
+
+  /// العميل: توليد كود فريد إن غاب، أو تحديث العميل ذي الكود نفسه.
+  /// تُرجع `true` عند التحديث (دون إرسال POST للإنشاء).
+  Future<bool> _handleCustomerRow(
+    Map<String, String> values,
+    Map<String, ImportValidator> validators,
+  ) async {
+    final code = values['code'];
+    if (code == null || code.trim().isEmpty) {
+      values['code'] = _generateCustomerCode(values['name'] ?? '');
+      _usedCodes.add(_normalizeCode(values['code']!));
+      return false;
+    }
+    final existing = _customersByCode![_normalizeCode(code)];
+    if (existing == null) {
+      _usedCodes.add(_normalizeCode(code));
+      return false;
+    }
+
+    // الكود موجود مسبقاً → تحديث بيانات العميل بدل رفض الصف.
+    final upd = _validatedSubset(
+      const {'name', 'phone', 'mobile', 'email'},
+      values,
+      validators,
+    );
+    if (upd.isNotEmpty) {
+      final res = await _api.put('customers/${existing['id']}', data: upd);
+      if (res['success'] == false) {
+        throw ImportValidationException(
+            res['message']?.toString() ?? 'فشل تحديث العميل');
+      }
+      final newName = upd['name']?.toString() ?? '';
+      if (newName.isNotEmpty) {
+        existing['name'] = newName;
+        _customersByCode![_normalizeCode(code)] = existing;
+      }
+    }
+    final branchError = await _createCustomerBranches(existing, values, validators);
+    if (branchError != null) {
+      throw ImportValidationException(branchError);
+    }
+    return true;
+  }
+
+  /// المنتج: كود+اسم متطابقان → تحديث؛ كود باسم آخر → كود جديد؛ كود جديد → إضافة.
+  /// تُرجع `true` عند التحديث (دون إرسال POST للإنشاء).
+  Future<bool> _handleProductRow(
+    Map<String, String> values,
+    Map<String, ImportValidator> validators,
+  ) async {
+    final code = values['code']?.trim();
+    if (code == null || code.isEmpty) {
+      throw ImportValidationException('الكود مطلوب');
+    }
+    final incomingName = values['name']?.trim() ?? '';
+    final existing = _productsByCode![_normalizeCode(code)];
+
+    if (existing == null) {
+      _usedCodes.add(_normalizeCode(code));
+      return false;
+    }
+
+    final sameName = _normalizeName(existing['name']?.toString() ?? '') ==
+        _normalizeName(incomingName);
+    if (sameName) {
+      // تحديث المنتج الموجود (السعر/المخزون/الضريبة...).
+      final upd = _validatedSubset(
+        const {'name', 'unit_price', 'tax_rate', 'stock_quantity', 'description', 'category'},
+        values,
+        validators,
+      );
+      if (upd.isNotEmpty) {
+        final res = await _api.put('products/${existing['id']}', data: upd);
+        if (res['success'] == false) {
+          throw ImportValidationException(
+              res['message']?.toString() ?? 'فشل تحديث المنتج');
+        }
+      }
+      return true;
+    }
+
+    // نفس الكود باسم مختلف → إضافة منتج جديد برمزٍ جديد.
+    final newCode = _generateUniqueProductCode(code);
+    values['code'] = newCode;
+    _usedCodes.add(_normalizeCode(newCode));
+    return false;
+  }
+
+  /// حلّ عميل الفاتورة: بحث بالكود/الاسم في الخلفية وإرجاع UUID الحقيقي؛
+  /// وإن لم يوجد العميل يُنشأ تلقائياً (حسب اختيار المستخدم).
+  Future<_ResolvedCustomer> _resolveInvoiceCustomer(Map<String, String> values) async {
+    final code = _cleanOpt(values['customer_id']);
+    final name = _cleanOpt(values['customer_name']);
+
+    if (code != null) {
+      final found = _customersByCode![_normalizeCode(code)] ?? await _findCustomerByCode(code);
+      if (found != null) {
+        return _ResolvedCustomer(found['id']!.toString(), found['name']!.toString());
+      }
+      final created = await _createCustomerAuto(name ?? 'عميل', code);
+      return _ResolvedCustomer(created['id']!.toString(), created['name']!.toString());
+    }
+
+    // بدون كود: مطابقة بالاسم (بحث خلفي أيضاً).
+    final normName = _normalizeName(name ?? '');
+    var exact = _customerList
+        .where((c) => _normalizeName(c['name']?.toString() ?? '') == normName)
+        .toList();
+    if (exact.length == 1) {
+      return _ResolvedCustomer(exact.first['id']!.toString(), exact.first['name']!.toString());
+    }
+    if (exact.isEmpty && name != null) {
+      exact = await _findCustomersByName(name);
+      if (exact.length == 1) {
+        return _ResolvedCustomer(exact.first['id']!.toString(), exact.first['name']!.toString());
+      }
+    }
+    final created = await _createCustomerAuto(name ?? 'عميل', null);
+    return _ResolvedCustomer(created['id']!.toString(), created['name']!.toString());
+  }
+
+  /// بحث خلفي بالكود عبر الخادم (نقطة /customers/search).
+  Future<Map<String, dynamic>?> _findCustomerByCode(String code) async {
+    try {
+      final res = await _api.get('customers/search', queryParameters: {'q': code, 'limit': 25});
+      final norm = _normalizeCode(code);
+      for (final it in _itemsFrom(res)) {
+        if (_normalizeCode(it['code']?.toString() ?? '') == norm) {
+          _indexCustomer(it);
+          return it;
+        }
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> _findCustomersByName(String name) async {
+    try {
+      final res = await _api.get('customers/search', queryParameters: {'q': name, 'limit': 25});
+      final norm = _normalizeName(name);
+      var exact = _itemsFrom(res)
+          .where((it) => _normalizeName(it['name']?.toString() ?? '') == norm)
+          .toList();
+      if (exact.isEmpty) exact = _itemsFrom(res);
+      for (final it in exact) {
+        _indexCustomer(it);
+      }
+      return exact;
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  /// إنشاء عميل تلقائياً مع كود فريد (إعادة المحاولة بكود آخر عند التعارض).
+  Future<Map<String, dynamic>> _createCustomerAuto(String name, String? code) async {
+    final cleanName = name.trim().isEmpty ? 'عميل مستورد' : name.trim();
+    var candidate = (code != null && code.trim().isNotEmpty)
+        ? code.trim()
+        : _generateCustomerCode(cleanName);
+    for (var attempt = 0; attempt < 5; attempt++) {
+      final res = await _api.post('customers', data: {
+        'code': candidate,
+        'name': cleanName,
+        'country': 'LB',
+      });
+      if (res['success'] == false) {
+        if (attempt >= 4) {
+          throw ImportValidationException(
+              'تعذّر إنشاء العميل تلقائياً (${res['message']?.toString() ?? ''})');
+        }
+        candidate = _generateCustomerCode(cleanName, attempt: attempt + 1);
+        continue;
+      }
+      final record = Map<String, dynamic>.from(res);
+      record['code'] = candidate;
+      record['name'] = cleanName;
+      _indexCustomer(record);
+      return record;
+    }
+    throw ImportValidationException('تعذّر إنشاء العميل تلقائياً');
+  }
+
+  // ===========================================================================
+  // الفهارس وتوليد الأكواد
+  // ===========================================================================
+
+  Future<void> _ensureCustomerIndex() async {
+    if (_customersByCode != null) return;
+    _customersByCode = {};
+    _customerList.clear();
+    _customerIds.clear();
+    _usedCodes = {};
+    try {
+      final res = await _api.get('customers', queryParameters: {'limit': 1000});
+      var maxNum = 0;
+      for (final it in _itemsFrom(res)) {
+        _indexCustomer(it);
+        final code = it['code']?.toString() ?? '';
+        final m = RegExp(r'(\d+)$').firstMatch(code);
+        if (m != null) {
+          final n = int.tryParse(m.group(1)!);
+          if (n != null && n > maxNum) maxNum = n;
+        }
+      }
+      _autoCodeCounter = maxNum + 1;
+    } catch (_) {
+      _autoCodeCounter = 1;
+    }
+  }
+
+  Future<void> _ensureProductIndex() async {
+    if (_productsByCode != null) return;
+    _productsByCode = {};
+    try {
+      final res = await _api.get('products', queryParameters: {'limit': 1000});
+      for (final it in _itemsFrom(res)) {
+        _indexProduct(it);
+      }
+    } catch (_) {}
+  }
+
+  void _indexCustomer(Map<String, dynamic> c) {
+    final code = _normalizeCode(c['code']?.toString() ?? '');
+    if (code.isNotEmpty) {
+      _customersByCode?[code] = c;
+    }
+    final id = c['id']?.toString() ?? '';
+    if (!_customerIds.contains(id)) {
+      _customerIds.add(id);
+      _customerList.add(c);
+    }
+  }
+
+  void _indexProduct(Map<String, dynamic> p) {
+    final code = _normalizeCode(p['code']?.toString() ?? '');
+    if (code.isNotEmpty) {
+      _productsByCode?[code] = p;
+    }
+  }
+
+  Map<String, dynamic> _createdRecord(Map<String, dynamic> response, String code, String name) {
+    return {
+      'id': response['id']?.toString() ?? '',
+      'code': (response['code'] ?? code).toString(),
+      'name': (response['name'] ?? name).toString(),
+    };
+  }
+
+  /// توليد كود عميل فريد (سابقة من الاسم + رقم تسلسلي).
+  String _generateCustomerCode(String name, {int attempt = 0}) {
+    var clean = name
+        .trim()
+        .toUpperCase()
+        .replaceAll(RegExp(r'[^\u0600-\u06FFA-Z0-9]'), '');
+    if (clean.isEmpty) clean = 'CUS';
+    var prefix = clean.length >= 3 ? clean.substring(0, 3) : clean;
+    if (!RegExp(r'[A-Z]').hasMatch(prefix)) prefix = 'CUS$prefix';
+    if (prefix.length > 6) prefix = prefix.substring(0, 6);
+
+    var n = _autoCodeCounter + attempt;
+    String candidate;
+    do {
+      candidate = '$prefix${n.toString().padLeft(4, '0')}';
+      n++;
+    } while (_usedCodes.contains(_normalizeCode(candidate)) ||
+        _customersByCode!.containsKey(_normalizeCode(candidate)));
+    _autoCodeCounter = n;
+    return candidate;
+  }
+
+  /// توليد كود منتج فريد يختلف عن الكود الموجود بالاسم الآخر.
+  String _generateUniqueProductCode(String code) {
+    final base = _normalizeCode(code);
+    if (base.isEmpty) return 'PRD-0001';
+    var candidate = base;
+    var i = 1;
+    while (_productsByCode!.containsKey(_normalizeCode(candidate)) ||
+        _usedCodes.contains(_normalizeCode(candidate))) {
+      candidate = '$base-$i';
+      i++;
+    }
+    return candidate;
+  }
+
+  /// يستخرج حقلاً فرعياً محوّلاً وموثّقاً (يُستخدم للتحديثات الجزئية).
+  Map<String, dynamic> _validatedSubset(
+    Set<String> keys,
+    Map<String, String> values,
+    Map<String, ImportValidator> validators,
+  ) {
+    final out = <String, dynamic>{};
+    for (final key in keys) {
+      final v = validators[key];
+      if (v == null) continue;
+      final valErr = v.validate?.call(values[key], values);
+      if (valErr != null) {
+        throw ImportValidationException('${_label(key)}: $valErr');
+      }
+      final converted = v.convert(values[key], values);
+      if (converted != null) {
+        out[key] = converted;
+      }
+    }
+    return out;
   }
 
   Map<String, String> _buildRowValues(
@@ -410,30 +743,6 @@ class ExcelImportEngine {
     return t.isEmpty ? null : t;
   }
 
-  /// Get the next counter for auto-generating customer codes.
-  Future<int> _getNextCustomerCodeCounter() async {
-    try {
-      final response = await _api.get('customers', queryParameters: {'limit': 1000});
-      final data = response['data'] ?? response;
-      final items = data['items'] ?? data;
-      if (items is! List) return 1;
-
-      int maxNum = 0;
-      for (final item in items) {
-        final code = item['code']?.toString() ?? '';
-        // Extract trailing numbers from code
-        final match = RegExp(r'(\d+)$').firstMatch(code);
-        if (match != null) {
-          final num = int.tryParse(match.group(1)!);
-          if (num != null && num > maxNum) maxNum = num;
-        }
-      }
-      return maxNum + 1;
-    } catch (_) {
-      return 1;
-    }
-  }
-
   String _cellText(dynamic cell) {
     if (cell == null) return '';
     final v = cell.value;
@@ -456,10 +765,33 @@ class ImportValidationException implements Exception {
 }
 
 bool _isLikelyHeader(String cell, List<ImportField> fields) {
-  final c = cell.trim().toLowerCase();
+  final c = _normalizeHeader(cell);
+  if (c.isEmpty) return false;
   for (final field in fields) {
-    if (field.aliases.any((a) => a.toLowerCase() == c)) return true;
+    if (field.aliases.any((a) => _normalizeHeader(a) == c)) return true;
   }
   return ['name', 'code', 'quantity', 'price', 'الاسم', 'الكود', 'السعر', 'الكمية']
       .contains(c);
+}
+
+/// تطبيع رأس/نص للمطابقة: حروف صغيرة وإزالة المسافات والرموز.
+String _normalizeHeader(String s) {
+  return s.trim().toLowerCase().replaceAll(RegExp(r'[\s\-_/()\[\].,\\؛:]+'), '');
+}
+
+/// تطبيع كود للمقارنة: trim + أحرف كبيرة + إزالة مسافات داخلية.
+String _normalizeCode(String s) {
+  return s.trim().toUpperCase().replaceAll(RegExp(r'\s+'), '');
+}
+
+/// تطبيع اسم للمقارنة: trim + أحرف صغيرة + توحيد المسافات.
+String _normalizeName(String s) {
+  return s.trim().replaceAll(RegExp(r'\s+'), ' ').toLowerCase();
+}
+
+/// يستخرج قائمة العناصر من استجابة الخادم (data.items أو items مباشرة).
+List<Map<String, dynamic>> _itemsFrom(Map<String, dynamic> res) {
+  final items = res['items'];
+  if (items is List) return items.cast<Map<String, dynamic>>();
+  return const [];
 }

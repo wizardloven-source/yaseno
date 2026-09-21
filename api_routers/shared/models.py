@@ -132,6 +132,8 @@ class CreatePaymentRequest(BaseModel):
     payment_method: str
     amount: Decimal = Field(..., gt=0)
     currency: str = Field("USD", min_length=3, max_length=3)
+    exchange_rate: Optional[Decimal] = Field(None, gt=0)
+    exchange_rate: Optional[Decimal] = Field(None, gt=0)
     fund_id: str
     customer_id: Optional[str] = None
     customer_name: Optional[str] = None

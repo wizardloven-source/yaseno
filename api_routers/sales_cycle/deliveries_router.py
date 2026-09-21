@@ -19,7 +19,12 @@ from api_routers.sales_cycle.dtos import (
     DeliveryLineRequest,
 )
 from api_routers.sales_cycle.utils import next_document_number
-from api_routers.sales_cycle.service import update_order_status_after_delivery
+from api_routers.sales_cycle.service import (
+    update_order_status_after_delivery,
+    create_invoice_draft_from_delivery,
+    get_auto_invoice_on_delivery,
+)
+from api_routers.sales_cycle.picking_service import release_delivered_quantity
 from core.application.security.authorization import get_current_user_context
 
 router = APIRouter(prefix="", tags=["sales-deliveries"])
@@ -134,7 +139,7 @@ def create_delivery_record(uow, order_id: str, lines: Optional[list],
                 :id, :delivery_number, :order_id, :order_number, :customer_id,
                 :customer_name, :delivery_date, :scheduled_date, 'draft',
                 :carrier, :vehicle_number, :driver_name, :driver_phone,
-                :delivery_address::jsonb, :notes, :branch_id, :created_by
+                CAST(:delivery_address AS jsonb), :notes, :branch_id, :created_by
             )
         """),
         {
@@ -412,6 +417,10 @@ async def complete_delivery(delivery_id: str, request: CompleteDeliveryRequest,
                     {"qty": float(it["delivered_quantity"] or 0),
                      "oid": row["order_id"], "pid": str(it["product_id"])},
                 )
+                release_delivered_quantity(
+                    uow, row["order_id"], str(it["product_id"]),
+                    float(it["delivered_quantity"] or 0),
+                )
 
             new_status = update_order_status_after_delivery(uow, row["order_id"])
             uow.session.execute(
@@ -437,9 +446,42 @@ async def complete_delivery(delivery_id: str, request: CompleteDeliveryRequest,
                          "updated_at = NOW() WHERE id = :id"),
                     {"id": row["order_id"]},
                 )
+
+            # M3.1: فاتورة تلقائية من التسليم عند اكتماله (إن كان الإعداد مفعّلاً)
+            invoice = None
+            if get_auto_invoice_on_delivery(uow):
+                invoice = create_invoice_draft_from_delivery(
+                    uow, row["order_id"], delivery_id,
+                    current_user.get("username", "system"),
+                )
+
+            # ربط الفاتورة بإشعار التسليم على اكتمال التسليم (إن وُجدت)
+            order_invoice = uow.session.execute(
+                text("SELECT invoice_id FROM sales_orders WHERE id = :id"),
+                {"id": row["order_id"]},
+            ).mappings().first()
+            if order_invoice and order_invoice.get("invoice_id"):
+                existing_link = uow.session.execute(
+                    text("SELECT id FROM invoice_deliveries "
+                         "WHERE invoice_id = :inv AND delivery_id = :did"),
+                    {"inv": order_invoice["invoice_id"], "did": delivery_id},
+                ).mappings().first()
+                if not existing_link:
+                    uow.session.execute(
+                        text("""
+                            INSERT INTO invoice_deliveries (id, invoice_id, delivery_id, order_id)
+                            VALUES (:id, :inv, :did, :oid)
+                        """),
+                        {"id": str(uuid4()),
+                         "inv": order_invoice["invoice_id"],
+                         "did": delivery_id,
+                         "oid": row["order_id"]},
+                    )
             uow.commit()
             return ApiResponse(success=True, message="تم اكتمال التسليم بنجاح",
-                               data={"order_status": new_status})
+                               data={"order_status": new_status,
+                                     "invoice_id": invoice["id"] if invoice else None,
+                                     "invoice_amount": invoice["amount"] if invoice else None})
     except Exception as e:
         logger.error(f"Error completing delivery: {e}", exc_info=True)
         return ApiResponse(success=False, message=str(e), errors=[str(e)])

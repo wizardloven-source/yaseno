@@ -148,6 +148,25 @@ class SeedData:
             ("sales.create_delivery", "إنشاء إشعار تسليم", "sales"),
             ("sales.complete_delivery", "إكمال إشعار تسليم", "sales"),
             ("sales.cancel_delivery", "إلغاء إشعار تسليم", "sales"),
+            ("sales.view_picking", "عرض قوائم الانتقاء", "sales"),
+            ("sales.pick_picking", "انتقاء الأصناف", "sales"),
+            ("sales.pack_picking", "تغليف قائمة الانتقاء", "sales"),
+            ("sales.cancel_picking", "إلغاء قائمة انتقاء", "sales"),
+            ("sales.view_shipping", "عرض الشحنات", "sales"),
+            ("sales.create_shipping", "إنشاء شحنة", "sales"),
+            ("sales.confirm_shipping", "تأكيد شحنة", "sales"),
+            
+            # Point of Sale (POS)
+            ("pos.open_session", "فتح جلسة نقطة بيع", "pos"),
+            ("pos.close_session", "إغلاق جلسة نقطة بيع", "pos"),
+            ("pos.reconcile_cash", "مطابقة النقدية لجلسة نقطة البيع", "pos"),
+            ("pos.sell", "إجراء عملية بيع من نقطة البيع", "pos"),
+            ("pos.credit_sale", "بيع آجل من نقطة البيع", "pos"),
+            ("pos.apply_discount", "تطبيق خصم في نقطة البيع", "pos"),
+            ("pos.return", "إرجاع مبيع من نقطة البيع", "pos"),
+            ("pos.void_receipt", "إلغاء إيصال نقطة البيع", "pos"),
+            ("pos.view_sales", "عرض مبيعات نقطة البيع", "pos"),
+            ("pos.manage_holds", "إدارة الأصناف المعلقة", "pos"),
         ]
         
         for code, name, category in default_permissions:

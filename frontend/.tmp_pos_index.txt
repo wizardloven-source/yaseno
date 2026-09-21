@@ -1,0 +1,8 @@
+﻿38: static Future<List<Product>> getProducts({
+50: ErrorLogger.log('ProductRepository.getProducts', e);
+55: static Future<Product?> getProduct(String id) async {
+65: static Future<List<Product>> getLowStockProducts({int threshold = 10}) async {
+75: static Future<Product?> createProduct(Product product) async {
+88: static Future<Product?> updateProduct(Product product) async {
+101: static Future<bool> deleteProduct(String id) async {
+111: static Future<Product?> updateStock(String productId, int quantityChange, String reason) async {

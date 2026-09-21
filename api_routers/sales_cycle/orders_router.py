@@ -3,6 +3,7 @@
 Sales Orders API Router - أوامر البيع
 """
 
+import json
 from datetime import datetime
 from typing import Optional
 from uuid import uuid4
@@ -22,6 +23,13 @@ from api_routers.sales_cycle.utils import (
     next_document_number,
 )
 from api_routers.sales_cycle.service import create_order, update_order_status_after_delivery
+from api_routers.sales_cycle.picking_service import (
+    InsufficientStockError,
+    reserve_order_items,
+    release_order_reservations,
+    create_picking_list,
+    cancel_order_picking_lists,
+)
 from core.application.security.authorization import get_current_user_context
 
 router = APIRouter(prefix="", tags=["sales-orders"])
@@ -103,6 +111,7 @@ def _serialize_order_item(row) -> dict:
         "unit": row["unit"],
         "delivered_quantity": float(row["delivered_quantity"] or 0),
         "returned_quantity": float(row["returned_quantity"] or 0),
+        "reserved_quantity": float(row["reserved_quantity"] or 0) if "reserved_quantity" in row else 0,
         "notes": row["notes"],
         "subtotal": float(row["subtotal"] or 0),
         "discount_amount": float(row["discount_amount"] or 0),
@@ -367,6 +376,11 @@ async def update_order(order_id: str, request: UpdateOrderRequest,
 
 @router.post("/api/sales/orders/{order_id}/confirm", response_model=ApiResponse)
 async def confirm_order(order_id: str, current_user: dict = Depends(get_current_user)):
+    """
+    تأكيد أمر البيع:
+      - حجز المخزون (reserve) - يرفض التأكيد عند نقص الكميات مع إبقاء الحالة
+      - إنشاء قائمة انتقاء تلقائية
+    """
     _check_perm(PERM["confirm"])
     try:
         with bootstrap.uow() as uow:
@@ -379,13 +393,34 @@ async def confirm_order(order_id: str, current_user: dict = Depends(get_current_
             if row["status"] not in ("draft", "in_progress"):
                 return ApiResponse(success=False,
                                    message="لا يمكن تأكيد الأمر في الحالة الحالية")
+
+            username = current_user.get("username", "system")
+            try:
+                reserve_order_items(uow, order_id=order_id, created_by=username)
+            except InsufficientStockError as e:
+                return ApiResponse(success=False, message=str(e), errors=[
+                    {
+                        "product_id": d["product_id"],
+                        "product_name": d["product_name"],
+                        "required": d["required"],
+                        "available": d["available"],
+                    }
+                    for d in e.details
+                ])
+
             uow.session.execute(
                 text("UPDATE sales_orders SET status = 'confirmed', updated_at = NOW() "
                      "WHERE id = :id"),
                 {"id": order_id},
             )
+            picking = create_picking_list(uow, order_id=order_id, created_by=username)
             uow.commit()
-            return ApiResponse(success=True, message="تم تأكيد أمر البيع بنجاح")
+            return ApiResponse(
+                success=True,
+                message="تم تأكيد أمر البيع وحجز المخزون بنجاح",
+                data={"id": order_id, "status": "confirmed",
+                      "picking_list": picking},
+            )
     except Exception as e:
         logger.error(f"Error confirming order: {e}", exc_info=True)
         return ApiResponse(success=False, message=str(e), errors=[str(e)])
@@ -481,14 +516,24 @@ async def cancel_order(order_id: str, request: CancelOrderRequest,
             if row["status"] in ("cancelled", "delivered"):
                 return ApiResponse(success=False,
                                    message="لا يمكن إلغاء الأمر في الحالة الحالية")
+            reason = (request.reason or "").strip()
             uow.session.execute(
                 text("UPDATE sales_orders SET status = 'cancelled', "
                      "notes = COALESCE(NULLIF(:reason, ''), notes), updated_at = NOW() "
                      "WHERE id = :id"),
-                {"id": order_id, "reason": (request.reason or "").strip()},
+                {"id": order_id, "reason": reason},
             )
+            released = release_order_reservations(uow, order_id=order_id)
+            cancelled_pickings = cancel_order_picking_lists(uow, order_id=order_id,
+                                                            reason=reason)
             uow.commit()
-            return ApiResponse(success=True, message="تم إلغاء أمر البيع")
+            return ApiResponse(
+                success=True,
+                message="تم إلغاء أمر البيع وتحرير المخزون المحجوز",
+                data={"id": order_id, "status": "cancelled",
+                      "reservations_released": released,
+                      "picking_lists_cancelled": cancelled_pickings},
+            )
     except Exception as e:
         logger.error(f"Error cancelling order: {e}", exc_info=True)
         return ApiResponse(success=False, message=str(e), errors=[str(e)])
@@ -565,12 +610,45 @@ async def create_invoice_from_order(
                 )
                 command_bus.dispatch(line_cmd)
 
+                uow.session.execute(
+                    text("""
+                        UPDATE order_items SET invoiced_qty =
+                            COALESCE(invoiced_qty, 0) + :qty, updated_at = NOW()
+                        WHERE order_id = :oid AND CAST(product_id AS TEXT) = :pid
+                    """),
+                    {"qty": float(qty), "oid": order_id, "pid": str(it["product_id"])},
+                )
+
             uow.session.execute(
                 text("UPDATE sales_orders SET invoice_id = :invoice_id, "
                      "invoiced_date = NOW(), invoiced_amount = :amount, "
                      "payment_status = 'invoiced', updated_at = NOW() WHERE id = :id"),
                 {"invoice_id": invoice_id, "amount": float(total_amount), "id": order_id},
             )
+            ids = uow.session.execute(
+                text("SELECT invoice_ids FROM sales_orders WHERE id = :oid"),
+                {"oid": order_id},
+            ).mappings().first()
+            existing_ids = ids["invoice_ids"] if ids else None
+            if isinstance(existing_ids, str):
+                try:
+                    existing_ids = json.loads(existing_ids)
+                except Exception:
+                    existing_ids = []
+            if not isinstance(existing_ids, list):
+                existing_ids = []
+            if invoice_id not in existing_ids:
+                existing_ids.append(invoice_id)
+            uow.session.execute(
+                text("UPDATE sales_orders SET invoice_ids = CAST(:ids AS jsonb), "
+                     "updated_at = NOW() WHERE id = :oid"),
+                {"ids": json.dumps(existing_ids), "oid": order_id},
+            )
+            try:
+                from api_routers.sales_cycle.service import mark_order_invoiced
+                mark_order_invoiced(uow, order_id)
+            except Exception:
+                pass
             uow.commit()
             return ApiResponse(success=True, message="تم إصدار الفاتورة بنجاح",
                                data={"invoice_id": invoice_id,

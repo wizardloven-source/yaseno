@@ -23,6 +23,11 @@ from api_routers.reconciliation import router as reconciliation_router
 from api_routers.sales_cycle.quotations_router import router as quotations_router
 from api_routers.sales_cycle.orders_router import router as orders_router
 from api_routers.sales_cycle.deliveries_router import router as deliveries_router
+from api_routers.sales_cycle.picking_router import router as picking_router
+from api_routers.sales_cycle.shipping_router import router as shipping_router
+from api_routers.pos.sessions_router import router as pos_sessions_router
+from api_routers.pos.receipts_router import router as pos_receipts_router
+from api_routers.pos.sync_router import router as pos_sync_router
 
 # Register all routers
 app.include_router(health_router)
@@ -43,3 +48,8 @@ app.include_router(reconciliation_router)
 app.include_router(quotations_router)
 app.include_router(orders_router)
 app.include_router(deliveries_router)
+app.include_router(picking_router)
+app.include_router(shipping_router)
+app.include_router(pos_sessions_router)
+app.include_router(pos_receipts_router)
+app.include_router(pos_sync_router)

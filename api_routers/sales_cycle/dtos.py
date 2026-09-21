@@ -146,3 +146,32 @@ class CompleteDeliveryRequest(BaseModel):
 class FailDeliveryRequest(BaseModel):
     reason: str = Field(..., min_length=1)
     notes: Optional[str] = None
+
+
+# =============================================================================
+# الانتقاء والشحن - Picking & Shipping (M3.1)
+# =============================================================================
+
+class PickingLineRequest(BaseModel):
+    order_item_id: str = Field(..., min_length=1)
+    picked_quantity: Decimal = Field(default=Decimal("0"), ge=0)
+    notes: Optional[str] = None
+
+
+class PickPickingRequest(BaseModel):
+    items: List[PickingLineRequest] = Field(..., min_length=1)
+    warehouse_id: Optional[str] = None
+
+
+class CancelPickingRequest(BaseModel):
+    reason: Optional[str] = None
+
+
+class CreateShippingRequest(BaseModel):
+    carrier: Optional[str] = None
+    tracking_number: Optional[str] = None
+    shipping_method: Optional[str] = None
+    shipping_cost: Decimal = Field(default=Decimal("0"), ge=0)
+    estimated_arrival: Optional[date] = None
+    destination_address: Optional[Dict[str, Any]] = None
+    notes: Optional[str] = None

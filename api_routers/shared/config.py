@@ -210,6 +210,7 @@ IDEMPOTENCY_ENDPOINTS = {
     "/api/inventory/movements",
     "/api/inventory/transfers",
     "/api/funds/transfer",
+    "/api/pos/receipts",
 }
 
 @app.middleware("http")
