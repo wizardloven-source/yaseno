@@ -27,7 +27,6 @@ class _PaymentFormScreenState extends State<PaymentFormScreen> {
   final _amountController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _exchangeRateController = TextEditingController();
-  final _exchangeRateController = TextEditingController();
   String _paymentType = 'receive';
   String _paymentMethod = 'cash';
   String _currency = 'USD';

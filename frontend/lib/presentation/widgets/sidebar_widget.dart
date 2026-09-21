@@ -304,13 +304,11 @@ class SidebarWidget extends StatelessWidget {
                   route: '/sales/shipping',
                   isSelected: currentRoute.startsWith('/sales/shipping'),
                 ),
-                _buildMenuItem(
-                  context,
-                  icon: Icons.point_of_sale,
-                  label: 'نقطة البيع',
-                  route: '/pos',
-                  isSelected: currentRoute.startsWith('/pos'),
-                ),
+
+                const Divider(height: 4),
+
+                // ---- نقطة البيع (قسم مؤطَّر) ----
+                _buildPosSection(context),
 
                 const Divider(height: 4),
 
@@ -605,6 +603,70 @@ class SidebarWidget extends StatelessWidget {
         style: AppTextStyles.sectionHeader.copyWith(
           color: isDark ? DarkText.hint : AppColors.sidebarSectionHeader,
         ),
+      ),
+    );
+  }
+
+  /// قسم «نقطة البيع» مع تمييز بصري (حدود + خلفية متدرجة) ليكون بارزاً ومستقراً.
+  Widget _buildPosSection(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isMain = currentRoute == '/pos';
+    final isReceipts = currentRoute.startsWith('/pos/receipts');
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isDark ? const Color(0xFF2E4A70) : AppColors.primaryContainer,
+        ),
+        gradient: LinearGradient(
+          colors: isDark
+              ? [const Color(0xFF1B2A44), isDark ? const Color(0xFF17191E) : AppColors.sidebarBackground]
+              : [
+                  AppColors.primaryContainer.withValues(alpha: 0.30),
+                  Colors.transparent,
+                ],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 2),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.point_of_sale,
+                  size: 18,
+                  color: AppColors.sidebarIconSelected,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'نقطة البيع',
+                  style: AppTextStyles.sectionHeader.copyWith(
+                    color: isDark ? DarkText.hint : AppColors.sidebarSectionHeader,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          _buildMenuItem(
+            context,
+            icon: Icons.shopping_cart,
+            label: 'الشاشة الرئيسية',
+            route: '/pos',
+            isSelected: isMain,
+          ),
+          _buildMenuItem(
+            context,
+            icon: Icons.receipt_long,
+            label: 'إيصالات نقطة البيع',
+            route: '/pos/receipts',
+            isSelected: isReceipts,
+          ),
+        ],
       ),
     );
   }
