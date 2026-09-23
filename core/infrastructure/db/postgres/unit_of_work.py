@@ -108,6 +108,9 @@ from .center_repository import (
     PostgresAllocationRuleRepository
 )
 
+# ✅ مستودعات المشاريع (Projects)
+from .project_repository import PostgresProjectRepository
+
 # مستودعات الأصول الثابتة
 from .fixed_asset_repository import PostgresFixedAssetRepository
 
@@ -557,6 +560,9 @@ class PostgresUnitOfWork(IUnitOfWork):
         self._center_allocation_repo: Optional[PostgresAllocationRepository] = None
         self._center_allocation_rule_repo: Optional[PostgresAllocationRuleRepository] = None
 
+        # ✅ مستودعات المشاريع (Projects)
+        self._project_repo: Optional[PostgresProjectRepository] = None
+
         # مستودع فروع العملاء
         self._customer_branch_repo: Optional[PostgresCustomerBranchRepository] = None
 
@@ -595,6 +601,7 @@ class PostgresUnitOfWork(IUnitOfWork):
             '_permission_repo', '_fiscal_year_repo', '_fiscal_period_repo',
             '_tax_repo', '_tax_group_repo', '_tax_exemption_repo', '_tax_period_repo',
             '_center_repo', '_center_allocation_repo', '_center_allocation_rule_repo',
+            '_project_repo',
             '_reconciliation_repo', '_customer_branch_repo', '_report_repo',
             '_notification_repo', '_notification_pref_repo', '_fixed_asset_repo',
             '_financial_statement_repo', '_transfer_repo', '_branch_repo',
@@ -985,6 +992,17 @@ class PostgresUnitOfWork(IUnitOfWork):
         if self._center_allocation_rule_repo is None:
             self._center_allocation_rule_repo = PostgresAllocationRuleRepository(self.session)
         return self._center_allocation_rule_repo
+
+    # =========================================================================
+    # ✅ مستودع المشاريع (Projects)
+    # =========================================================================
+
+    @property
+    def projects(self) -> PostgresProjectRepository:
+        """مستودع المشاريع"""
+        if self._project_repo is None:
+            self._project_repo = PostgresProjectRepository(self.session)
+        return self._project_repo
 
     # =========================================================================
     # ✅ مستودعات الأصول الثابتة (Fixed Assets)

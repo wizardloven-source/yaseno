@@ -14,10 +14,11 @@ import '../../services/import/import_definitions.dart';
 Future<void> showExcelImport({
   required BuildContext context,
   required ImportEntityType type,
+  bool serverImport = false,
 }) async {
   await Navigator.of(context).push(
     MaterialPageRoute(
-      builder: (_) => ExcelImportScreen(type: type),
+      builder: (_) => ExcelImportScreen(type: type, serverImport: serverImport),
     ),
   );
 }
@@ -25,7 +26,11 @@ Future<void> showExcelImport({
 class ExcelImportScreen extends StatefulWidget {
   final ImportEntityType type;
 
-  const ExcelImportScreen({super.key, required this.type});
+  /// عند `true` يُرفع الملف للخادم دفعة واحدة (مركز الاستيراد) بدل الاستيراد
+  /// صفاً-صفاً محلياً. الفواتير لا تدعم هذا المسار (تبقى عبر المحرك المحلي).
+  final bool serverImport;
+
+  const ExcelImportScreen({super.key, required this.type, this.serverImport = false});
 
   @override
   State<ExcelImportScreen> createState() => _ExcelImportScreenState();
@@ -43,6 +48,7 @@ class _ExcelImportScreenState extends State<ExcelImportScreen> {
   // حالة الملف
   String? _fileName;
   ExcelAnalysis? _analysis;
+  Uint8List? _fileBytes;
 
   // حالة المطابقة
   final Map<String, int> _mapping = {};
@@ -53,6 +59,7 @@ class _ExcelImportScreenState extends State<ExcelImportScreen> {
   int _total = 0;
   ImportSummary? _summary;
   String? _fatalError;
+  bool _updateExisting = true;
 
   @override
   void initState() {
@@ -94,6 +101,7 @@ class _ExcelImportScreenState extends State<ExcelImportScreen> {
     setState(() {
       _fatalError = null;
       _fileName = name;
+      _fileBytes = bytes;
     });
     try {
       final analysis = await _engine.analyzeFile(bytes, _fields);
@@ -111,6 +119,7 @@ class _ExcelImportScreenState extends State<ExcelImportScreen> {
         setState(() {
           _fatalError = e.toString();
           _fileName = null;
+          _fileBytes = null;
         });
       }
     }
@@ -119,6 +128,46 @@ class _ExcelImportScreenState extends State<ExcelImportScreen> {
   Future<void> _startImport() async {
     final analysis = _analysis;
     if (analysis == null) return;
+
+    if (widget.serverImport) {
+      final bytes = _fileBytes;
+      if (bytes == null) {
+        _showError('تعذّر قراءة بايتات الملف. أعد اختيار الملف.');
+        return;
+      }
+      setState(() {
+        _step = 2;
+        _done = 0;
+        _total = analysis.rows.length;
+        _summary = null;
+        _importing = true;
+      });
+      try {
+        final summary = await _engine.importFileViaServer(
+          type: widget.type,
+          bytes: bytes,
+          columnMapping: _mapping,
+          headerRow: analysis.headerIndex,
+          baseCurrency: _baseCurrency,
+          updateExisting: _updateExisting,
+        );
+        if (!mounted) return;
+        setState(() {
+          _summary = summary;
+          _done = summary.total;
+          _importing = false;
+        });
+      } on Exception catch (e) {
+        if (!mounted) return;
+        setState(() => _importing = false);
+        _showError('فشل الاستيراد على الخادم: ${e.toString().length > 200 ? e.toString().substring(0, 200) : e}');
+        return;
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 600));
+      if (mounted) setState(() => _step = 3);
+      return;
+    }
+
     setState(() {
       _step = 2;
       _done = 0;
@@ -283,7 +332,9 @@ class _ExcelImportScreenState extends State<ExcelImportScreen> {
                 style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 8),
             Text(
-              '${_fields.length} حقل مدعوم · حتى 1000 صف',
+              widget.serverImport
+                  ? '${_fields.length} حقل مدعوم · تتم المعالجة كاملة على الخادم'
+                  : '${_fields.length} حقل مدعوم · حتى 1000 صف',
               style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
             ),
             const SizedBox(height: 24),
@@ -363,7 +414,9 @@ class _ExcelImportScreenState extends State<ExcelImportScreen> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'تم اكتشاف ${analysis.headers.length} عموداً و ${analysis.rows.length} صفاً. تأكد من تطابق الحقول المطلوبة ثم ابدأ الاستيراد.',
+                    widget.serverImport
+                        ? 'تم اكتشاف ${analysis.headers.length} عموداً و ${analysis.rows.length} صفاً. سيُعالَج الملف بالكامل على الخادم دفعة واحدة مع توليد الأكواد والقيم الافتراضية تلقائياً.'
+                        : 'تم اكتشاف ${analysis.headers.length} عموداً و ${analysis.rows.length} صفاً. تأكد من تطابق الحقول المطلوبة ثم ابدأ الاستيراد.',
                     style: TextStyle(
                         fontSize: 13,
                         color: Theme.of(context).colorScheme.onSurfaceVariant),
@@ -378,6 +431,7 @@ class _ExcelImportScreenState extends State<ExcelImportScreen> {
           child: ListView(
             children: [
               _buildMappingPanel(),
+              _buildServerOptions(),
               const SizedBox(height: 8),
               Card(
                 child: Padding(
@@ -446,6 +500,53 @@ class _ExcelImportScreenState extends State<ExcelImportScreen> {
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
             const SizedBox(height: 8),
             ..._fields.map((field) => _buildMappingRow(field)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildServerOptions() {
+    if (!widget.serverImport) return const SizedBox.shrink();
+    return Card(
+      margin: const EdgeInsets.only(top: 8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SwitchListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              title: const Text('تحديث السجلات الموجودة',
+                  style: TextStyle(fontSize: 13)),
+              subtitle: const Text(
+                'عند إيقافه تُتجاهل السجلات المكررة (بنفس الكود) بدل تحديثها.',
+                style: TextStyle(fontSize: 11),
+              ),
+              value: _updateExisting,
+              onChanged: (v) => setState(() => _updateExisting = v),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                children: [
+                  Icon(Icons.cloud_upload,
+                      size: 16,
+                      color: Theme.of(context).colorScheme.tertiary),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'العملة الأساسية: $_baseCurrency · معالجة الخادم تتولى توليد الأكواد الناقصة والقيم الافتراضية.',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
       ),
@@ -576,7 +677,9 @@ class _ExcelImportScreenState extends State<ExcelImportScreen> {
             const SizedBox(height: 24),
             Text(
               _importing
-                  ? 'جارٍ استيراد البيانات...'
+                  ? (widget.serverImport
+                      ? 'جارٍ معالجة الملف على الخادم...'
+                      : 'جارٍ استيراد البيانات...')
                   : 'اكتمل الاستيراد',
               style: Theme.of(context).textTheme.titleLarge,
             ),
@@ -607,8 +710,11 @@ class _ExcelImportScreenState extends State<ExcelImportScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            if (_importing)
+            if (_importing && !widget.serverImport)
               Text('يرجى عدم إغلاق الشاشة أثناء الاستيراد',
+                  style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 12)),
+            if (_importing && widget.serverImport)
+              Text('لا تغلق الشاشة؛ يعود الرد فور انتهاء الخادم من المعالجة',
                   style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 12)),
           ],
         ),
@@ -791,6 +897,18 @@ List<ImportField> _fieldsFor(ImportEntityType type) {
       return productFields;
     case ImportEntityType.invoices:
       return invoiceFields;
+    case ImportEntityType.suppliers:
+      return supplierFields;
+    case ImportEntityType.accounts:
+      return accountFields;
+    case ImportEntityType.sites:
+      return siteFields;
+    case ImportEntityType.centers:
+      return centerFields;
+    case ImportEntityType.projects:
+      return projectFields;
+    case ImportEntityType.currencies:
+      return currencyFields;
   }
 }
 

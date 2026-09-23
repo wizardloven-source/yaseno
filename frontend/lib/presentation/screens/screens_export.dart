@@ -74,6 +74,9 @@ export 'sites/sites_screen.dart';
 // Cost Centers
 export 'centers/centers_screen.dart';
 
+// Projects
+export 'projects/projects_screen.dart';
+
 // Fixed Assets
 export 'assets/assets_screen.dart';
 

@@ -17,8 +17,18 @@ void _handleError(Object error, StackTrace stack) {
   ErrorLogger.log('UncaughtError', error, stack);
 }
 
+FlutterErrorDetails _lastError = FlutterErrorDetails(
+  exception: 'no error yet',
+  library: 'main',
+);
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  FlutterError.onError = (details) {
+    final Object exception = details.exception;
+    ErrorLogger.log('BuildError', exception, details.stack);
+    FlutterError.presentError(details);
+  };
   ErrorWidget.builder = (details) => Material(
     child: Padding(
       padding: const EdgeInsets.all(16),

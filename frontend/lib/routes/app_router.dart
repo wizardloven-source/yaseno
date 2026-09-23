@@ -120,6 +120,7 @@ import 'package:ya_seen_erp_flutter/presentation/screens/audit/audit_screen.dart
 // الإعدادات (Settings)
 // ============================================================
 import 'package:ya_seen_erp_flutter/presentation/screens/settings/settings_screen.dart';
+import 'package:ya_seen_erp_flutter/presentation/screens/settings/import_center_screen.dart';
 
 // ============================================================
 // العملات والمواقع (Currencies, Sites, Centers)
@@ -127,6 +128,7 @@ import 'package:ya_seen_erp_flutter/presentation/screens/settings/settings_scree
 import 'package:ya_seen_erp_flutter/presentation/screens/currencies/currencies_screen.dart';
 import 'package:ya_seen_erp_flutter/presentation/screens/sites/sites_screen.dart';
 import 'package:ya_seen_erp_flutter/presentation/screens/centers/centers_screen.dart';
+import 'package:ya_seen_erp_flutter/presentation/screens/projects/projects_screen.dart';
 import 'package:ya_seen_erp_flutter/presentation/screens/branches/branches_screen.dart';
 import 'package:ya_seen_erp_flutter/presentation/screens/roles/roles_screen.dart';
 import 'package:ya_seen_erp_flutter/presentation/widgets/main_shell.dart';
@@ -583,6 +585,11 @@ class AppRouter {
             builder: (context, state) => const CentersScreen(),
           ),
           GoRoute(
+            path: '/projects',
+            name: 'projects',
+            builder: (context, state) => const ProjectsScreen(),
+          ),
+          GoRoute(
             path: '/branches',
             name: 'branches',
             builder: (context, state) => const BranchesScreen(),
@@ -668,6 +675,11 @@ class AppRouter {
             name: 'settings',
             builder: (context, state) => const SettingsScreen(),
           ),
+          GoRoute(
+            path: '/import-center',
+            name: 'import_center',
+            builder: (context, state) => const ImportCenterScreen(),
+          ),
 
           // صفحة 404 (غير موجودة)
           GoRoute(
@@ -714,7 +726,9 @@ class AppRouter {
         route.startsWith('/currencies') ||
         route.startsWith('/sites') ||
         route.startsWith('/centers') ||
+        route.startsWith('/projects') ||
         route.startsWith('/branches') ||
+        route.startsWith('/import-center') ||
         route.startsWith('/settings')) {
       return ['system_config'];
     }

@@ -1,3 +1,7 @@
+import 'dart:typed_data';
+
+import 'package:dio/dio.dart';
+
 import 'api_client.dart';
 import '../data/models/accounting/account.dart';
 import '../domain/entities/journal_entry.dart';
@@ -29,6 +33,21 @@ class ApiService {
   }) async {
     final dio = ApiClient().dio;
     final response = await dio.post('/$endpoint', data: data);
+    return _extractData(response.data);
+  }
+
+  static Future<Map<String, dynamic>> staticPostMultipart(
+    String endpoint, {
+    required Uint8List fileBytes,
+    String filename = 'import.xlsx',
+    Map<String, dynamic>? formFields,
+  }) async {
+    final dio = ApiClient().dio;
+    final form = FormData.fromMap({
+      'file': MultipartFile.fromBytes(fileBytes, filename: filename),
+      ...?formFields,
+    });
+    final response = await dio.post('/$endpoint', data: form);
     return _extractData(response.data);
   }
 

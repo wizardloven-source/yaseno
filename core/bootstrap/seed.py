@@ -39,7 +39,6 @@ class SeedData:
         self._seed_permissions(uow)
         self._seed_roles(uow)
         self._seed_admin_user(uow)
-        self._seed_accounts(uow)
         self._seed_fiscal_year(uow)
         self._seed_tax_rules(uow)
         self._seed_currencies(uow)

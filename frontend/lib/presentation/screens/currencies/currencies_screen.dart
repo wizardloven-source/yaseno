@@ -283,10 +283,7 @@ class _CurrenciesScreenState extends State<CurrenciesScreen> {
                         'to_currency_code': toCode,
                       },
                     );
-                    final rateData = res['data'];
-                    final rate = rateData is Map
-                        ? (rateData['rate'] ?? rateData['exchange_rate'] ?? '')
-                        : '';
+                    final rate = res['rate'] ?? res['exchange_rate'] ?? '';
                     setDialogState(() {
                       rateController.text = rate.toString();
                     });
@@ -318,7 +315,7 @@ class _CurrenciesScreenState extends State<CurrenciesScreen> {
                   final res = await _api.post(
                     'currency/${currency['id']}/exchange-rate',
                     data: {
-                      'target_currency_code': toCode,
+                      'to_currency_code': toCode,
                       'rate': rate.toString(),
                     },
                   );
@@ -459,6 +456,34 @@ class _CurrenciesScreenState extends State<CurrenciesScreen> {
             ],
           ),
         ),
+    );
+  }
+
+  Widget _buildRates(Map<String, dynamic> currency) {
+    final rates = (currency['exchange_rates'] as List?) ?? const [];
+    if (rates.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: Wrap(
+        spacing: 6,
+        runSpacing: 4,
+        children: rates.whereType<Map>().map((r) {
+          final rate = parseMoney(r['rate']);
+          final target = r['to_currency'] ?? '';
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: AppColors.secondaryContainer,
+              borderRadius: BorderRadius.circular(AppDimens.radiusCard),
+            ),
+            child: Text(
+              '1 ${r['from_currency'] ?? ''} = ${rate != null ? formatMoney(rate) : r['rate']} $target',
+              style: const TextStyle(
+                  fontSize: 11, color: AppColors.secondary),
+            ),
+          );
+        }).toList(),
+      ),
     );
   }
 
@@ -652,6 +677,16 @@ class _CurrenciesScreenState extends State<CurrenciesScreen> {
                   Text('الرمز: ${currency['code'] ?? ''}'),
                   Text(
                       'الاماكن العشرية: ${currency['decimal_places'] ?? 2}'),
+                  if (currency['code'] == _baseCurrencyCode)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 4),
+                      child: Text('العملة الأساسية',
+                          style: TextStyle(
+                              fontSize: 11,
+                              color: AppColors.secondary,
+                              fontWeight: FontWeight.w600)),
+                    ),
+                  _buildRates(currency),
                 ],
               ),
               trailing: PopupMenuButton(

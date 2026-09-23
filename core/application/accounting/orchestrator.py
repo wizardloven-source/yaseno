@@ -471,6 +471,16 @@ class AccountingOrchestrator:
         # 5. حفظ القيد (كمسودة)
         with self._uow:
             try:
+                # ✅ إنشاء الحسابات النظامية الناقصة قبل الحفظ (لا حاجة لحسابات تجريبية)
+                from core.domain.accounting.system_accounts import ensure_system_accounts
+                try:
+                    ensure_system_accounts(
+                        self._uow.accounts,
+                        [line.account_code for line in entry.lines]
+                    )
+                except Exception as e:
+                    logger.warning(f"System account ensure failed (non-fatal): {e}")
+
                 self._uow.journal_entries.save(entry)
                 
                 # 6. ترحيل القيد إذا كان مطلوباً

@@ -22,6 +22,7 @@ from .settings import SettingsModule
 from .security import SecurityModule
 from .workflow import WorkflowModule
 from .centers import CentersModule
+from .projects import ProjectsModule
 from .reports import ReportsModule
 from .notifications import NotificationsModule
 from .fixed_assets import FixedAssetsModule
@@ -52,6 +53,7 @@ def get_all_modules() -> List[Module]:
         SettingsModule(),
         WorkflowModule(),
         CentersModule(),
+        ProjectsModule(),
         ReportsModule(),
         NotificationsModule(),
         FixedAssetsModule(),
@@ -96,6 +98,7 @@ __all__ = [
     "SecurityModule",
     "WorkflowModule",
     "CentersModule",
+    "ProjectsModule",
     "ReportsModule",
     "NotificationsModule",
     "FixedAssetsModule",

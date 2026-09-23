@@ -1109,11 +1109,13 @@ async def list_branches(
             include_deleted=include_deleted, limit=limit, offset=offset))
         data = jsonable_encoder(result)
         if isinstance(data, dict):
-            items = data.get('items') or []
+            items = data.get('branches') or data.get('items') or []
+            total = data.get('total_count', len(items) if isinstance(items, list) else None)
         else:
             items = data
+            total = len(items) if isinstance(items, list) else None
         return ApiResponse(success=True, message="تم جلب فروع العملاء بنجاح",
-                           data={'items': items, 'total': len(items) if isinstance(items, list) else None})
+                           data={'items': items, 'total': total})
     except Exception as e:
         logger.error(f"Error listing branches: {e}", exc_info=True)
         return ApiResponse(success=False, message=str(e), errors=[str(e)])

@@ -419,6 +419,16 @@ class PostingEngine:
             )
         
         # 3. ✅ التحقق من الصحة (force يتحقق من الفترة فقط)
+        # ✅ إنشاء الحسابات النظامية الناقصة قبل التحقق (لا حاجة لحسابات تجريبية)
+        if self._account_repo and not skip_save:
+            from core.domain.accounting.system_accounts import ensure_system_accounts
+            try:
+                ensure_system_accounts(
+                    self._account_repo,
+                    [line.account_code for line in entry.lines]
+                )
+            except Exception as e:
+                logger.warning(f"System account ensure failed (non-fatal): {e}")
         check_period = not force  # ✅ force = تخطي التحقق من الفترة فقط
         is_valid, errors = self.validate(entry, check_period=check_period)
         if not is_valid:

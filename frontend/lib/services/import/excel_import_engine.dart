@@ -2,6 +2,7 @@
 // محرك استيراد إكسل ديناميكي: يقرأ ملف .xlsx، يكتشف رأس الجدول تلقائياً،
 // يطابق الأعمدة مع الحقول، يتحقق من البيانات، ثم يستورد صفاً تلو الآخر
 // مع إرسال تقدم دوري وجمع نتائج كل صف.
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
@@ -17,7 +18,14 @@ class ExcelAnalysis {
   final List<String> headers;
   final List<Map<String, String>> rows;
 
-  const ExcelAnalysis({required this.headers, required this.rows});
+  /// فهرس صف الرأس (0-بعد) كما اكتشفه المحرك؛ يُرسَل للخادم مع خيارات الاستيراد.
+  final int headerIndex;
+
+  const ExcelAnalysis({
+    required this.headers,
+    required this.rows,
+    this.headerIndex = 0,
+  });
 }
 
 /// نتيجة استيراد صف واحد.
@@ -118,7 +126,7 @@ class ExcelImportEngine {
       result.add(map);
     }
 
-    return ExcelAnalysis(headers: headers, rows: result);
+    return ExcelAnalysis(headers: headers, rows: result, headerIndex: headerIndex);
   }
 
   /// مطابقة تلقائية: يحدد عمود كل حقل بناءً على عناوين الأعمدة.
@@ -233,6 +241,62 @@ class ExcelImportEngine {
       failed: rows.length - success,
       results: results,
       durationMs: DateTime.now().difference(start).inMilliseconds,
+    );
+  }
+
+  /// مسار «مركز الاستيراد»: يرفع بايتات الملف + خريطة المطابقة + الخيارات في
+  /// طلب Multipart واحد، ويعالج الخادم كل الصفوف دفعة واحدة ويعيد ملخصاً شاملاً.
+  /// ملاحظة: الصفوف في الرد مرقّمة حسب موقعها في ملف الإكسل الحقيقي (1-بعد).
+  Future<ImportSummary> importFileViaServer({
+    required ImportEntityType type,
+    required Uint8List bytes,
+    required Map<String, int> columnMapping,
+    required int headerRow,
+    String? baseCurrency,
+    bool updateExisting = true,
+  }) async {
+    final response = await ApiService.staticPostMultipart(
+      'import/${type.apiEndpoint}',
+      fileBytes: bytes,
+      formFields: {
+        'mapping': jsonEncode(columnMapping),
+        'options': jsonEncode({
+          'base_currency': baseCurrency ?? CurrencyHelper.baseCurrency,
+          'update_existing': updateExisting,
+          'header_row': headerRow,
+        }),
+      },
+    );
+
+    final data = response;
+
+    final rawResults = data['results'];
+    final results = <RowResult>[];
+    if (rawResults is List) {
+      for (final rr in rawResults) {
+        if (rr is! Map) continue;
+        final row = rr['row'];
+        final rowNumber = row is num ? row.toInt() : 0;
+        final ok = rr['ok'] == true;
+        final msg = rr['message'];
+        if (ok) {
+          results.add(RowResult.success(rowNumber));
+        } else {
+          results.add(RowResult.failure(rowNumber, msg?.toString() ?? ''));
+        }
+      }
+    }
+
+    final total = data['total'];
+    final success = data['success'];
+    final failed = data['failed'];
+    final duration = data['durationMs'];
+    return ImportSummary(
+      total: total is num ? total.toInt() : results.length,
+      success: success is num ? success.toInt() : results.where((r) => r.success).length,
+      failed: failed is num ? failed.toInt() : results.where((r) => !r.success).length,
+      results: results,
+      durationMs: duration is num ? duration.toInt() : 0,
     );
   }
 

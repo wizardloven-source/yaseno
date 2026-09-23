@@ -226,6 +226,17 @@ class SidebarWidget extends StatelessWidget {
                   ],
                 ),
 
+                // ---- المشاريع ----
+                if (_canShow(context, ['system_config']))
+                  _buildMenuItem(
+                    context,
+                    icon: Icons.construction,
+                    label: 'المشاريع',
+                    route: '/projects',
+                    isSelected: currentRoute == '/projects' ||
+                        currentRoute.startsWith('/projects/'),
+                  ),
+
                 // ---- نقطة البيع (قسم مؤطَّر) ----
                 _buildPosSection(context),
 
@@ -266,6 +277,8 @@ class SidebarWidget extends StatelessWidget {
                       const _SidebarItem(Icons.account_balance, 'مراكز التكلفة', '/centers'),
                     if (_canShow(context, ['system_config']))
                       const _SidebarItem(Icons.store, 'فروع العملاء', '/branches'),
+                    if (_canShow(context, ['system_config']))
+                      const _SidebarItem(Icons.upload_file, 'مركز الاستيراد', '/import-center'),
                   ],
                 ),
 

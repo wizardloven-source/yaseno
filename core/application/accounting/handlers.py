@@ -128,6 +128,16 @@ class CreateJournalEntryHandler(BaseHandler[CreateJournalEntryCommand, JournalEn
             raise ValueError(f"Validation failed: {', '.join(errors)}")
         
         with self._uow:
+            # ✅ إنشاء الحسابات النظامية الناقصة تلقائياً قبل التحقق
+            from core.domain.accounting.system_accounts import ensure_system_accounts
+            try:
+                ensure_system_accounts(
+                    self._uow.accounts,
+                    [line_data['account_code'] for line_data in command.lines]
+                )
+            except Exception as e:
+                logger.warning(f"System account ensure failed (non-fatal): {e}")
+
             # تحويل الأسطر إلى كيانات Domain
             lines = []
             for line_data in command.lines:
